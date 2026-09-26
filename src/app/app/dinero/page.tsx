@@ -5,6 +5,7 @@ import { fechaCDMX, fechaCorta, fechaRelativa } from "@/lib/claqueta/fechas";
 import { aCentavos, avanceContrato, esperados, fechasTarjeta, gastoPorCategoria, NOMBRE_TIPO, pesos, resumen, saldosCuentas, type Esperado } from "@/lib/claqueta/dinero";
 import { ChipFrente, estiloFrente } from "@/components/claqueta/frente-ui";
 import { Encabezado } from "@/components/Encabezado";
+import { estimadoMes } from "@/lib/claqueta/impuestos";
 import { BotonAnular, BotonCobro, FormEntrada, FormGasto, FormMover, type OpcionCuenta } from "./Formularios";
 
 export const metadata: Metadata = { title: "Dinero" };
@@ -28,6 +29,8 @@ export default async function Dinero() {
   const porCategoria = gastoPorCategoria(gastos, mes);
   const maxCategoria = Math.max(1, ...porCategoria.map((c) => c.centavos));
   const clinica = reglas.find((x) => x.area === "rt");
+  const fiscal = estimadoMes(pagos, mes);
+  const pct = (t: number) => `${(t * 100).toLocaleString("es-MX", { maximumFractionDigits: 2 })}%`;
 
   const movimientos = [
     ...pagos.map((p) => ({ tipo: "entrada" as const, id: p.id, fecha: p.date, titulo: p.source, cuenta: nombreCuenta.get(p.cuenta_id ?? ""), detalle: p.note, centavos: aCentavos(p.amount) ?? 0 })),
@@ -77,6 +80,25 @@ export default async function Dinero() {
           <section aria-labelledby="gasto" className="tarjeta aparecer">
             <h2 id="gasto" className="titulo mb-4 text-2xl">Anotar gasto</h2>
             <FormGasto hoy={hoy} cuentas={paraGastar} />
+          </section>
+
+          {/* ── Otra entrada ── */}
+          <section aria-labelledby="otra" className="tarjeta aparecer">
+            <h2 id="otra" className="titulo text-2xl">Otra entrada</h2>
+            <p className="mb-4 mt-1 text-sm text-muted">Dinero de tus papás, un regalo o un cliente nuevo.</p>
+            <FormEntrada
+              hoy={hoy}
+              fuentes={[
+                { t: "Papás", gravable: false },
+                { t: "Regalo", gravable: false },
+                { t: "Cliente", gravable: true }
+              ]}
+              area=""
+              boton="Guardar entrada"
+              idBase="otra"
+              cuentas={paraRecibir}
+              elegirGravable
+            />
           </section>
 
           {/* ── En qué se va ── */}
@@ -185,6 +207,41 @@ export default async function Dinero() {
                 ))}
               </ul>
             )}
+          </section>
+
+          {/* ── Impuestos (RESICO) ── */}
+          <section aria-labelledby="impuestos" className="tarjeta aparecer">
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 id="impuestos" className="titulo text-2xl">Impuestos</h2>
+              <span className="etiqueta">RESICO · estimado</span>
+            </div>
+            <p className="cifra mt-3 text-3xl font-semibold">{pesos(fiscal.total)}</p>
+            <p className="text-sm text-muted">
+              De {MESES[Number(mes.slice(5)) - 1]}. Declara y paga antes del <span className="font-semibold text-tinta">{fechaCorta(fiscal.limite)}</span>.
+            </p>
+            <dl className="cifra mt-4 space-y-1.5 border-t border-borde/60 pt-3 text-sm">
+              <div className="flex justify-between gap-2">
+                <dt className="text-muted">Ingresos de tu trabajo</dt>
+                <dd>{pesos(fiscal.base)}</dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt className="text-muted">ISR {pct(fiscal.tasa)}</dt>
+                <dd>{pesos(fiscal.isr)}</dd>
+              </div>
+              {fiscal.retIsr > 0 && (
+                <div className="flex justify-between gap-2">
+                  <dt className="text-muted">− ISR que ya te retuvieron</dt>
+                  <dd>{pesos(fiscal.retIsr)}</dd>
+                </div>
+              )}
+              <div className="flex justify-between gap-2">
+                <dt className="text-muted">IVA cobrado{fiscal.retIva > 0 ? " − retenido" : ""}</dt>
+                <dd>{pesos(fiscal.ivaPagar)}</dd>
+              </div>
+            </dl>
+            <p className="mt-3 text-xs text-muted">
+              Aparta este dinero para no gastarlo. Es un cálculo para planear: tu contador confirma la declaración. Lo de tus papás y los regalos no cuenta.
+            </p>
           </section>
 
           {/* ── Contratos (EK Bars) ── */}

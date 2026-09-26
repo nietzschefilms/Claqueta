@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { esFrente } from "@/lib/claqueta/frentes";
 import { esFechaISO, fechaCDMX } from "@/lib/claqueta/fechas";
 import { aCentavos, claveEsperado, ocurrencias, type ReglaIngreso } from "@/lib/claqueta/dinero";
+import { desgloseFactura } from "@/lib/claqueta/impuestos";
 
 // Dinero: cero errores. Cada monto se valida en el servidor y se guarda tal cual
 // lo escribió la persona. Nada se borra: lo mal capturado se anula.
@@ -52,7 +53,8 @@ export async function registrarGasto(_prev: Resultado | null, form: FormData): P
   return { ok: true, mensaje: "Gasto guardado." };
 }
 
-// Entrada suelta: comisiones de la clínica, un abono del cliente o cualquier otro ingreso.
+// Entrada suelta: comisiones, abono del cliente, dinero de los papás u otro ingreso.
+// Con factura, el monto capturado es el SUBTOTAL y se calcula IVA, retenciones y depósito.
 export async function registrarEntrada(_prev: Resultado | null, form: FormData): Promise<Resultado> {
   const s = await requerirSesion();
   const m = leerMontoYFecha(form);
@@ -61,26 +63,40 @@ export async function registrarEntrada(_prev: Resultado | null, form: FormData):
   const area = String(form.get("area") ?? "");
   const contrato = String(form.get("contrato") ?? "");
   const nota = String(form.get("nota") ?? "").trim();
+  const gravable = form.get("gravable") !== "no";
+  const factura = form.get("factura") === "si";
+  const cliente = String(form.get("cliente_tipo") ?? "");
   if (!fuente || fuente.length > 80) return { ok: false, error: "Escribe de dónde vino el dinero." };
   if (area && !esFrente(area)) return { ok: false, error: "Frente no válido." };
   if (contrato && !UUID.test(contrato)) return { ok: false, error: "Contrato no válido." };
+  if (factura && !gravable) return { ok: false, error: "Si lleva factura es de tu trabajo: cuenta para impuestos." };
+  if (factura && cliente !== "moral" && cliente !== "fisica") return { ok: false, error: "Elige si le facturaste a una empresa o a una persona." };
 
   const supabase = await createClient();
   const cuenta = String(form.get("cuenta") ?? "");
   if (!(await cuentaValida(supabase, cuenta, ["debito", "efectivo"]))) return { ok: false, error: "Elige dónde entró: débito o efectivo." };
+
+  const d = factura ? desgloseFactura(m.centavos, cliente as "moral" | "fisica") : null;
   const { error } = await supabase.from("payments").insert({
     user_id: s.userId,
     cuenta_id: cuenta,
     source: fuente,
-    amount: pesosDe(m.centavos),
+    amount: pesosDe(d ? d.deposito : m.centavos),
     date: m.fecha,
     area: area || null,
     contract_id: contrato || null,
-    note: nota || null
+    note: nota || null,
+    gravable,
+    factura,
+    cliente_tipo: d ? cliente : null,
+    subtotal: d ? pesosDe(d.subtotal) : null,
+    iva: d ? pesosDe(d.iva) : 0,
+    ret_isr: d ? pesosDe(d.retIsr) : 0,
+    ret_iva: d ? pesosDe(d.retIva) : 0
   });
   if (error) return { ok: false, error: "No se guardó la entrada. Revisa tu conexión e inténtalo de nuevo." };
   refrescar();
-  return { ok: true, mensaje: "Entrada guardada." };
+  return { ok: true, mensaje: d ? `Guardado. Te depositan $${pesosDe(d.deposito)}.` : "Entrada guardada." };
 }
 
 // "Ya llegó": confirma un cobro esperado (Top Mart, clínica). El índice único evita duplicarlo.
@@ -88,7 +104,7 @@ export async function confirmarCobro(reglaId: string, fecha: string, cuentaId: s
   const s = await requerirSesion();
   if (!UUID.test(reglaId) || !esFechaISO(fecha)) return { ok: false, error: "Cobro no válido." };
   const supabase = await createClient();
-  const { data: r } = await supabase.from("income_rules").select("id, source, amount, rule, date, area, desde, activo").eq("id", reglaId).maybeSingle<ReglaIngreso>();
+  const { data: r } = await supabase.from("income_rules").select("id, source, amount, rule, date, area, desde, activo, gravable").eq("id", reglaId).maybeSingle<ReglaIngreso>();
   if (!r) return { ok: false, error: "No encontré ese ingreso." };
   if (!ocurrencias(r, fecha, fecha).length) return { ok: false, error: "Ese día no toca ese cobro." };
   const centavos = montoTexto ? aCentavos(montoTexto) : aCentavos(r.amount);
@@ -102,6 +118,7 @@ export async function confirmarCobro(reglaId: string, fecha: string, cuentaId: s
     amount: pesosDe(centavos),
     date: fecha > fechaCDMX() ? fechaCDMX() : fecha,
     area: r.area,
+    gravable: r.gravable !== false,
     expected_key: claveEsperado(r.id, fecha)
   });
   if (error?.code === "23505") return { ok: true, mensaje: "Ya estaba confirmado." };

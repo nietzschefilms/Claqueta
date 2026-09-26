@@ -12,6 +12,7 @@ export type ReglaIngreso = {
   area: FrenteId | null;
   desde: string;
   activo: boolean;
+  gravable?: boolean;
 };
 
 export type TipoCuenta = "debito" | "efectivo" | "credito" | "garantia";
@@ -45,6 +46,13 @@ export type Pago = {
   contract_id: string | null;
   area: FrenteId | null;
   note: string | null;
+  gravable?: boolean;
+  factura?: boolean;
+  cliente_tipo?: "moral" | "fisica" | null;
+  subtotal?: number | string | null;
+  iva?: number | string | null;
+  ret_isr?: number | string | null;
+  ret_iva?: number | string | null;
 };
 
 export type Gasto = {

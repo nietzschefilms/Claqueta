@@ -1,6 +1,9 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { aCentavos, pesos } from "@/lib/claqueta/dinero";
+import { desgloseFactura, type ClienteTipo } from "@/lib/claqueta/impuestos";
+import { Interruptor } from "@/components/Interruptor";
 import { anularMovimiento, confirmarCobro, registrarEntrada, registrarGasto, registrarTransferencia, type Resultado } from "./acciones";
 
 export type OpcionCuenta = { id: string; nombre: string; tipo: "debito" | "efectivo" | "credito" | "garantia" };
@@ -37,13 +40,13 @@ export const CATEGORIAS = ["Comida", "Transporte", "Casa", "Escuela", "Equipo", 
 const campoMonto =
   "cifra w-full rounded-2xl border border-borde/80 bg-superficie/70 py-3 pl-9 pr-4 text-2xl font-semibold text-tinta outline-none transition placeholder:text-muted/50 focus:border-tinta/60 focus:bg-superficie focus:ring-4 focus:ring-tinta/5";
 
-function Monto({ id, etiqueta, autoFocus = false }: { id: string; etiqueta: string; autoFocus?: boolean }) {
+function Monto({ id, etiqueta, autoFocus = false, onValor }: { id: string; etiqueta: string; autoFocus?: boolean; onValor?: (v: string) => void }) {
   return (
     <label htmlFor={id} className="block">
       <span className="sr-only">{etiqueta}</span>
       <span className="relative block">
         <span className="cifra pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-xl text-muted">$</span>
-        <input id={id} name="monto" required inputMode="decimal" autoComplete="off" placeholder="0" autoFocus={autoFocus} className={campoMonto} />
+        <input id={id} name="monto" required inputMode="decimal" autoComplete="off" placeholder="0" autoFocus={autoFocus} onChange={onValor ? (e) => onValor(e.target.value) : undefined} className={campoMonto} />
       </span>
     </label>
   );
@@ -101,23 +104,149 @@ export function FormGasto({ hoy, cuentas }: { hoy: string; cuentas: OpcionCuenta
 }
 
 // Entrada: comisiones de la clínica o abono de un contrato. Fuente y frente vienen fijos.
-export function FormEntrada({ hoy, fuente, area, contrato, boton, idBase, cuentas }: { hoy: string; fuente: string; area: string; contrato?: string; boton: string; idBase: string; cuentas: OpcionCuenta[] }) {
+const chip = (on: boolean) =>
+  `rounded-full px-3.5 py-2 text-xs font-semibold transition active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rojo ${
+    on ? "bg-tinta text-fondo shadow-[0_6px_16px_-8px_rgb(0_0_0/0.6)]" : "bg-tinta/[0.06] text-muted hover:text-tinta"
+  }`;
+
+// Entrada de dinero. Fuente fija (contrato, comisiones) o libre con sugerencias
+// (papás, regalo, cliente). Con factura: el monto es el subtotal y se ve el desglose.
+export function FormEntrada({
+  hoy,
+  fuente,
+  fuentes,
+  area,
+  contrato,
+  boton,
+  idBase,
+  cuentas,
+  permitirFactura = true,
+  elegirGravable = false
+}: {
+  hoy: string;
+  fuente?: string;
+  fuentes?: { t: string; gravable: boolean }[];
+  area: string;
+  contrato?: string;
+  boton: string;
+  idBase: string;
+  cuentas: OpcionCuenta[];
+  permitirFactura?: boolean;
+  elegirGravable?: boolean;
+}) {
   const [estado, enviar, enviando] = useActionState<Resultado | null, FormData>(registrarEntrada, null);
   const form = useRef<HTMLFormElement>(null);
+  const [nombre, setNombre] = useState(fuente ?? fuentes?.[0]?.t ?? "");
+  const [gravable, setGravable] = useState(fuentes?.[0]?.gravable ?? true);
+  const [factura, setFactura] = useState(false);
+  const [cliente, setCliente] = useState<ClienteTipo>("moral");
+  const [monto, setMonto] = useState("");
 
   useEffect(() => {
-    if (estado?.ok) form.current?.reset();
+    if (estado?.ok) {
+      form.current?.reset();
+      setMonto("");
+      setFactura(false);
+    }
   }, [estado]);
+
+  const centavos = aCentavos(monto);
+  const d = factura && centavos ? desgloseFactura(centavos, cliente) : null;
 
   return (
     <form ref={form} action={enviar} className="space-y-3">
-      <input type="hidden" name="fuente" value={fuente} />
+      <input type="hidden" name="fuente" value={nombre} />
       <input type="hidden" name="area" value={area} />
+      <input type="hidden" name="gravable" value={gravable ? "si" : "no"} />
+      <input type="hidden" name="factura" value={factura ? "si" : "no"} />
+      {factura && <input type="hidden" name="cliente_tipo" value={cliente} />}
       {contrato && <input type="hidden" name="contrato" value={contrato} />}
+
+      {fuentes && (
+        <fieldset>
+          <legend className="etiqueta">De quién</legend>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {fuentes.map((f) => (
+              <button
+                key={f.t}
+                type="button"
+                aria-pressed={nombre === f.t}
+                onClick={() => {
+                  setNombre(f.t);
+                  setGravable(f.gravable);
+                  if (!f.gravable) setFactura(false);
+                }}
+                className={chip(nombre === f.t)}
+              >
+                {f.t}
+              </button>
+            ))}
+          </div>
+          <input
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            maxLength={80}
+            required
+            aria-label="De dónde vino el dinero"
+            placeholder="O escribe quién te pagó"
+            className="campo mt-2 rounded-full py-2.5 text-sm"
+          />
+        </fieldset>
+      )}
+
       <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-        <Monto id={`${idBase}-monto`} etiqueta={boton} />
+        <Monto id={`${idBase}-monto`} etiqueta={factura ? "Subtotal antes de IVA" : boton} onValor={setMonto} />
         <input type="date" name="fecha" defaultValue={hoy} max={hoy} aria-label="Fecha" className="campo w-[9.5rem] rounded-2xl font-mono text-sm" />
       </div>
+
+      {elegirGravable && (
+        <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl bg-tinta/[0.04] px-4 py-3 text-sm">
+          <span>
+            <span className="block font-medium">Es de mi trabajo</span>
+            <span className="text-xs text-muted">Cuenta para impuestos. Lo de tus papás o un regalo, no.</span>
+          </span>
+          <Interruptor
+            checked={gravable}
+            onChange={(e) => {
+              setGravable(e.target.checked);
+              if (!e.target.checked) setFactura(false);
+            }}
+            aria-label="Es de mi trabajo"
+          />
+        </label>
+      )}
+
+      {permitirFactura && gravable && (
+        <div className="rounded-2xl bg-tinta/[0.04] px-4 py-3">
+          <label className="flex cursor-pointer items-center justify-between gap-3 text-sm">
+            <span>
+              <span className="block font-medium">Con factura e IVA</span>
+              <span className="text-xs text-muted">Escribe el subtotal; calculo IVA y retenciones.</span>
+            </span>
+            <Interruptor checked={factura} onChange={(e) => setFactura(e.target.checked)} aria-label="Con factura e IVA" />
+          </label>
+          {factura && (
+            <div className="mt-3 space-y-3">
+              <div className="grid grid-cols-2 gap-1 rounded-full bg-tinta/[0.06] p-1">
+                <button type="button" aria-pressed={cliente === "moral"} onClick={() => setCliente("moral")} className={chip(cliente === "moral")}>Empresa</button>
+                <button type="button" aria-pressed={cliente === "fisica"} onClick={() => setCliente("fisica")} className={chip(cliente === "fisica")}>Persona</button>
+              </div>
+              {d ? (
+                <dl className="cifra space-y-1 text-xs">
+                  <div className="flex justify-between"><dt className="text-muted">Subtotal</dt><dd>{pesos(d.subtotal)}</dd></div>
+                  <div className="flex justify-between"><dt className="text-muted">+ IVA 16%</dt><dd>{pesos(d.iva)}</dd></div>
+                  {d.retIsr > 0 && <div className="flex justify-between"><dt className="text-muted">− Retención ISR 1.25%</dt><dd>{pesos(d.retIsr)}</dd></div>}
+                  {d.retIva > 0 && <div className="flex justify-between"><dt className="text-muted">− Retención IVA (2/3)</dt><dd>{pesos(d.retIva)}</dd></div>}
+                  <div className="flex justify-between border-t border-borde/60 pt-1 text-sm font-semibold"><dt>Te depositan</dt><dd>{pesos(d.deposito)}</dd></div>
+                </dl>
+              ) : (
+                <p className="text-xs text-muted">Escribe el subtotal para ver el desglose.</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <ElegirCuenta cuentas={cuentas} etiqueta="Dónde entró" />
       <input name="nota" maxLength={200} autoComplete="off" placeholder="Nota (opcional)" aria-label="Nota" className="campo rounded-full py-2.5 text-sm" />
       <Mensajes estado={estado} />

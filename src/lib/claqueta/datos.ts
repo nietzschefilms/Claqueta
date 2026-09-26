@@ -50,8 +50,8 @@ export async function cargarHitos(project = "ek"): Promise<Hito[]> {
 export async function cargarDinero() {
   const supabase = await createClient();
   const [reglas, pagos, gastos, contratos, cuentas, transferencias] = await Promise.all([
-    supabase.from("income_rules").select("id, source, amount, rule, date, area, desde, activo").eq("activo", true).order("source"),
-    supabase.from("payments").select("id, cuenta_id, source, amount, date, expected_key, contract_id, area, note").is("anulado_at", null).order("date", { ascending: false }).limit(2000),
+    supabase.from("income_rules").select("id, source, amount, rule, date, area, desde, activo, gravable").eq("activo", true).order("source"),
+    supabase.from("payments").select("id, cuenta_id, source, amount, date, expected_key, contract_id, area, note, gravable, factura, cliente_tipo, subtotal, iva, ret_isr, ret_iva").is("anulado_at", null).order("date", { ascending: false }).limit(2000),
     supabase.from("expenses").select("id, cuenta_id, amount, category, date, note").is("anulado_at", null).order("date", { ascending: false }).limit(2000),
     supabase.from("contracts").select("id, client, total, start_date, pay_deadline, area").order("start_date"),
     supabase.from("cuentas").select("id, nombre, tipo, saldo_inicial, dia_corte, dia_pago, orden").eq("activo", true).order("orden"),
