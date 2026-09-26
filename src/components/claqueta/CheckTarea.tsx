@@ -21,8 +21,8 @@ export function CheckTarea({ id, hecha, titulo }: { id: string; hecha: boolean; 
           await alternarHecha(id, !marcada);
         })
       }
-      className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rojo ${
-        marcada ? "border-tinta bg-tinta text-fondo" : "border-muted/60 hover:border-tinta"
+      className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border-[1.5px] transition active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rojo ${
+        marcada ? "border-ok bg-ok text-white shadow-[0_4px_12px_-4px_rgb(var(--c-ok)/0.7)]" : "border-muted/50 bg-superficie/50 hover:border-tinta"
       }`}
     >
       {marcada && (

@@ -24,11 +24,11 @@ export function AgregarEnColumna({ area, nombre }: { area: FrenteId; nombre: str
           autoComplete="off"
           placeholder="+ Agregar"
           aria-label={`Nueva tarea de ${nombre}`}
-          className="min-w-0 flex-1 rounded-sm border border-dashed border-borde bg-transparent px-2.5 py-2 text-sm outline-none placeholder:text-muted focus:border-solid focus:border-tinta"
+          className="min-w-0 flex-1 rounded-full border border-dashed border-tinta/20 bg-superficie/40 px-4 py-2.5 text-sm outline-none transition placeholder:text-muted focus:border-solid focus:border-tinta/50 focus:bg-superficie"
         />
-        <input type="date" name="due_date" aria-label="Fecha (opcional)" className="w-[7.5rem] rounded-sm border border-borde bg-transparent px-1.5 font-mono text-[11px] outline-none focus:border-tinta" />
-        <button type="submit" disabled={enviando} className="rounded-sm bg-tinta px-2.5 font-mono text-xs text-fondo disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rojo" aria-label="Agregar">
-          {enviando ? "…" : "↵"}
+        <input type="date" name="due_date" aria-label="Fecha (opcional)" className="w-[7.25rem] rounded-full border border-borde/80 bg-superficie/40 px-2.5 font-mono text-[11px] outline-none focus:border-tinta/50" />
+        <button type="submit" disabled={enviando} className="grid w-10 shrink-0 place-items-center rounded-full bg-tinta font-mono text-sm text-fondo transition active:scale-90 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rojo" aria-label="Agregar">
+          {enviando ? "…" : "+"}
         </button>
       </div>
       {estado?.error && <p className="text-xs text-acento" role="alert">{estado.error}</p>}

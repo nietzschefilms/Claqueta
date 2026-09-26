@@ -48,10 +48,11 @@ export default function Restablecer() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-4 py-12">
+    <main className="mx-auto flex min-h-[100dvh] max-w-md flex-col justify-center px-4 py-12">
+      <div className="tarjeta aparecer p-6">
       {haySesion === false ? (
         <>
-          <h1 className="font-display text-3xl font-bold">Este link ya no sirve</h1>
+          <h1 className="titulo text-4xl">Este link ya no sirve</h1>
           <p className="mt-2 text-muted">Puede que haya vencido. Pide uno nuevo.</p>
           <Link href="/recuperar" className="btn-primario mt-6">Pedir otro link</Link>
         </>
@@ -59,7 +60,7 @@ export default function Restablecer() {
         <p className="alerta-ok">Contraseña guardada. Entrando...</p>
       ) : (
         <>
-          <h1 className="font-display text-3xl font-bold">Crea tu contraseña nueva</h1>
+          <h1 className="titulo text-4xl">Crea tu contraseña nueva</h1>
           <p className="mt-1 text-sm text-muted">Al menos {MIN_CONTRASENA} caracteres, con minúsculas, mayúsculas y un número.</p>
           <form onSubmit={guardar} className="mt-6 space-y-3">
             {error && <p className="alerta-error" role="alert">{error}</p>}
@@ -71,6 +72,7 @@ export default function Restablecer() {
           </form>
         </>
       )}
+      </div>
     </main>
   );
 }

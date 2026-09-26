@@ -94,11 +94,11 @@ export function InstalarApp() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="instalar-titulo">
-      <div className="absolute inset-0 bg-tinta/40" onClick={cerrar} aria-hidden="true" />
-      <div className="tarjeta relative w-full max-w-md">
-        <h2 id="instalar-titulo" className="font-display text-xl font-semibold">Instala {MARCA.nombreCorto}</h2>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={cerrar} aria-hidden="true" />
+      <div className="vidrio-fuerte aparecer relative w-full max-w-md rounded-[2rem] p-6">
+        <h2 id="instalar-titulo" className="titulo text-3xl">Instala {MARCA.nombreCorto}</h2>
         <p className="mt-1 text-sm text-muted">Entra con un toque desde tu pantalla de inicio y recibe avisos.</p>
-        <div className="mt-4 space-y-2 rounded-control bg-fondo p-4 text-sm">
+        <div className="mt-4 space-y-2 rounded-2xl bg-tinta/[0.05] p-4 text-sm">
           {disp === "ios" && iosOtro && (
             <>
               <p className="font-semibold">En iPhone solo se instala desde Safari:</p>

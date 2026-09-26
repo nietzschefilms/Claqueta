@@ -33,7 +33,7 @@ export function BotonTema({ className = "" }: { className?: string }) {
       type="button"
       onClick={alternar}
       aria-label={oscuro ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-      className={`grid h-10 w-10 place-items-center rounded-full border border-borde bg-superficie text-tinta transition hover:bg-fondo ${className}`}
+      className={`vidrio grid h-10 w-10 place-items-center rounded-full text-tinta transition active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rojo ${className}`}
     >
       {oscuro ? (
         <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round">

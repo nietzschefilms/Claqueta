@@ -33,7 +33,7 @@ export function FormEntrar() {
   }
 
   return (
-    <form onSubmit={entrar} className="mt-6 space-y-3">
+    <form onSubmit={entrar} className="mt-4 space-y-4">
       {error && <p className="alerta-error" role="alert">{error}</p>}
       <label className="block">
         <span className="etiqueta">Correo</span>
@@ -45,7 +45,7 @@ export function FormEntrar() {
           <CampoContrasena id="entrar-pass" autoComplete="current-password" required value={pass} onChange={(e) => setPass(e.target.value)} className="campo" />
         </div>
       </label>
-      <button type="submit" disabled={cargando} className="btn-primario w-full">
+      <button type="submit" disabled={cargando} className="btn-primario mt-2 w-full py-3">
         {cargando ? "Entrando..." : "Entrar"}
       </button>
     </form>

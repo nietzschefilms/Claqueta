@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { guardarPerfil, guardarPrefsNotif } from "./acciones";
 import { CATEGORIAS, type NotifPrefs } from "@/lib/notif-prefs";
+import { Interruptor } from "@/components/Interruptor";
 
 export function FormPerfil({ nombre, telefono }: { nombre: string; telefono: string }) {
   const [n, setN] = useState(nombre);
@@ -50,17 +51,15 @@ export function PrefsNotif({ inicial }: { inicial: NotifPrefs }) {
   }
 
   return (
-    <ul className="divide-y divide-borde border-t border-borde">
+    <ul className="divide-y divide-borde/60 border-t border-borde/60">
       {CATEGORIAS.map((c) => (
         <li key={c.clave} className="flex items-center justify-between gap-4 py-3">
           <div>
             <p className="text-sm font-semibold">{c.label}</p>
             <p className="text-xs text-muted">{c.obligatoria ? `${c.desc} Siempre activas.` : c.desc}</p>
           </div>
-          <input
+          <Interruptor
             id={`notif-${c.clave}`}
-            type="checkbox"
-            className="h-5 w-5 accent-[rgb(var(--c-primario))]"
             checked={prefs[c.clave]}
             disabled={c.obligatoria}
             onChange={(e) => cambiar(c.clave, e.target.checked)}

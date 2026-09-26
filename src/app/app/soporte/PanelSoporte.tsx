@@ -60,7 +60,7 @@ export function PanelSoporte({ inicial, roles, yo }: { inicial: Cuenta[]; roles:
   return (
     <div className="space-y-5">
       <section className="tarjeta space-y-3">
-        <h2 className="font-display text-lg font-semibold">Crear cuenta</h2>
+        <h2 className="titulo text-2xl">Crear cuenta</h2>
         <form
           className="grid gap-3 sm:grid-cols-[1fr_1fr_auto_auto]"
           onSubmit={(e) => {
@@ -89,7 +89,7 @@ export function PanelSoporte({ inicial, roles, yo }: { inicial: Cuenta[]; roles:
 
       <section className="tarjeta space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-display text-lg font-semibold">Cuentas</h2>
+          <h2 className="titulo text-2xl">Cuentas</h2>
           <form onSubmit={(e) => { e.preventDefault(); refrescar(); }} className="flex gap-2">
             <input id="buscar-cuenta" type="search" placeholder="Buscar por nombre o correo" value={q} onChange={(e) => setQ(e.target.value)} className="campo py-2" />
             <button className="btn-secundario" disabled={pendiente}>Buscar</button>

@@ -29,9 +29,9 @@ export function ContrasenaObligatoria() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-tinta/50 p-4" role="dialog" aria-modal="true" aria-labelledby="pass-titulo">
-      <form onSubmit={guardar} className="tarjeta w-full max-w-sm space-y-3">
-        <h2 id="pass-titulo" className="font-display text-xl font-semibold">Crea tu contraseña</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="pass-titulo">
+      <form onSubmit={guardar} className="vidrio-fuerte aparecer w-full max-w-sm space-y-3 rounded-[2rem] p-6">
+        <h2 id="pass-titulo" className="titulo text-3xl">Crea tu contraseña</h2>
         <p className="text-sm text-muted">Entraste con una contraseña temporal. Pon una tuya para seguir: al menos {MIN_CONTRASENA} caracteres, con minúsculas, mayúsculas y un número.</p>
         {error && <p className="alerta-error">{error}</p>}
         {listo ? (

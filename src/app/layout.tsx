@@ -36,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: scriptTema }} />
       </head>
       <body className="min-h-screen antialiased">
+        <div className="ambiente" aria-hidden="true" />
         {children}
         <InstalarApp />
         <ActualizarApp />

@@ -3,17 +3,18 @@
 @tailwind utilities;
 
 /* ─────────────────────────────────────────────────────────────────────────
-   CLAQUETA · estilo Nietzsche Studios
+   CLAQUETA · Nietzsche Studios meets Liquid Glass
    Negro, hueso y un solo rojo. El rojo se reserva para lo que importa:
    el punto del logo, el botón de captura, lo crítico y la hora actual.
+   El vidrio flota sobre un fondo ambiental neutro; nunca compite con el rojo.
    Formato: canales R G B separados por espacio (Tailwind aplica /opacidad).
    ───────────────────────────────────────────────────────────────────────── */
 :root {
-  --c-fondo: 242 239 234;
-  --c-superficie: 250 249 246;
-  --c-borde: 224 219 210;
+  --c-fondo: 240 237 231;
+  --c-superficie: 252 251 249;
+  --c-borde: 222 216 207;
   --c-tinta: 10 10 10;
-  --c-muted: 112 106 98;
+  --c-muted: 108 102 94;
   --c-primario: 10 10 10;
   --c-primario-texto: 242 239 234;
   --c-acento: 225 0 0;
@@ -30,11 +31,23 @@
   --c-f-nietzsche: 72 104 136;
   --c-f-personal: 118 114 108;
 
+  /* Vidrio: qué tan opaco, su filo claro, su brillo de arriba y su sombra. */
+  --vidrio-alfa: 0.58;
+  --vidrio-alfa-fuerte: 0.72;
+  --vidrio-filo: 255 255 255;
+  --vidrio-filo-alfa: 0.7;
+  --vidrio-lustre: 0.55;
+  --vidrio-sombra: 0.16;
+  /* Fondo ambiental: arena, gris frío y hueso. */
+  --amb-1: 222 208 188;
+  --amb-2: 200 206 214;
+  --amb-3: 232 222 210;
+
   --fuente-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
   --fuente-texto: var(--font-public), ui-sans-serif, system-ui, sans-serif;
   --fuente-mono: var(--font-plex), ui-monospace, "SFMono-Regular", monospace;
-  --radio-tarjeta: 0.25rem;
-  --radio-control: 0.25rem;
+  --radio-tarjeta: 1.5rem;
+  --radio-control: 0.875rem;
 
   color-scheme: light;
 }
@@ -43,10 +56,10 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-tema="claro"]) {
     --c-fondo: 10 10 10;
-    --c-superficie: 19 19 19;
-    --c-borde: 42 40 38;
+    --c-superficie: 30 30 30;
+    --c-borde: 48 46 44;
     --c-tinta: 235 231 224;
-    --c-muted: 146 141 134;
+    --c-muted: 150 145 138;
     --c-primario: 235 231 224;
     --c-primario-texto: 10 10 10;
     --c-acento: 255 26 26;
@@ -59,15 +72,23 @@
     --c-f-rt: 112 192 142;
     --c-f-nietzsche: 132 162 192;
     --c-f-personal: 152 148 142;
+    --vidrio-alfa: 0.5;
+    --vidrio-alfa-fuerte: 0.68;
+    --vidrio-filo-alfa: 0.09;
+    --vidrio-lustre: 0.07;
+    --vidrio-sombra: 0.6;
+    --amb-1: 58 50 44;
+    --amb-2: 34 38 48;
+    --amb-3: 44 40 38;
     color-scheme: dark;
   }
 }
 :root[data-tema="oscuro"] {
   --c-fondo: 10 10 10;
-  --c-superficie: 19 19 19;
-  --c-borde: 42 40 38;
+  --c-superficie: 30 30 30;
+  --c-borde: 48 46 44;
   --c-tinta: 235 231 224;
-  --c-muted: 146 141 134;
+  --c-muted: 150 145 138;
   --c-primario: 235 231 224;
   --c-primario-texto: 10 10 10;
   --c-acento: 255 26 26;
@@ -80,6 +101,14 @@
   --c-f-rt: 112 192 142;
   --c-f-nietzsche: 132 162 192;
   --c-f-personal: 152 148 142;
+  --vidrio-alfa: 0.5;
+  --vidrio-alfa-fuerte: 0.68;
+  --vidrio-filo-alfa: 0.09;
+  --vidrio-lustre: 0.07;
+  --vidrio-sombra: 0.6;
+  --amb-1: 58 50 44;
+  --amb-2: 34 38 48;
+  --amb-3: 44 40 38;
   color-scheme: dark;
 }
 
@@ -89,32 +118,72 @@ body {
   color: rgb(var(--c-tinta));
   font-family: var(--fuente-texto);
   -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Respeta las zonas seguras del iPhone (notch y barra de inicio). */
 body {
   padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Fondo ambiental fijo: tres manchas suaves detrás del vidrio. */
+.ambiente {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(55% 45% at 8% 0%, rgb(var(--amb-1) / 0.9), transparent 70%),
+    radial-gradient(45% 40% at 100% 12%, rgb(var(--amb-2) / 0.85), transparent 70%),
+    radial-gradient(70% 55% at 60% 105%, rgb(var(--amb-3) / 0.9), transparent 70%),
+    rgb(var(--c-fondo));
 }
 
 @layer components {
+  /* Vidrio líquido: translúcido, con filo claro y brillo arriba. */
+  .vidrio {
+    background-color: rgb(var(--c-superficie) / var(--vidrio-alfa));
+    background-image: linear-gradient(180deg, rgb(255 255 255 / var(--vidrio-lustre)) 0%, rgb(255 255 255 / 0) 42%);
+    -webkit-backdrop-filter: blur(22px) saturate(170%);
+    backdrop-filter: blur(22px) saturate(170%);
+    border: 1px solid rgb(var(--vidrio-filo) / var(--vidrio-filo-alfa));
+    box-shadow:
+      inset 0 1px 0 0 rgb(255 255 255 / var(--vidrio-lustre)),
+      0 1px 1px rgb(0 0 0 / 0.03),
+      0 18px 40px -22px rgb(0 0 0 / var(--vidrio-sombra));
+  }
+  /* Para barras y hojas que flotan encima de todo. */
+  .vidrio-fuerte {
+    @apply vidrio;
+    background-color: rgb(var(--c-superficie) / var(--vidrio-alfa-fuerte));
+    -webkit-backdrop-filter: blur(36px) saturate(190%);
+    backdrop-filter: blur(36px) saturate(190%);
+    box-shadow:
+      inset 0 1px 0 0 rgb(255 255 255 / var(--vidrio-lustre)),
+      0 2px 6px rgb(0 0 0 / 0.05),
+      0 24px 60px -20px rgb(0 0 0 / calc(var(--vidrio-sombra) + 0.1));
+  }
+
   .tarjeta {
-    @apply rounded-tarjeta border border-borde bg-superficie p-5;
+    @apply vidrio rounded-tarjeta p-5;
   }
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-control px-4 py-2.5 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primario disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rojo disabled:cursor-not-allowed disabled:opacity-60;
   }
   .btn-primario {
-    @apply btn bg-primario text-primario-texto hover:opacity-90;
+    @apply btn bg-primario text-primario-texto shadow-[0_8px_20px_-10px_rgb(0_0_0/0.5)] hover:opacity-90;
   }
   .btn-secundario {
-    @apply btn border border-borde bg-superficie text-tinta hover:bg-fondo;
+    @apply btn vidrio text-tinta hover:bg-superficie;
   }
   .btn-peligro {
     @apply btn bg-peligro text-white hover:opacity-90;
   }
+  .btn-rojo {
+    @apply btn bg-rojo text-white shadow-[0_10px_28px_-8px_rgb(255_0_0/0.6)] hover:brightness-110;
+  }
   .campo {
-    @apply w-full rounded-control border border-borde bg-superficie px-4 py-3 text-tinta outline-none placeholder:text-muted/70 focus:border-primario;
+    @apply w-full rounded-control border border-borde/80 bg-superficie/70 px-4 py-3 text-tinta outline-none backdrop-blur transition placeholder:text-muted/70 focus:border-tinta/60 focus:bg-superficie focus:ring-4 focus:ring-tinta/5;
   }
   .etiqueta {
     @apply font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted;
@@ -126,13 +195,76 @@ body {
   .cifra {
     @apply font-mono tabular-nums;
   }
+  /* Pastilla de vidrio para datos cortos (semáforo EK, filtros). */
+  .pastilla {
+    @apply vidrio inline-flex items-center gap-2 rounded-full px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider;
+  }
+  /* Enlace o botón pequeño en mayúsculas mono. */
+  .enlace-mono {
+    @apply rounded-full px-3 py-1.5 font-mono text-xs uppercase tracking-wider text-muted transition hover:bg-tinta/5 hover:text-tinta focus-visible:outline focus-visible:outline-2 focus-visible:outline-rojo;
+  }
 
   .alerta-error {
-    @apply rounded-control border border-peligro/40 bg-peligro/10 px-4 py-2 text-sm text-peligro;
+    @apply rounded-control border border-peligro/30 bg-peligro/10 px-4 py-2.5 text-sm text-peligro;
   }
   .alerta-ok {
-    @apply rounded-control border border-ok/40 bg-ok/10 px-4 py-2 text-sm text-ok;
+    @apply rounded-control border border-ok/30 bg-ok/10 px-4 py-2.5 text-sm text-ok;
   }
+}
+
+/* Sin backdrop-filter (navegadores viejos): vidrio casi opaco para que se lea. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .vidrio,
+  .vidrio-fuerte {
+    background-color: rgb(var(--c-superficie) / 0.96);
+  }
+}
+
+/* Entrada suave de las secciones. */
+@keyframes aparecer {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.aparecer {
+  animation: aparecer 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Pulso de la hora actual. */
+@keyframes latido {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(var(--c-rojo) / 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgb(var(--c-rojo) / 0);
+  }
+}
+.latido {
+  animation: latido 2s ease-in-out infinite;
+}
+
+/* Carril horizontal sin barra visible (tablero en celular). */
+.sin-barra {
+  scrollbar-width: none;
+}
+.sin-barra::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hoja de captura: sube desde abajo en celular. */
+dialog[open].hoja {
+  animation: aparecer 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+dialog.hoja::backdrop {
+  background: rgb(0 0 0 / 0.45);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
 }
 
 @media (prefers-reduced-motion: reduce) {

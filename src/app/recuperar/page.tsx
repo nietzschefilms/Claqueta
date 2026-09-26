@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { Logo } from "@/components/claqueta/Logo";
 
 // Pide el link para crear una contraseña nueva. Siempre responde lo mismo,
 // exista o no el correo, para no revelar quién tiene cuenta.
@@ -23,8 +24,10 @@ export default function Recuperar() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-4 py-12">
-      <h1 className="font-display text-3xl font-bold">Recupera tu acceso</h1>
+    <main className="mx-auto flex min-h-[100dvh] max-w-md flex-col justify-center px-4 py-12">
+      <Logo className="mx-auto mb-6 h-12 w-12" />
+      <div className="tarjeta aparecer p-6">
+      <h1 className="titulo text-4xl">Recupera tu acceso</h1>
       {enviado ? (
         <p className="alerta-ok mt-6">Si ese correo tiene cuenta, te llegó un link para crear tu contraseña nueva. Revisa también spam.</p>
       ) : (
@@ -38,7 +41,8 @@ export default function Recuperar() {
           </button>
         </form>
       )}
-      <Link href="/entrar" className="mt-4 text-center text-sm text-muted hover:underline">Volver a entrar</Link>
+      </div>
+      <Link href="/entrar" className="mt-5 text-center text-sm text-muted hover:underline">Volver a entrar</Link>
     </main>
   );
 }
