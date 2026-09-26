@@ -9,6 +9,8 @@ export type BloquePlaneado = {
   capacidad: number;
   usados: number;
   flex: boolean;
+  // Bloque de un frente sin nada pendiente de ese frente: se presta como libre.
+  prestado?: boolean;
   tareas: Tarea[];
 };
 
@@ -72,6 +74,14 @@ export function planearDia(bloquesDelDia: Bloque[], tareas: Tarea[], hoy: string
   };
 
   const focus = bloques.filter((b) => b.bloque.kind === "focus");
+  // Un bloque de frente sin nada de ese frente (ni pendiente ni hecho hoy) no se
+  // desperdicia: se presta como libre y se llena con lo más urgente de otros.
+  for (const b of focus) {
+    if (!b.flex && !candidatas.some((t) => b.bloque.areas.includes(t.area))) {
+      b.flex = true;
+      b.prestado = true;
+    }
+  }
   focus.filter((b) => !b.flex).forEach(llenar);
   focus.filter((b) => b.flex).forEach(llenar);
 

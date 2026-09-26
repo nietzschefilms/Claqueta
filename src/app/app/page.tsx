@@ -10,6 +10,7 @@ import { riesgoEK, EK_SEMANAS } from "@/lib/claqueta/ek";
 import { FRENTES } from "@/lib/claqueta/frentes";
 import { esClase, lugarClase, type Tarea } from "@/lib/claqueta/tipos";
 import { CheckTarea } from "@/components/claqueta/CheckTarea";
+import { TituloEditable } from "@/components/claqueta/EditarTarea";
 import { BotonMoverManana } from "@/components/claqueta/AccionesTarea";
 import { Anillo, ChipFrente, EtiquetaPrioridad, estiloFrente } from "@/components/claqueta/frente-ui";
 
@@ -118,7 +119,7 @@ export default async function Hoy() {
                   <li key={t.id} className="flex items-start gap-4 px-5 py-4">
                     <span className="cifra w-7 shrink-0 pt-0.5 text-2xl font-medium leading-none text-muted/40">{i + 1}</span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[17px] font-semibold leading-snug">{t.title}</p>
+                      <TituloEditable t={t} className="block text-[17px] font-semibold leading-snug" />
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
                         <ChipFrente id={t.area} corto />
                         <EtiquetaPrioridad puntaje={puntaje(t, hoy)} />
@@ -143,7 +144,7 @@ export default async function Hoy() {
                   <li key={t.id} className="flex items-center gap-3">
                     <CheckTarea id={t.id} hecha={false} titulo={t.title} />
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold leading-snug">{t.title}</p>
+                      <TituloEditable t={t} className="block text-sm font-semibold leading-snug" />
                       <div className="mt-1 flex flex-wrap items-center gap-1.5">
                         <ChipFrente id={t.area} corto />
                         <MetaTarea t={t} hoy={hoy} />
@@ -250,7 +251,7 @@ function TarjetaAhora({ actual, siguiente, ahora }: { actual?: BloquePlaneado; s
                 {pendientes.slice(0, 3).map((t) => (
                   <li key={t.id} className="flex items-center gap-3">
                     <CheckTarea id={t.id} hecha={false} titulo={t.title} />
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium">{t.title}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium"><TituloEditable t={t} /></span>
                     <span className="cifra shrink-0 text-[11px] text-muted">{duracionCorta(t.est_minutes)}</span>
                   </li>
                 ))}
@@ -331,10 +332,16 @@ function Bloque({ bp, ahora, hoy }: { bp: BloquePlaneado; ahora: number; hoy: st
           <div className="mt-2 h-1 overflow-hidden rounded-full bg-tinta/10" aria-hidden="true">
             <div className="h-full rounded-full bg-[rgb(var(--fc,var(--c-tinta)))]" style={{ width: `${lleno * 100}%` }} />
           </div>
-          {bp.tareas.length === 0 ? (
-            <p className="mt-2.5 text-sm text-muted">
-              {bp.flex ? "Libre. Nada pendiente que acomodar." : `Sin pendientes de ${bp.bloque.areas.map((a) => FRENTES[a].corto).join(" y ")}. Adelanta algo o descansa.`}
+          {bp.prestado && (
+            <p className="mt-2 text-xs text-muted">
+              Sin pendientes de {bp.bloque.areas.map((a) => FRENTES[a].corto).join(" y ")}: te acomodé lo más urgente.{" "}
+              <Link href={`/app/rutina?dia=${bp.bloque.weekday}`} className="font-semibold text-tinta underline-offset-2 hover:underline">
+                Cambiar bloque
+              </Link>
             </p>
+          )}
+          {bp.tareas.length === 0 ? (
+            <p className="mt-2.5 text-sm text-muted">Libre. Nada pendiente que acomodar.</p>
           ) : (
             <ul className="mt-3 space-y-2.5">
               {bp.tareas.map((t) => (
@@ -369,7 +376,11 @@ function FilaTarea({ t, hoy }: { t: Tarea; hoy: string }) {
     <li className="flex items-start gap-3">
       <CheckTarea id={t.id} hecha={hecha} titulo={t.title} />
       <div className="min-w-0 flex-1 pt-1">
-        <p className={`text-sm leading-snug ${hecha ? "text-muted line-through decoration-rojo decoration-2" : "font-medium"}`}>{t.title}</p>
+        {hecha ? (
+          <p className="text-sm leading-snug text-muted line-through decoration-rojo decoration-2">{t.title}</p>
+        ) : (
+          <TituloEditable t={t} className="block text-sm font-medium leading-snug" />
+        )}
         {!hecha && (
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             <ChipFrente id={t.area} corto />

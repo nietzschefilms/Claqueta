@@ -155,7 +155,8 @@ describe("planearDia", () => {
 
   it("lo completado hoy sin bloque de su frente se lista aparte", () => {
     const hecha = tarea({ area: "rt", status: "hecho", done_at: "2026-09-26T20:00:00Z" });
-    const plan = planearDia([bloque({ areas: ["ek"] })], [hecha], HOY);
+    const deEk = tarea({ area: "ek", due_date: sumarDias(HOY, 5) }); // el bloque de EK no está vacío: no se presta
+    const plan = planearDia([bloque({ areas: ["ek"] })], [hecha, deEk], HOY);
     expect(plan.hechasFuera.map((t) => t.id)).toEqual([hecha.id]);
   });
 
@@ -240,5 +241,23 @@ describe("tareas diarias", () => {
   it("si se completa tarde la de ayer, la siguiente es la de hoy", () => {
     const t = tarea({ area: "rt", due_date: sumarDias(HOY, -3), repeat: "daily" });
     expect(siguienteRepeticion(t, HOY)?.due_date).toBe(HOY);
+  });
+});
+
+describe("bloques prestados", () => {
+  it("un bloque de frente sin nada de ese frente se llena con otros", () => {
+    const spots = bloque({ areas: ["nietzsche"], start_time: "17:30", end_time: "18:30" });
+    const rt = tarea({ area: "rt", due_date: HOY, est_minutes: 30 });
+    const plan = planearDia([spots], [rt], HOY);
+    expect(plan.bloques[0].prestado).toBe(true);
+    expect(plan.bloques[0].tareas.map((t) => t.id)).toEqual([rt.id]);
+  });
+  it("si hay algo de su frente, no se presta", () => {
+    const spots = bloque({ areas: ["nietzsche"], start_time: "17:30", end_time: "18:30" });
+    const n = tarea({ area: "nietzsche", due_date: sumarDias(HOY, 10) });
+    const rt = tarea({ area: "rt", due_date: HOY });
+    const plan = planearDia([spots], [n, rt], HOY);
+    expect(plan.bloques[0].prestado).toBeFalsy();
+    expect(plan.bloques[0].tareas.map((t) => t.id)).toEqual([n.id]);
   });
 });

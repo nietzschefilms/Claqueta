@@ -124,3 +124,34 @@ export async function quitarTarea(id: string): Promise<Resultado> {
   refrescar();
   return { ok: true };
 }
+
+// Editar una tarea: nombre, frente, fecha, tiempo, impacto y si se repite.
+export async function editarTarea(_prev: Resultado | null, form: FormData): Promise<Resultado> {
+  await requerirSesion();
+  const id = String(form.get("id") ?? "");
+  const title = String(form.get("title") ?? "").trim();
+  const area = String(form.get("area") ?? "");
+  const due = String(form.get("due_date") ?? "").trim();
+  const est = Number(form.get("est_minutes") ?? 30);
+  const impact = Number(form.get("impact") ?? 2);
+  const repeticion = String(form.get("repeat") ?? "none");
+
+  if (!UUID.test(id)) return { ok: false, error: "Tarea no válida." };
+  if (!title) return { ok: false, error: "Escribe qué hay que hacer." };
+  if (title.length > 200) return { ok: false, error: "El título es muy largo. Déjalo en menos de 200 letras." };
+  if (!esFrente(area)) return { ok: false, error: "Elige a qué frente pertenece." };
+  if (due && !esFechaISO(due)) return { ok: false, error: "La fecha no es válida. Elige una del calendario." };
+  if (!["none", "daily", "weekly"].includes(repeticion)) return { ok: false, error: "Repetición no válida." };
+  if (repeticion !== "none" && !due) return { ok: false, error: "Una tarea que se repite necesita fecha para saber desde cuándo." };
+  if (!Number.isInteger(est) || est < 5 || est > 720) return { ok: false, error: "El tiempo debe estar entre 5 minutos y 12 horas." };
+  if (![1, 2, 3].includes(impact)) return { ok: false, error: "El impacto va de 1 a 3." };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("tasks")
+    .update({ title, area, due_date: due || null, est_minutes: est, impact, repeat: repeticion })
+    .eq("id", id);
+  if (error) return { ok: false, error: "No se guardó. Revisa tu conexión e inténtalo de nuevo." };
+  refrescar();
+  return { ok: true };
+}

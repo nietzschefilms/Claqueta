@@ -58,6 +58,8 @@ export default async function Semana({ searchParams }: { searchParams: Promise<{
           <p className="etiqueta">Plan de rodaje</p>
           <h1 className="titulo mt-1 text-6xl md:text-7xl">Semana</h1>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        <Link href="/app/rutina" className="btn-secundario">Editar rutina</Link>
         <nav aria-label="Cambiar semana" className="vidrio flex items-center gap-1 rounded-full p-1">
           <Link href={`/app/semana?s=${sumarDias(lunes, -7)}`} aria-label="Semana anterior" className="enlace-mono grid h-9 w-9 place-items-center p-0">←</Link>
           <span className="cifra whitespace-nowrap px-2 text-sm font-medium">{rango(dias[0], dias[6])}</span>
@@ -66,6 +68,7 @@ export default async function Semana({ searchParams }: { searchParams: Promise<{
             <Link href="/app/semana" className="enlace-mono bg-rojo/10 text-acento">Hoy</Link>
           )}
         </nav>
+        </div>
       </header>
 
       {/* ── Resumen: horas de foco por día ── */}

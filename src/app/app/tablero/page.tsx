@@ -5,6 +5,7 @@ import { fechaCDMX, fechaRelativa } from "@/lib/claqueta/fechas";
 import { LISTA_FRENTES } from "@/lib/claqueta/frentes";
 import { ordenarPorPuntaje, puntaje } from "@/lib/claqueta/prioridad";
 import { CheckTarea } from "@/components/claqueta/CheckTarea";
+import { TituloEditable } from "@/components/claqueta/EditarTarea";
 import { BotonQuitar, SelectorEstado } from "@/components/claqueta/AccionesTarea";
 import { AgregarEnColumna } from "@/components/claqueta/AgregarEnColumna";
 import { EtiquetaPrioridad, estiloFrente } from "@/components/claqueta/frente-ui";
@@ -75,7 +76,7 @@ export default async function Tablero() {
                   <li key={t.id} className="space-y-2.5 rounded-2xl bg-superficie/70 p-3 shadow-[0_1px_0_rgb(255_255_255/0.4)_inset,0_4px_14px_-10px_rgb(0_0_0/0.35)]">
                     <div className="flex items-start gap-3">
                       <CheckTarea id={t.id} hecha={false} titulo={t.title} />
-                      <p className="flex-1 pt-1 text-sm font-semibold leading-snug">{t.title}</p>
+                      <TituloEditable t={t} className="flex-1 pt-1 text-sm font-semibold leading-snug" />
                     </div>
                     <div className="flex flex-wrap items-center gap-2 pl-10">
                       <EtiquetaPrioridad puntaje={puntaje(t, hoy)} />

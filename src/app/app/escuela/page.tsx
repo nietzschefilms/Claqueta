@@ -4,6 +4,7 @@ import { cargarRutina, cargarTareas } from "@/lib/claqueta/datos";
 import { diaSemana, fechaCDMX, fechaRelativa, horaAMinutos, sumarDias } from "@/lib/claqueta/fechas";
 import { ordenarPorPuntaje, puntaje } from "@/lib/claqueta/prioridad";
 import { CheckTarea } from "@/components/claqueta/CheckTarea";
+import { TituloEditable } from "@/components/claqueta/EditarTarea";
 import { BotonQuitar } from "@/components/claqueta/AccionesTarea";
 import { EtiquetaPrioridad, estiloFrente } from "@/components/claqueta/frente-ui";
 import { Encabezado } from "@/components/Encabezado";
@@ -133,7 +134,7 @@ export default async function Escuela() {
                   <li key={t.id} className="flex items-start gap-3 px-5 py-4">
                     <span className="cifra w-6 shrink-0 pt-1 text-lg font-medium leading-none text-muted/40">{i + 1}</span>
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold leading-snug">{t.title}</p>
+                      <TituloEditable t={t} className="block font-semibold leading-snug" />
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                         {t.materia && <span className="rounded-full bg-[rgb(var(--fc)/0.14)] px-2 py-0.5 text-[11px] font-semibold text-[rgb(var(--fc))]">{t.materia}</span>}
                         {t.dificultad && <span className="rounded-full bg-tinta/[0.06] px-2 py-0.5 text-[11px] font-medium">{NOMBRE_DIF[t.dificultad]}</span>}
