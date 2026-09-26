@@ -11,11 +11,12 @@ export const CATEGORIAS: { clave: Categoria; label: string; desc: string; obliga
   { clave: "novedades", label: "Novedades", desc: "Anuncios y cosas nuevas en la app." }
 ];
 
-export type Sonido = "sonido_ahora" | "sonido_previo";
+export type Sonido = "sonido_ahora" | "sonido_previo" | "sonido_entrada";
 
 export const SONIDOS: { clave: Sonido; label: string; desc: string; porDefecto: boolean }[] = [
   { clave: "sonido_ahora", label: "Que suene al empezar", desc: "Con la app abierta suena la claqueta; cerrada, el tono del iPhone.", porDefecto: true },
-  { clave: "sonido_previo", label: "Que suene el de 5 minutos antes", desc: "Si lo apagas, llega en silencio.", porDefecto: false }
+  { clave: "sonido_previo", label: "Que suene el de 5 minutos antes", desc: "Si lo apagas, llega en silencio.", porDefecto: false },
+  { clave: "sonido_entrada", label: "Sonido al entrar a la app", desc: "Suena en tu primer toque al abrirla (el iPhone no deja que suene antes).", porDefecto: true }
 ];
 
 export type NotifPrefs = Record<Categoria, boolean> & Record<Sonido, boolean>;

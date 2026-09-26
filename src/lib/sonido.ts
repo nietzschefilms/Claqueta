@@ -67,3 +67,27 @@ export function sonarPrevio() {
   desbloquearAudio();
   chasquido(c, c.currentTime + 0.02, 0.35);
 }
+
+// Entrada a la app: dos notas cálidas que suben, seguidas del chasquido del
+// logo (el punto rojo). Suena una vez por sesión, en el primer toque.
+export function sonarEntrada() {
+  const c = contexto();
+  if (!c) return;
+  desbloquearAudio();
+  const t = c.currentTime + 0.03;
+  const nota = (frec: number, inicio: number, dur: number, vol: number) => {
+    const o = c.createOscillator();
+    o.type = "sine";
+    o.frequency.setValueAtTime(frec, inicio);
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, inicio);
+    g.gain.exponentialRampToValueAtTime(vol, inicio + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, inicio + dur);
+    o.connect(g).connect(c.destination);
+    o.start(inicio);
+    o.stop(inicio + dur + 0.02);
+  };
+  nota(523.25, t, 0.35, 0.18); // Do
+  nota(783.99, t + 0.11, 0.5, 0.16); // Sol
+  chasquido(c, t + 0.26, 0.4);
+}

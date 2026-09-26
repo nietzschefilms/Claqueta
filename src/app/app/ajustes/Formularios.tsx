@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { guardarPerfil, guardarPrefsNotif } from "./acciones";
 import { CATEGORIAS, SONIDOS, type NotifPrefs } from "@/lib/notif-prefs";
-import { sonarClaqueta } from "@/lib/sonido";
+import { sonarClaqueta, sonarEntrada } from "@/lib/sonido";
 import { Interruptor } from "@/components/Interruptor";
 
 export function FormPerfil({ nombre, telefono }: { nombre: string; telefono: string }) {
@@ -67,9 +67,10 @@ export function PrefsNotif({ inicial }: { inicial: NotifPrefs }) {
       <div>
         <div className="flex items-center justify-between gap-3">
           <p className="etiqueta">Sonido</p>
-          <button type="button" onClick={() => sonarClaqueta()} className="enlace-mono">
-            Escuchar la claqueta
-          </button>
+          <span className="flex gap-1">
+            <button type="button" onClick={() => sonarEntrada()} className="enlace-mono">Entrada</button>
+            <button type="button" onClick={() => sonarClaqueta()} className="enlace-mono">Claqueta</button>
+          </span>
         </div>
         <ul className="mt-1 divide-y divide-borde/60 border-t border-borde/60">{SONIDOS.map((x) => fila(x.clave, x.label, x.desc))}</ul>
       </div>
