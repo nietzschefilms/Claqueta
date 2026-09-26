@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aCentavos, avanceContrato, esperados, gastoPorCategoria, ocurrencias, pesos, resumen, type Contrato, type Pago, type ReglaIngreso } from "./dinero";
+import { aCentavos, avanceContrato, fechasTarjeta, saldosCuentas, type Cuenta, esperados, gastoPorCategoria, ocurrencias, pesos, resumen, type Contrato, type Pago, type ReglaIngreso } from "./dinero";
 
 const regla = (p: Partial<ReglaIngreso>): ReglaIngreso => ({
   id: "r1",
@@ -13,7 +13,7 @@ const regla = (p: Partial<ReglaIngreso>): ReglaIngreso => ({
   ...p
 });
 let n = 0;
-const pago = (p: Partial<Pago>): Pago => ({ id: `p${++n}`, source: "x", amount: 100, date: "2026-09-25", expected_key: null, contract_id: null, area: null, note: null, ...p });
+const pago = (p: Partial<Pago>): Pago => ({ id: `p${++n}`, cuenta_id: null, source: "x", amount: 100, date: "2026-09-25", expected_key: null, contract_id: null, area: null, note: null, ...p });
 
 describe("montos", () => {
   it("convierte a centavos sin errores de redondeo", () => {
@@ -70,7 +70,7 @@ describe("resumen", () => {
   it("entradas, salidas y saldo", () => {
     const r = resumen(
       [pago({ amount: 5000 }), pago({ amount: 1500 }), pago({ amount: 200, date: "2026-10-02" })],
-      [{ id: "g1", amount: "350.50", category: "Comida", date: "2026-09-25", note: null }],
+      [{ id: "g1", cuenta_id: null, amount: "350.50", category: "Comida", date: "2026-09-25", note: null }],
       "2026-09"
     );
     expect(r).toEqual({ entradas: 650000, salidas: 35050, neto: 614950, saldo: 634950 });
@@ -78,12 +78,43 @@ describe("resumen", () => {
   it("gasto por categoría", () => {
     const g = gastoPorCategoria(
       [
-        { id: "1", amount: 100, category: "Comida", date: "2026-09-25", note: null },
-        { id: "2", amount: 300, category: "Transporte", date: "2026-09-25", note: null },
-        { id: "3", amount: 50, category: "Comida", date: "2026-09-26", note: null }
+        { id: "1", cuenta_id: null, amount: 100, category: "Comida", date: "2026-09-25", note: null },
+        { id: "2", cuenta_id: null, amount: 300, category: "Transporte", date: "2026-09-25", note: null },
+        { id: "3", cuenta_id: null, amount: 50, category: "Comida", date: "2026-09-26", note: null }
       ],
       "2026-09"
     );
     expect(g).toEqual([{ categoria: "Transporte", centavos: 30000 }, { categoria: "Comida", centavos: 15000 }]);
+  });
+});
+
+describe("cuentas", () => {
+  const cuenta = (id: string, tipo: Cuenta["tipo"], saldo_inicial = 0, dia_corte: number | null = null, dia_pago: number | null = null): Cuenta => ({ id, nombre: id, tipo, saldo_inicial, dia_corte, dia_pago, orden: 0 });
+  it("el arranque de Jamez: 6,500 entran, 3,000 a Mercado Libre, 3,500 a la garantía", () => {
+    const cuentas = [cuenta("deb", "debito"), cuenta("nu", "credito", "5247.20" as unknown as number, 25, 5), cuenta("ml", "credito", 3000), cuenta("gar", "garantia")];
+    const s = saldosCuentas(
+      cuentas,
+      [pago({ cuenta_id: "deb", amount: 5000 }), pago({ cuenta_id: "deb", amount: 1500 })],
+      [],
+      [
+        { id: "t1", desde_id: "deb", hacia_id: "ml", amount: 3000, date: "2026-09-25", note: null },
+        { id: "t2", desde_id: "deb", hacia_id: "gar", amount: 3500, date: "2026-09-25", note: null }
+      ]
+    );
+    expect(s.porCuenta.get("deb")).toBe(0);
+    expect(s.porCuenta.get("ml")).toBe(0);
+    expect(s.porCuenta.get("gar")).toBe(350000);
+    expect(s.porCuenta.get("nu")).toBe(524720);
+    expect(s).toMatchObject({ disponible: 0, apartado: 350000, deuda: 524720 });
+  });
+  it("gastar con crédito sube la deuda y no toca el débito", () => {
+    const s = saldosCuentas([cuenta("deb", "debito", 1000), cuenta("nu", "credito")], [], [{ id: "g", cuenta_id: "nu", amount: 250, category: "Comida", date: "2026-09-26", note: null }], []);
+    expect(s).toMatchObject({ disponible: 100000, deuda: 25000 });
+  });
+  it("fechas de la tarjeta Nu (corte 25, pago 5)", () => {
+    expect(fechasTarjeta({ dia_corte: 25, dia_pago: 5 }, "2026-09-25")).toEqual({ corte: "2026-10-25", limite: "2026-11-05" });
+    expect(fechasTarjeta({ dia_corte: 25, dia_pago: 5 }, "2026-10-10")).toEqual({ corte: "2026-10-25", limite: "2026-11-05" });
+    expect(fechasTarjeta({ dia_corte: 25, dia_pago: 5 }, "2026-12-26")).toEqual({ corte: "2027-01-25", limite: "2027-02-05" });
+    expect(fechasTarjeta({ dia_corte: null, dia_pago: null }, "2026-09-25")).toBeNull();
   });
 });

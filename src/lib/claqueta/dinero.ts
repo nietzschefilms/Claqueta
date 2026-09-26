@@ -14,8 +14,30 @@ export type ReglaIngreso = {
   activo: boolean;
 };
 
+export type TipoCuenta = "debito" | "efectivo" | "credito" | "garantia";
+
+export type Cuenta = {
+  id: string;
+  nombre: string;
+  tipo: TipoCuenta;
+  saldo_inicial: number | string;
+  dia_corte: number | null;
+  dia_pago: number | null;
+  orden: number;
+};
+
+export type Transferencia = {
+  id: string;
+  desde_id: string;
+  hacia_id: string;
+  amount: number | string;
+  date: string;
+  note: string | null;
+};
+
 export type Pago = {
   id: string;
+  cuenta_id: string | null;
   source: string;
   amount: number | string;
   date: string;
@@ -27,6 +49,7 @@ export type Pago = {
 
 export type Gasto = {
   id: string;
+  cuenta_id: string | null;
   amount: number | string;
   category: string;
   date: string;
@@ -154,4 +177,53 @@ export function gastoPorCategoria(gastos: Gasto[], mes: string) {
   const m = new Map<string, number>();
   for (const g of gastos) if (g.date.startsWith(mes)) m.set(g.category, (m.get(g.category) ?? 0) + (aCentavos(g.amount) ?? 0));
   return [...m.entries()].map(([categoria, centavos]) => ({ categoria, centavos })).sort((a, b) => b.centavos - a.centavos);
+}
+
+// ─── Cuentas ──────────────────────────────────────────────────────────────
+export const NOMBRE_TIPO: Record<TipoCuenta, string> = { debito: "Débito", efectivo: "Efectivo", credito: "Crédito", garantia: "Apartado" };
+
+// Saldo de cada cuenta en centavos.
+// Débito, efectivo y garantía: lo que hay. Crédito: lo que se debe (positivo = deuda).
+export function saldosCuentas(cuentas: Cuenta[], pagos: Pago[], gastos: Gasto[], transferencias: Transferencia[]) {
+  const saldo = new Map<string, number>(cuentas.map((c) => [c.id, Math.round(Number(c.saldo_inicial) * 100)]));
+  const credito = new Set(cuentas.filter((c) => c.tipo === "credito").map((c) => c.id));
+  const mover = (id: string | null, centavos: number) => {
+    if (id && saldo.has(id)) saldo.set(id, saldo.get(id)! + centavos);
+  };
+  // En crédito el signo va al revés: gastar sube la deuda, abonar la baja.
+  const signo = (id: string | null) => (id && credito.has(id) ? -1 : 1);
+  for (const p of pagos) mover(p.cuenta_id, signo(p.cuenta_id) * (aCentavos(p.amount) ?? 0));
+  for (const g of gastos) mover(g.cuenta_id, -signo(g.cuenta_id) * (aCentavos(g.amount) ?? 0));
+  for (const t of transferencias) {
+    const c = aCentavos(t.amount) ?? 0;
+    mover(t.desde_id, -signo(t.desde_id) * c);
+    mover(t.hacia_id, signo(t.hacia_id) * c);
+  }
+  const de = (tipos: TipoCuenta[]) => cuentas.filter((c) => tipos.includes(c.tipo)).reduce((a, c) => a + (saldo.get(c.id) ?? 0), 0);
+  return {
+    porCuenta: saldo,
+    disponible: de(["debito", "efectivo"]),
+    apartado: de(["garantia"]),
+    deuda: de(["credito"])
+  };
+}
+
+function fechaDia(anio: number, mes: number, dia: number): string {
+  const d = Math.min(dia, ultimoDiaMes(anio, mes));
+  return `${anio}-${String(mes).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+function mesSiguiente(anio: number, mes: number): [number, number] {
+  return mes === 12 ? [anio + 1, 1] : [anio, mes + 1];
+}
+
+// Tarjeta de crédito: lo que se gasta hoy entra al siguiente corte (el día de
+// corte cuenta para el periodo nuevo) y se paga el día de pago que sigue al corte.
+export function fechasTarjeta(c: Pick<Cuenta, "dia_corte" | "dia_pago">, hoy: string): { corte: string; limite: string } | null {
+  if (!c.dia_corte || !c.dia_pago) return null;
+  let [anio, mes, dia] = hoy.split("-").map(Number);
+  if (dia >= Math.min(c.dia_corte, ultimoDiaMes(anio, mes))) [anio, mes] = mesSiguiente(anio, mes);
+  const corte = fechaDia(anio, mes, c.dia_corte);
+  let [aP, mP] = [anio, mes];
+  if (c.dia_pago <= c.dia_corte) [aP, mP] = mesSiguiente(anio, mes);
+  return { corte, limite: fechaDia(aP, mP, c.dia_pago) };
 }

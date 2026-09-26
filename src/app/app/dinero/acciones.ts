@@ -26,6 +26,13 @@ function leerMontoYFecha(form: FormData): { centavos: number; fecha: string } | 
   return { centavos, fecha };
 }
 
+// La cuenta debe existir, ser propia (RLS) y del tipo permitido.
+async function cuentaValida(supabase: Awaited<ReturnType<typeof createClient>>, id: string, tipos: string[]) {
+  if (!UUID.test(id)) return false;
+  const { data } = await supabase.from("cuentas").select("tipo").eq("id", id).eq("activo", true).maybeSingle<{ tipo: string }>();
+  return !!data && tipos.includes(data.tipo);
+}
+
 // Gasto rápido.
 export async function registrarGasto(_prev: Resultado | null, form: FormData): Promise<Resultado> {
   const s = await requerirSesion();
@@ -37,7 +44,9 @@ export async function registrarGasto(_prev: Resultado | null, form: FormData): P
   if (categoria.length > 60) return { ok: false, error: "La categoría es muy larga. Déjala en menos de 60 letras." };
 
   const supabase = await createClient();
-  const { error } = await supabase.from("expenses").insert({ user_id: s.userId, amount: pesosDe(m.centavos), category: categoria, date: m.fecha, note: nota || null });
+  const cuenta = String(form.get("cuenta") ?? "");
+  if (!(await cuentaValida(supabase, cuenta, ["debito", "efectivo", "credito"]))) return { ok: false, error: "Elige con qué pagaste: débito, efectivo o una tarjeta." };
+  const { error } = await supabase.from("expenses").insert({ user_id: s.userId, amount: pesosDe(m.centavos), category: categoria, date: m.fecha, note: nota || null, cuenta_id: cuenta });
   if (error) return { ok: false, error: "No se guardó el gasto. Revisa tu conexión e inténtalo de nuevo." };
   refrescar();
   return { ok: true, mensaje: "Gasto guardado." };
@@ -57,8 +66,11 @@ export async function registrarEntrada(_prev: Resultado | null, form: FormData):
   if (contrato && !UUID.test(contrato)) return { ok: false, error: "Contrato no válido." };
 
   const supabase = await createClient();
+  const cuenta = String(form.get("cuenta") ?? "");
+  if (!(await cuentaValida(supabase, cuenta, ["debito", "efectivo"]))) return { ok: false, error: "Elige dónde entró: débito o efectivo." };
   const { error } = await supabase.from("payments").insert({
     user_id: s.userId,
+    cuenta_id: cuenta,
     source: fuente,
     amount: pesosDe(m.centavos),
     date: m.fecha,
@@ -72,7 +84,7 @@ export async function registrarEntrada(_prev: Resultado | null, form: FormData):
 }
 
 // "Ya llegó": confirma un cobro esperado (Top Mart, clínica). El índice único evita duplicarlo.
-export async function confirmarCobro(reglaId: string, fecha: string, montoTexto?: string): Promise<Resultado> {
+export async function confirmarCobro(reglaId: string, fecha: string, cuentaId: string, montoTexto?: string): Promise<Resultado> {
   const s = await requerirSesion();
   if (!UUID.test(reglaId) || !esFechaISO(fecha)) return { ok: false, error: "Cobro no válido." };
   const supabase = await createClient();
@@ -81,9 +93,11 @@ export async function confirmarCobro(reglaId: string, fecha: string, montoTexto?
   if (!ocurrencias(r, fecha, fecha).length) return { ok: false, error: "Ese día no toca ese cobro." };
   const centavos = montoTexto ? aCentavos(montoTexto) : aCentavos(r.amount);
   if (!centavos) return { ok: false, error: "Escribe un monto válido." };
+  if (!(await cuentaValida(supabase, cuentaId, ["debito", "efectivo"]))) return { ok: false, error: "Elige dónde entró: débito o efectivo." };
 
   const { error } = await supabase.from("payments").insert({
     user_id: s.userId,
+    cuenta_id: cuentaId,
     source: r.source,
     amount: pesosDe(centavos),
     date: fecha > fechaCDMX() ? fechaCDMX() : fecha,
@@ -96,13 +110,34 @@ export async function confirmarCobro(reglaId: string, fecha: string, montoTexto?
   return { ok: true };
 }
 
-// Anular una entrada o un gasto mal capturado (no se borra).
-export async function anularMovimiento(tipo: "entrada" | "gasto", id: string): Promise<Resultado> {
+// Mover dinero entre cuentas: pagar una tarjeta, apartar en la garantía, sacar efectivo.
+// No es gasto ni ingreso: solo cambia de lugar.
+export async function registrarTransferencia(_prev: Resultado | null, form: FormData): Promise<Resultado> {
+  const s = await requerirSesion();
+  const m = leerMontoYFecha(form);
+  if ("error" in m) return { ok: false, error: m.error };
+  const desde = String(form.get("desde") ?? "");
+  const hacia = String(form.get("hacia") ?? "");
+  const nota = String(form.get("nota") ?? "").trim();
+  if (desde === hacia) return { ok: false, error: "Elige dos cuentas distintas." };
+  const supabase = await createClient();
+  const todas = ["debito", "efectivo", "credito", "garantia"];
+  if (!(await cuentaValida(supabase, desde, todas)) || !(await cuentaValida(supabase, hacia, todas))) return { ok: false, error: "Elige de qué cuenta sale y a cuál llega." };
+  const { error } = await supabase.from("transferencias").insert({ user_id: s.userId, desde_id: desde, hacia_id: hacia, amount: pesosDe(m.centavos), date: m.fecha, note: nota || null });
+  if (error) return { ok: false, error: "No se guardó. Revisa tu conexión e inténtalo de nuevo." };
+  refrescar();
+  return { ok: true, mensaje: "Listo, movido." };
+}
+
+const TABLA = { entrada: "payments", gasto: "expenses", movimiento: "transferencias" } as const;
+
+// Anular una entrada, gasto o movimiento mal capturado (no se borra).
+export async function anularMovimiento(tipo: keyof typeof TABLA, id: string): Promise<Resultado> {
   await requerirSesion();
-  if (!UUID.test(id) || !["entrada", "gasto"].includes(tipo)) return { ok: false, error: "Movimiento no válido." };
+  if (!UUID.test(id) || !(tipo in TABLA)) return { ok: false, error: "Movimiento no válido." };
   const supabase = await createClient();
   const { error } = await supabase
-    .from(tipo === "entrada" ? "payments" : "expenses")
+    .from(TABLA[tipo])
     .update({ anulado_at: new Date().toISOString() })
     .eq("id", id)
     .is("anulado_at", null);

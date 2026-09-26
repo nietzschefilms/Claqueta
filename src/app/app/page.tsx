@@ -103,7 +103,7 @@ export default async function Hoy() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-12 lg:items-start">
-        <div className="space-y-6 lg:col-span-5">
+        <div className="min-w-0 space-y-6 lg:col-span-5">
           {/* ── Las 3 de hoy ── */}
           <section aria-labelledby="tres" className="tarjeta aparecer p-0">
             <div className="flex items-baseline justify-between px-5 pb-2 pt-5">

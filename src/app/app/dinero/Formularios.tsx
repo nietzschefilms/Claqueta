@@ -1,7 +1,36 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
-import { anularMovimiento, confirmarCobro, registrarEntrada, registrarGasto, type Resultado } from "./acciones";
+import { anularMovimiento, confirmarCobro, registrarEntrada, registrarGasto, registrarTransferencia, type Resultado } from "./acciones";
+
+export type OpcionCuenta = { id: string; nombre: string; tipo: "debito" | "efectivo" | "credito" | "garantia" };
+
+// Con qué se pagó / dónde entró: un toque por cuenta.
+function ElegirCuenta({ cuentas, nombre = "cuenta", etiqueta, inicial }: { cuentas: OpcionCuenta[]; nombre?: string; etiqueta: string; inicial?: string }) {
+  const [valor, setValor] = useState(inicial ?? cuentas[0]?.id ?? "");
+  return (
+    <fieldset>
+      <legend className="etiqueta">{etiqueta}</legend>
+      <input type="hidden" name={nombre} value={valor} />
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {cuentas.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            aria-pressed={valor === c.id}
+            onClick={() => setValor(c.id)}
+            className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-semibold transition active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rojo ${
+              valor === c.id ? "bg-tinta text-fondo shadow-[0_6px_16px_-8px_rgb(0_0_0/0.6)]" : "bg-tinta/[0.06] text-muted hover:text-tinta"
+            }`}
+          >
+            {c.nombre}
+            {c.tipo === "credito" && <span className="font-mono text-[9px] uppercase opacity-70">crédito</span>}
+          </button>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
 
 export const CATEGORIAS = ["Comida", "Transporte", "Casa", "Escuela", "Equipo", "Salidas", "Suscripciones", "Otros"];
 
@@ -27,7 +56,7 @@ function Mensajes({ estado }: { estado: Resultado | null }) {
 }
 
 // Gasto: monto, categoría con un toque, nota opcional y fecha (hoy por defecto).
-export function FormGasto({ hoy }: { hoy: string }) {
+export function FormGasto({ hoy, cuentas }: { hoy: string; cuentas: OpcionCuenta[] }) {
   const [estado, enviar, enviando] = useActionState<Resultado | null, FormData>(registrarGasto, null);
   const [categoria, setCategoria] = useState("Comida");
   const form = useRef<HTMLFormElement>(null);
@@ -58,6 +87,7 @@ export function FormGasto({ hoy }: { hoy: string }) {
           ))}
         </div>
       </fieldset>
+      <ElegirCuenta cuentas={cuentas} etiqueta="Con qué pagaste" />
       <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
         <input name="nota" maxLength={200} autoComplete="off" placeholder="Nota (opcional): tacos, gasolina…" aria-label="Nota" className="campo rounded-full py-2.5 text-sm" />
         <input type="date" name="fecha" defaultValue={hoy} max={hoy} aria-label="Fecha del gasto" className="campo rounded-full py-2.5 font-mono text-sm sm:w-44" />
@@ -71,7 +101,7 @@ export function FormGasto({ hoy }: { hoy: string }) {
 }
 
 // Entrada: comisiones de la clínica o abono de un contrato. Fuente y frente vienen fijos.
-export function FormEntrada({ hoy, fuente, area, contrato, boton, idBase }: { hoy: string; fuente: string; area: string; contrato?: string; boton: string; idBase: string }) {
+export function FormEntrada({ hoy, fuente, area, contrato, boton, idBase, cuentas }: { hoy: string; fuente: string; area: string; contrato?: string; boton: string; idBase: string; cuentas: OpcionCuenta[] }) {
   const [estado, enviar, enviando] = useActionState<Resultado | null, FormData>(registrarEntrada, null);
   const form = useRef<HTMLFormElement>(null);
 
@@ -88,6 +118,7 @@ export function FormEntrada({ hoy, fuente, area, contrato, boton, idBase }: { ho
         <Monto id={`${idBase}-monto`} etiqueta={boton} />
         <input type="date" name="fecha" defaultValue={hoy} max={hoy} aria-label="Fecha" className="campo w-[9.5rem] rounded-2xl font-mono text-sm" />
       </div>
+      <ElegirCuenta cuentas={cuentas} etiqueta="Dónde entró" />
       <input name="nota" maxLength={200} autoComplete="off" placeholder="Nota (opcional)" aria-label="Nota" className="campo rounded-full py-2.5 text-sm" />
       <Mensajes estado={estado} />
       <button type="submit" disabled={enviando} className="btn-secundario w-full">
@@ -98,23 +129,29 @@ export function FormEntrada({ hoy, fuente, area, contrato, boton, idBase }: { ho
 }
 
 // "Llegó": confirma el cobro esperado con su monto; "Otro monto" por si llegó distinto.
-export function BotonCobro({ reglaId, fecha, monto }: { reglaId: string; fecha: string; monto: string }) {
+export function BotonCobro({ reglaId, fecha, monto, cuentas }: { reglaId: string; fecha: string; monto: string; cuentas: OpcionCuenta[] }) {
   const [p, iniciar] = useTransition();
   const [editar, setEditar] = useState(false);
   const [valor, setValor] = useState(monto);
+  const [cuenta, setCuenta] = useState(cuentas[0]?.id ?? "");
   const [error, setError] = useState<string | null>(null);
 
   const confirmar = (texto?: string) =>
     iniciar(async () => {
       setError(null);
-      const r = await confirmarCobro(reglaId, fecha, texto);
+      const r = await confirmarCobro(reglaId, fecha, cuenta, texto);
       if (!r.ok) setError(r.error ?? "No se pudo.");
     });
 
   return (
     <div className="flex flex-col items-end gap-1">
       {editar ? (
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          <select value={cuenta} onChange={(e) => setCuenta(e.target.value)} aria-label="Dónde entró" className="campo w-auto rounded-full px-3 py-1.5 text-xs">
+            {cuentas.map((c) => (
+              <option key={c.id} value={c.id}>{c.nombre}</option>
+            ))}
+          </select>
           <input value={valor} onChange={(e) => setValor(e.target.value)} inputMode="decimal" aria-label="Monto que llegó" className="campo cifra w-24 rounded-full px-3 py-1.5 text-sm" />
           <button type="button" disabled={p} onClick={() => confirmar(valor)} className="rounded-full bg-ok px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">
             {p ? "…" : "Guardar"}
@@ -122,7 +159,7 @@ export function BotonCobro({ reglaId, fecha, monto }: { reglaId: string; fecha: 
         </div>
       ) : (
         <div className="flex items-center gap-1">
-          <button type="button" onClick={() => setEditar(true)} className="enlace-mono px-2 text-[10px]">Otro monto</button>
+          <button type="button" onClick={() => setEditar(true)} className="enlace-mono px-2 text-[10px]">Cambiar</button>
           <button type="button" disabled={p} onClick={() => confirmar()} className="rounded-full bg-ok px-3.5 py-1.5 text-xs font-semibold text-white shadow-[0_6px_16px_-8px_rgb(var(--c-ok)/0.8)] transition active:scale-95 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rojo">
             {p ? "…" : "Llegó ✓"}
           </button>
@@ -134,7 +171,7 @@ export function BotonCobro({ reglaId, fecha, monto }: { reglaId: string; fecha: 
 }
 
 // Anular pide un segundo toque. No borra: marca anulado.
-export function BotonAnular({ tipo, id }: { tipo: "entrada" | "gasto"; id: string }) {
+export function BotonAnular({ tipo, id }: { tipo: "entrada" | "gasto" | "movimiento"; id: string }) {
   const [p, iniciar] = useTransition();
   const [seguro, setSeguro] = useState(false);
   return (
@@ -150,5 +187,33 @@ export function BotonAnular({ tipo, id }: { tipo: "entrada" | "gasto"; id: strin
     >
       {p ? "…" : seguro ? "¿Anular?" : "Anular"}
     </button>
+  );
+}
+
+// Mover dinero: pagar tarjeta, apartar en garantía, sacar efectivo.
+export function FormMover({ hoy, cuentas }: { hoy: string; cuentas: OpcionCuenta[] }) {
+  const [estado, enviar, enviando] = useActionState<Resultado | null, FormData>(registrarTransferencia, null);
+  const form = useRef<HTMLFormElement>(null);
+  const deb = cuentas.find((c) => c.tipo === "debito") ?? cuentas[0];
+  const tarjeta = cuentas.find((c) => c.tipo === "credito") ?? cuentas[1];
+
+  useEffect(() => {
+    if (estado?.ok) form.current?.reset();
+  }, [estado]);
+
+  return (
+    <form ref={form} action={enviar} className="space-y-3">
+      <ElegirCuenta cuentas={cuentas} nombre="desde" etiqueta="Sale de" inicial={deb?.id} />
+      <ElegirCuenta cuentas={cuentas} nombre="hacia" etiqueta="Llega a" inicial={tarjeta?.id} />
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+        <Monto id="mover-monto" etiqueta="Monto a mover" />
+        <input type="date" name="fecha" defaultValue={hoy} max={hoy} aria-label="Fecha" className="campo w-[9.5rem] rounded-2xl font-mono text-sm" />
+      </div>
+      <input name="nota" maxLength={200} autoComplete="off" placeholder="Nota (opcional): pago de tarjeta…" aria-label="Nota" className="campo rounded-full py-2.5 text-sm" />
+      <Mensajes estado={estado} />
+      <button type="submit" disabled={enviando} className="btn-secundario w-full">
+        {enviando ? "Guardando…" : "Mover dinero"}
+      </button>
+    </form>
   );
 }

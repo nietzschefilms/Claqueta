@@ -2,7 +2,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { sumarDias } from "./fechas";
 import type { Bloque, Hito, Tarea } from "./tipos";
-import type { Contrato, Gasto, Pago, ReglaIngreso } from "./dinero";
+import type { Contrato, Cuenta, Gasto, Pago, ReglaIngreso, Transferencia } from "./dinero";
 
 // Lecturas con el cliente de sesión: RLS deja ver solo lo propio.
 
@@ -49,18 +49,22 @@ export async function cargarHitos(project = "ek"): Promise<Hito[]> {
 
 export async function cargarDinero() {
   const supabase = await createClient();
-  const [reglas, pagos, gastos, contratos] = await Promise.all([
+  const [reglas, pagos, gastos, contratos, cuentas, transferencias] = await Promise.all([
     supabase.from("income_rules").select("id, source, amount, rule, date, area, desde, activo").eq("activo", true).order("source"),
-    supabase.from("payments").select("id, source, amount, date, expected_key, contract_id, area, note").is("anulado_at", null).order("date", { ascending: false }).limit(2000),
-    supabase.from("expenses").select("id, amount, category, date, note").is("anulado_at", null).order("date", { ascending: false }).limit(2000),
-    supabase.from("contracts").select("id, client, total, start_date, pay_deadline, area").order("start_date")
+    supabase.from("payments").select("id, cuenta_id, source, amount, date, expected_key, contract_id, area, note").is("anulado_at", null).order("date", { ascending: false }).limit(2000),
+    supabase.from("expenses").select("id, cuenta_id, amount, category, date, note").is("anulado_at", null).order("date", { ascending: false }).limit(2000),
+    supabase.from("contracts").select("id, client, total, start_date, pay_deadline, area").order("start_date"),
+    supabase.from("cuentas").select("id, nombre, tipo, saldo_inicial, dia_corte, dia_pago, orden").eq("activo", true).order("orden"),
+    supabase.from("transferencias").select("id, desde_id, hacia_id, amount, date, note").is("anulado_at", null).order("date", { ascending: false }).limit(2000)
   ]);
-  const error = reglas.error ?? pagos.error ?? gastos.error ?? contratos.error;
+  const error = reglas.error ?? pagos.error ?? gastos.error ?? contratos.error ?? cuentas.error ?? transferencias.error;
   if (error) throw new Error(`No se pudo leer el dinero: ${error.message}`);
   return {
     reglas: (reglas.data ?? []) as ReglaIngreso[],
     pagos: (pagos.data ?? []) as Pago[],
     gastos: (gastos.data ?? []) as Gasto[],
-    contratos: (contratos.data ?? []) as Contrato[]
+    contratos: (contratos.data ?? []) as Contrato[],
+    cuentas: (cuentas.data ?? []) as Cuenta[],
+    transferencias: (transferencias.data ?? []) as Transferencia[]
   };
 }
