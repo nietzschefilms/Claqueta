@@ -11,7 +11,7 @@ export type Tarea = {
   impact: 1 | 2 | 3;
   status: Estado;
   done_at: string | null;
-  repeat: "none" | "weekly";
+  repeat: "none" | "daily" | "weekly";
   notes: string | null;
   milestone_id: string | null;
   created_at?: string;

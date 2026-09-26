@@ -231,3 +231,14 @@ describe("dificultad", () => {
     expect(urgencia(tarea({ due_date: sumarDias(HOY, 1), dificultad: 3 }), HOY)).toBe(80);
   });
 });
+
+describe("tareas diarias", () => {
+  it("nace la de mañana al completar la de hoy", () => {
+    const t = tarea({ area: "rt", due_date: HOY, repeat: "daily" });
+    expect(siguienteRepeticion(t, HOY)?.due_date).toBe(sumarDias(HOY, 1));
+  });
+  it("si se completa tarde la de ayer, la siguiente es la de hoy", () => {
+    const t = tarea({ area: "rt", due_date: sumarDias(HOY, -3), repeat: "daily" });
+    expect(siguienteRepeticion(t, HOY)?.due_date).toBe(HOY);
+  });
+});

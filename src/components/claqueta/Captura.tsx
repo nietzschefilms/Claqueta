@@ -5,7 +5,6 @@ import { crearTarea, type Resultado } from "@/app/app/tareas/acciones";
 import { LISTA_FRENTES, type FrenteId } from "@/lib/claqueta/frentes";
 import { fechaCDMX, sumarDias } from "@/lib/claqueta/fechas";
 import { estiloFrente } from "./frente-ui";
-import { Interruptor } from "@/components/Interruptor";
 
 const MINUTOS = [15, 30, 45, 60, 90, 120, 180];
 const EVENTO = "claqueta:capturar";
@@ -26,6 +25,7 @@ export function Captura() {
   const [fecha, setFecha] = useState("");
   const [minutos, setMinutos] = useState(30);
   const [impacto, setImpacto] = useState(2);
+  const [repeticion, setRepeticion] = useState("none");
   const [guardadas, setGuardadas] = useState(0);
 
   const hoy = fechaCDMX();
@@ -59,6 +59,7 @@ export function Captura() {
   useEffect(() => {
     if (estado?.ok) {
       formulario.current?.reset();
+      setRepeticion("none");
       setGuardadas((n) => n + 1);
       formulario.current?.querySelector<HTMLInputElement>("input[name=title]")?.focus();
     }
@@ -185,10 +186,21 @@ export function Captura() {
           </div>
         </fieldset>
 
-        <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl bg-tinta/[0.04] px-4 py-3 text-sm font-medium">
-          Se repite cada semana
-          <Interruptor name="repeat" value="weekly" />
-        </label>
+        <fieldset>
+          <legend className="etiqueta">Se repite</legend>
+          <input type="hidden" name="repeat" value={repeticion} />
+          <div className="mt-2 grid grid-cols-3 gap-1 rounded-full bg-tinta/[0.06] p-1">
+            {[
+              { v: "none", t: "No" },
+              { v: "daily", t: "Diario" },
+              { v: "weekly", t: "Semanal" }
+            ].map((o) => (
+              <button key={o.v} type="button" aria-pressed={repeticion === o.v} onClick={() => setRepeticion(o.v)} className={segmento(repeticion === o.v)}>
+                {o.t}
+              </button>
+            ))}
+          </div>
+        </fieldset>
 
         {estado?.error && <p className="alerta-error" role="alert">{estado.error}</p>}
         {guardadas > 0 && !estado?.error && (

@@ -30,7 +30,8 @@ const tarde = [
   f("18:00", "18:20", "Pausa"),
   foco("18:20", "19:30", "Tarea", ["escuela"]),
   foco("19:30", "20:30", "Top Mart y RT", ["topmart", "rt"]),
-  f("20:30", "21:15", "Cena"),
+  f("20:30", "20:40", "Publicar carrusel RT"),
+  f("20:40", "21:15", "Cena"),
   foco("21:15", "22:15", "Bloque libre", []),
   f("22:15", "22:30", "Cierre del día")
 ];
@@ -75,18 +76,22 @@ const viernes = [
   f("17:00", "18:20", "Regreso y descanso"),
   foco("18:20", "19:30", "Tarea", ["escuela"]),
   foco("19:30", "20:30", "Top Mart y RT", ["topmart", "rt"]),
-  f("20:30", "23:30", "Noche libre")
+  f("20:30", "20:40", "Publicar carrusel RT"),
+  f("20:40", "23:30", "Noche libre")
 ];
 const sabado = [
   foco("10:00", "13:00", "EK Bars", ["ek"]),
   foco("14:30", "17:30", "Top Mart", ["topmart"]),
   // Nietzsche es lo más ligero e informal: solo una hora.
-  foco("17:30", "18:30", "Nietzsche y spots con Erik", ["nietzsche"])
+  foco("17:30", "18:30", "Nietzsche y spots con Erik", ["nietzsche"]),
+  foco("19:30", "20:30", "Carrusel RT", ["rt"]),
+  f("20:30", "20:40", "Publicar carrusel RT")
 ];
 const domingo = [
   foco("11:00", "13:00", "Escuela", ["escuela"]),
   foco("18:00", "19:00", "Planeación semanal y finanzas", ["personal"]),
-  foco("19:00", "20:30", "Bloque libre", [])
+  foco("19:00", "20:30", "Bloque libre", []),
+  f("20:30", "20:40", "Publicar carrusel RT")
 ];
 
 const RUTINA = [
@@ -120,7 +125,7 @@ const TAREAS = [
   { title: "Pasar horario de clases a Claqueta", area: "escuela", due_date: "2026-09-27", est_minutes: 20, impact: 2 },
   { title: "Temario de la primera semana", area: "escuela", due_date: "2026-09-28", est_minutes: 60, impact: 2 },
   { title: "Revisar errores de RT", area: "rt", due_date: "2026-09-30", est_minutes: 45, impact: 2, repeat: "weekly" },
-  { title: "Contenido de Instagram RT", area: "rt", due_date: "2026-09-27", est_minutes: 60, impact: 2, repeat: "weekly" },
+  { title: "Carrusel RT", area: "rt", due_date: "2026-09-26", est_minutes: 45, impact: 3, repeat: "daily" },
   { title: "Reels de Top Mart", area: "topmart", due_date: "2026-10-02", est_minutes: 90, impact: 3 },
   { title: "Spot con Erik", area: "nietzsche", due_date: "2026-10-03", est_minutes: 180, impact: 2 },
   { title: "Registrar gastos de la semana", area: "personal", due_date: "2026-09-27", est_minutes: 15, impact: 1, repeat: "weekly" }

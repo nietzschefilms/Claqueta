@@ -26,7 +26,8 @@ export async function crearTarea(_prev: Resultado | null, form: FormData): Promi
   const due = String(form.get("due_date") ?? "").trim();
   const est = Number(form.get("est_minutes") ?? 30);
   const impact = Number(form.get("impact") ?? 2);
-  const semanal = form.get("repeat") === "weekly";
+  const repeticion = String(form.get("repeat") ?? "none");
+  const semanal = repeticion === "weekly" || repeticion === "daily"; // se repite
   const materia = String(form.get("materia") ?? "").trim();
   const dificultad = Number(form.get("dificultad") ?? 0);
 
@@ -34,7 +35,7 @@ export async function crearTarea(_prev: Resultado | null, form: FormData): Promi
   if (title.length > 200) return { ok: false, error: "El título es muy largo. Déjalo en menos de 200 letras." };
   if (!esFrente(area)) return { ok: false, error: "Elige a qué frente pertenece." };
   if (due && !esFechaISO(due)) return { ok: false, error: "La fecha no es válida. Elige una del calendario." };
-  if (semanal && !due) return { ok: false, error: "Una tarea semanal necesita fecha para saber qué día se repite." };
+  if (semanal && !due) return { ok: false, error: "Una tarea que se repite necesita fecha para saber desde cuándo." };
   if (!Number.isInteger(est) || est < 5 || est > 720) return { ok: false, error: "El tiempo debe estar entre 5 minutos y 12 horas." };
   if (![1, 2, 3].includes(impact)) return { ok: false, error: "El impacto va de 1 a 3." };
   if (materia.length > 60) return { ok: false, error: "El nombre de la materia es muy largo." };
@@ -48,7 +49,7 @@ export async function crearTarea(_prev: Resultado | null, form: FormData): Promi
     due_date: due || null,
     est_minutes: est,
     impact,
-    repeat: semanal ? "weekly" : "none",
+    repeat: repeticion === "daily" ? "daily" : repeticion === "weekly" ? "weekly" : "none",
     materia: materia || null,
     dificultad: dificultad || null
   });

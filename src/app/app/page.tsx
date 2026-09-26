@@ -358,7 +358,7 @@ function MetaTarea({ t, hoy }: { t: Tarea; hoy: string }) {
     <span className="cifra text-[11px] text-muted">
       {t.due_date && <span className={vencida ? "font-semibold text-acento" : ""}>{vencida ? "venció " : ""}{fechaRelativa(t.due_date, hoy)} · </span>}
       {duracion(t.est_minutes)}
-      {t.repeat === "weekly" && " · ↻"}
+      {t.repeat === "weekly" && " · ↻ semanal"}{t.repeat === "daily" && " · ↻ diaria"}
     </span>
   );
 }

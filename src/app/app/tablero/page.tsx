@@ -81,7 +81,7 @@ export default async function Tablero() {
                       <EtiquetaPrioridad puntaje={puntaje(t, hoy)} />
                       <span className={`cifra text-[11px] ${vencida ? "font-semibold text-acento" : "text-muted"}`}>
                         {t.due_date ? `${vencida ? "venció " : ""}${fechaRelativa(t.due_date, hoy)}` : "sin fecha"} · {t.est_minutes} min
-                        {t.repeat === "weekly" && " · ↻"}
+                        {t.repeat === "weekly" && " · ↻ semanal"}{t.repeat === "daily" && " · ↻ diaria"}
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2 pl-10">
