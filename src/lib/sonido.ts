@@ -33,10 +33,33 @@ function aplicarSesion() {
   }
 }
 
+let desbloqueado = false;
 export function desbloquearAudio() {
   aplicarSesion();
   const c = contexto();
-  if (c && c.state === "suspended") c.resume().catch(() => {});
+  if (!c) return;
+  if (c.state !== "running") c.resume().catch(() => {});
+  // Truco de iOS: tocar un sonido vacío dentro del gesto deja el audio abierto.
+  if (!desbloqueado) {
+    try {
+      const b = c.createBuffer(1, 1, 22050);
+      const src = c.createBufferSource();
+      src.buffer = b;
+      src.connect(c.destination);
+      src.start(0);
+      desbloqueado = true;
+    } catch {
+      /* sin audio */
+    }
+  }
+}
+
+// Espera a que el audio esté corriendo antes de programar el sonido.
+function cuandoListo(c: AudioContext, tocar: (t: number) => void) {
+  if (c.state === "running") return tocar(c.currentTime + 0.02);
+  c.resume()
+    .then(() => tocar(c.currentTime + 0.02))
+    .catch(() => {});
 }
 
 // Un chasquido: ruido filtrado con caída rapidísima + un "tok" grave de madera.
@@ -74,9 +97,10 @@ export function sonarClaqueta() {
   const c = contexto();
   if (!c) return;
   desbloquearAudio();
-  const t = c.currentTime + 0.02;
-  chasquido(c, t, 0.9);
-  chasquido(c, t + 0.045, 0.6);
+  cuandoListo(c, (t) => {
+    chasquido(c, t, 0.9);
+    chasquido(c, t + 0.045, 0.6);
+  });
 }
 
 // Aviso suave: un solo chasquido bajito (5 minutos antes).
@@ -84,7 +108,7 @@ export function sonarPrevio() {
   const c = contexto();
   if (!c) return;
   desbloquearAudio();
-  chasquido(c, c.currentTime + 0.02, 0.35);
+  cuandoListo(c, (t) => chasquido(c, t, 0.35));
 }
 
 // Entrada a la app: dos notas cálidas que suben, seguidas del chasquido del
@@ -93,7 +117,6 @@ export function sonarEntrada() {
   const c = contexto();
   if (!c) return;
   desbloquearAudio();
-  const t = c.currentTime + 0.03;
   const nota = (frec: number, inicio: number, dur: number, vol: number) => {
     const o = c.createOscillator();
     o.type = "sine";
@@ -106,7 +129,9 @@ export function sonarEntrada() {
     o.start(inicio);
     o.stop(inicio + dur + 0.02);
   };
-  nota(523.25, t, 0.35, 0.18); // Do
-  nota(783.99, t + 0.11, 0.5, 0.16); // Sol
-  chasquido(c, t + 0.26, 0.4);
+  cuandoListo(c, (t) => {
+    nota(523.25, t, 0.35, 0.18); // Do
+    nota(783.99, t + 0.11, 0.5, 0.16); // Sol
+    chasquido(c, t + 0.26, 0.4);
+  });
 }

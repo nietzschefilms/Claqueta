@@ -1,7 +1,7 @@
 // Service worker (heredado de Rompiendo Tabúes).
 // Instalación PWA, caché del cascarón y notificaciones push.
 // Sube el número de CACHE si cambias qué se precachea.
-const CACHE = "app-cache-v1";
+const CACHE = "app-cache-v2";
 // No precacheamos el manifiesto ni los iconos: deben leerse siempre frescos
 // para que el ícono y el start_url se actualicen sin quedar pegados.
 const ESENCIALES = ["/"];
@@ -103,7 +103,27 @@ self.addEventListener("push", (event) => {
     // Vibración suave para que se sienta (el sonido lo pone el sistema).
     vibrate: [60, 40, 60]
   };
-  event.waitUntil(self.registration.showNotification(titulo, opciones));
+  // Muestra el aviso y reporta al servidor que llegó (diagnóstico).
+  event.waitUntil(
+    (async () => {
+      let error = null;
+      try {
+        await self.registration.showNotification(titulo, opciones);
+      } catch (e) {
+        error = String((e && e.message) || e);
+      }
+      try {
+        await fetch("/api/push/recibido", {
+          method: "POST",
+          credentials: "include",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ titulo, tag: datos.tag || null, error })
+        });
+      } catch {
+        /* sin red: no pasa nada */
+      }
+    })()
+  );
 });
 
 // Al tocar la notificacion: abrir o enfocar la app en la ruta indicada.

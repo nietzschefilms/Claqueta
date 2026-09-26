@@ -39,8 +39,21 @@ export function EnVivo({ hoy, bloques, sonidoAhora, sonidoPrevio, sonidoEntrada,
       desbloquearAudio();
       if (sonidoEntrada && !yaSono("envivo:entrada")) sonarEntrada();
     };
-    window.addEventListener("pointerdown", t, { once: true });
-    return () => window.removeEventListener("pointerdown", t);
+    // iOS solo habilita el audio al TERMINAR el toque (touchend/click), no al empezarlo.
+    let hecho = false;
+    const una = () => {
+      if (hecho) return;
+      hecho = true;
+      t();
+    };
+    window.addEventListener("touchend", una, { passive: true });
+    window.addEventListener("click", una);
+    window.addEventListener("keydown", una);
+    return () => {
+      window.removeEventListener("touchend", una);
+      window.removeEventListener("click", una);
+      window.removeEventListener("keydown", una);
+    };
   }, [sonidoEntrada]);
 
   // ¿Este dispositivo recibe avisos? Si la app está instalada y no, se ofrece activarlos.

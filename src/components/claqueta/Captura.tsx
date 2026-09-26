@@ -5,6 +5,7 @@ import { crearTarea, type Resultado } from "@/app/app/tareas/acciones";
 import { LISTA_FRENTES, type FrenteId } from "@/lib/claqueta/frentes";
 import { fechaCDMX, sumarDias } from "@/lib/claqueta/fechas";
 import { estiloFrente } from "./frente-ui";
+import { sonarClaqueta } from "@/lib/sonido";
 
 const MINUTOS = [15, 30, 45, 60, 90, 120, 180];
 const EVENTO = "claqueta:capturar";
@@ -59,6 +60,7 @@ export function Captura() {
   useEffect(() => {
     if (estado?.ok) {
       formulario.current?.reset();
+      sonarClaqueta(); // ¡Clac! Toma guardada.
       setRepeticion("none");
       setGuardadas((n) => n + 1);
       formulario.current?.querySelector<HTMLInputElement>("input[name=title]")?.focus();
