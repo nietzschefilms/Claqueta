@@ -70,7 +70,7 @@ end $$;
 
 -- ─── Cron cada minuto: avisos de rutina ───────────────────────────────────
 -- Llama a /api/cron/rutina con el secreto del Vault (cron_secret).
-create extension if not exists pg_net;
+create extension if not exists pg_net schema extensions;
 create extension if not exists pg_cron;
 
 select cron.unschedule('claqueta-rutina') where exists (select 1 from cron.job where jobname = 'claqueta-rutina');
