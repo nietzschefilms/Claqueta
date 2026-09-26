@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { guardarPerfil, guardarPrefsNotif } from "./acciones";
 import { CATEGORIAS, SONIDOS, type NotifPrefs } from "@/lib/notif-prefs";
-import { sonarClaqueta, sonarEntrada } from "@/lib/sonido";
+import { sonarClaqueta, sonarEnSilencio, sonarEntrada } from "@/lib/sonido";
 import { Interruptor } from "@/components/Interruptor";
 
 export function FormPerfil({ nombre, telefono }: { nombre: string; telefono: string }) {
@@ -45,6 +45,7 @@ export function PrefsNotif({ inicial }: { inicial: NotifPrefs }) {
 
   function cambiar(clave: keyof NotifPrefs, valor: boolean) {
     const nuevo = { ...prefs, [clave]: valor };
+    if (clave === "sonido_en_silencio") sonarEnSilencio(valor);
     setPrefs(nuevo);
     iniciar(async () => {
       await guardarPrefsNotif(nuevo);
@@ -68,8 +69,8 @@ export function PrefsNotif({ inicial }: { inicial: NotifPrefs }) {
         <div className="flex items-center justify-between gap-3">
           <p className="etiqueta">Sonido</p>
           <span className="flex gap-1">
-            <button type="button" onClick={() => sonarEntrada()} className="enlace-mono">Entrada</button>
-            <button type="button" onClick={() => sonarClaqueta()} className="enlace-mono">Claqueta</button>
+            <button type="button" onClick={() => { sonarEnSilencio(prefs.sonido_en_silencio); sonarEntrada(); }} className="enlace-mono">Entrada</button>
+            <button type="button" onClick={() => { sonarEnSilencio(prefs.sonido_en_silencio); sonarClaqueta(); }} className="enlace-mono">Claqueta</button>
           </span>
         </div>
         <ul className="mt-1 divide-y divide-borde/60 border-t border-borde/60">{SONIDOS.map((x) => fila(x.clave, x.label, x.desc))}</ul>

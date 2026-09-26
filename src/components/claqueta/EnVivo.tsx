@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fechaCDMX, minutosAhoraCDMX } from "@/lib/claqueta/fechas";
-import { desbloquearAudio, sonarClaqueta, sonarEntrada, sonarPrevio } from "@/lib/sonido";
+import { desbloquearAudio, sonarClaqueta, sonarEnSilencio, sonarEntrada, sonarPrevio } from "@/lib/sonido";
 import { confirmarSuscripcion, esAppInstalada, pushSoportado, suscribir } from "@/lib/push/cliente";
 
 export type BloqueHoy = { id: string; inicio: number; fin: number; label: string; lugar: string };
@@ -23,12 +23,14 @@ function yaSono(clave: string) {
 // Con la app abierta: al cambiar de bloque suena la claqueta y aparece el aviso
 // arriba; 5 min antes, un aviso suave. Además vigila que las notificaciones de
 // este dispositivo estén activas y, si no, ofrece activarlas.
-export function EnVivo({ hoy, bloques, sonidoAhora, sonidoPrevio, sonidoEntrada }: { hoy: string; bloques: BloqueHoy[]; sonidoAhora: boolean; sonidoPrevio: boolean; sonidoEntrada: boolean }) {
+export function EnVivo({ hoy, bloques, sonidoAhora, sonidoPrevio, sonidoEntrada, enSilencio }: { hoy: string; bloques: BloqueHoy[]; sonidoAhora: boolean; sonidoPrevio: boolean; sonidoEntrada: boolean; enSilencio: boolean }) {
   const router = useRouter();
   const [aviso, setAviso] = useState<{ titulo: string; cuerpo: string; ahora: boolean } | null>(null);
   const [faltaPush, setFaltaPush] = useState(false);
   const [activando, setActivando] = useState(false);
   const cierre = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => sonarEnSilencio(enSilencio), [enSilencio]);
 
   // iOS: el audio se habilita con el primer toque. Ese mismo toque, una vez por
   // sesión, suena la entrada (si está encendida en Ajustes).

@@ -15,7 +15,26 @@ function contexto(): AudioContext | null {
   return ctx;
 }
 
+// iOS calla el Web Audio cuando el iPhone está en silencio. Con la Audio
+// Session API (Safari 16.4+) se puede pedir que suene igual ("playback").
+let ignorarSilencio = false;
+export function sonarEnSilencio(si: boolean) {
+  ignorarSilencio = si;
+  aplicarSesion();
+}
+function aplicarSesion() {
+  const n = typeof navigator !== "undefined" ? (navigator as unknown as { audioSession?: { type: string } }) : null;
+  if (n?.audioSession) {
+    try {
+      n.audioSession.type = ignorarSilencio ? "playback" : "ambient";
+    } catch {
+      /* navegador sin soporte: sigue el modo silencio */
+    }
+  }
+}
+
 export function desbloquearAudio() {
+  aplicarSesion();
   const c = contexto();
   if (c && c.state === "suspended") c.resume().catch(() => {});
 }

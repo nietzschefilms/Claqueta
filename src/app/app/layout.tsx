@@ -57,7 +57,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
       <div className="mx-auto max-w-[1440px] md:grid md:grid-cols-[236px_minmax(0,1fr)] md:gap-8 md:px-4 lg:gap-10 lg:pr-8">
         <NavApp items={menu.map(({ href, label }) => ({ href, label }))} noLeidas={noLeidas} usuario={s.nombre || s.email || ""} />
         <main className="min-w-0 px-4 pb-36 pt-5 md:px-0 md:pb-16 md:pt-8">
-          <EnVivo hoy={hoy} bloques={bloquesHoy} sonidoAhora={prefs.sonido_ahora} sonidoPrevio={prefs.sonido_previo} sonidoEntrada={prefs.sonido_entrada} />
+          <EnVivo hoy={hoy} bloques={bloquesHoy} sonidoAhora={prefs.sonido_ahora} sonidoPrevio={prefs.sonido_previo} sonidoEntrada={prefs.sonido_entrada} enSilencio={prefs.sonido_en_silencio} />
           {children}
         </main>
       </div>
