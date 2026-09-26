@@ -8,8 +8,8 @@ import { CATEGORIAS, prefsDe, type Categoria } from "@/lib/notif-prefs";
 // Nunca truena: una notificación fallida no debe romper la acción que la causó.
 export async function notificar(
   usuarioId: string,
-  n: { titulo: string; cuerpo?: string; href?: string; categoria?: Categoria; tag?: string; soloPush?: boolean }
-): Promise<void> {
+  n: { titulo: string; cuerpo?: string; href?: string; categoria?: Categoria; tag?: string; soloPush?: boolean; urgente?: boolean; ttlSegundos?: number }
+): Promise<{ enviadas: number; error?: string | null; apagada?: boolean }> {
   const categoria = n.categoria ?? "operativo";
   const admin = createAdminClient();
   // soloPush: avisos de momento (rutina) que no se guardan en la bandeja.
@@ -29,10 +29,15 @@ export async function notificar(
     const { data } = await admin.from("perfiles").select("notif_prefs").eq("id", usuarioId).maybeSingle();
     const prefs = prefsDe(data?.notif_prefs);
     const obligatoria = CATEGORIAS.find((c) => c.clave === categoria)?.obligatoria;
-    if (!obligatoria && prefs[categoria] === false) return;
-    await enviarPush(usuarioId, { titulo: n.titulo, cuerpo: n.cuerpo, url: n.href ?? "/app", tag: n.tag ?? categoria });
-  } catch {
-    /* silencioso */
+    if (!obligatoria && prefs[categoria] === false) return { enviadas: 0, apagada: true };
+    const r = await enviarPush(
+      usuarioId,
+      { titulo: n.titulo, cuerpo: n.cuerpo, url: n.href ?? "/app", tag: n.tag ?? categoria },
+      { urgente: n.urgente, ttlSegundos: n.ttlSegundos }
+    );
+    return { enviadas: r.enviadas, error: "error" in r ? r.error : null };
+  } catch (e) {
+    return { enviadas: 0, error: String((e as Error)?.message ?? e).slice(0, 160) };
   }
 }
 

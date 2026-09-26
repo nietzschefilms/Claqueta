@@ -37,7 +37,8 @@ export async function GET(req: Request) {
         const { error } = await admin.from("avisos_enviados").insert({ user_id: id, clave: `${hoy}:fijo:${f.id}` });
         if (error) continue;
         const monto = f.moneda === "USD" ? `US$${Number(f.monto)} (≈ ${pesos(aCentavos(f.monto_mxn) ?? 0)})` : pesos(aCentavos(f.monto_mxn) ?? 0);
-        await notificar(id, { titulo: `Hoy se cobra ${f.nombre}`, cuerpo: `${monto}. Cuando salga, anótalo en Dinero.`, href: "/app/dinero", categoria: "operativo", tag: `fijo-${f.id}` });
+        const r = await notificar(id, { titulo: `Hoy se cobra ${f.nombre}`, cuerpo: `${monto}. Cuando salga, anótalo en Dinero.`, href: "/app/dinero", categoria: "operativo", tag: `fijo-${f.id}`, urgente: true });
+        await admin.from("avisos_enviados").update({ entregas: r.enviadas, error: r.error ?? null }).eq("user_id", id).eq("clave", `${hoy}:fijo:${f.id}`);
         enviados += 1;
       }
     }
@@ -59,7 +60,8 @@ export async function GET(req: Request) {
       // Si ya existe la clave, otra corrida lo mandó: se salta.
       const { error } = await admin.from("avisos_enviados").insert({ user_id: id, clave: a.clave });
       if (error) continue;
-      await notificar(id, { titulo: a.titulo, cuerpo: a.cuerpo, href: "/app", categoria: "rutina", tag: "rutina", soloPush: true });
+      const r = await notificar(id, { titulo: a.titulo, cuerpo: a.cuerpo, href: "/app", categoria: "rutina", tag: "rutina", soloPush: true, urgente: true, ttlSegundos: 10 * 60 });
+      await admin.from("avisos_enviados").update({ entregas: r.enviadas, error: r.error ?? (r.apagada ? "categoría apagada" : null) }).eq("user_id", id).eq("clave", a.clave);
       enviados += 1;
     }
   }

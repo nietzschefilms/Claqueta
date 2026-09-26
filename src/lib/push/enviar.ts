@@ -22,7 +22,9 @@ export type Aviso = { titulo: string; cuerpo?: string; url?: string; tag?: strin
 
 // Manda un push a todos los dispositivos de una persona.
 // Silencioso si push no está configurado o la persona no lo activó.
-export async function enviarPush(userId: string, aviso: Aviso) {
+// urgencia "high" + ttl corto para avisos de momento (rutina): iOS los entrega
+// aunque el teléfono esté bloqueado y no los manda tarde si ya no sirven.
+export async function enviarPush(userId: string, aviso: Aviso, opciones: { urgente?: boolean; ttlSegundos?: number } = {}) {
   if (!config()) return { ok: false as const, error: "push no configurado", enviadas: 0 };
   const admin = createAdminClient();
   const { data: subs } = await admin
@@ -33,17 +35,22 @@ export async function enviarPush(userId: string, aviso: Aviso) {
 
   const cuerpo = JSON.stringify(aviso);
   let enviadas = 0;
+  let ultimoError: string | null = null;
   for (const s of subs) {
     try {
-      await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, cuerpo);
+      await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, cuerpo, {
+        urgency: opciones.urgente ? "high" : "normal",
+        TTL: opciones.ttlSegundos ?? 60 * 60 * 24
+      });
       enviadas++;
     } catch (e) {
       const code = (e as { statusCode?: number })?.statusCode;
+      ultimoError = `${code ?? "sin código"} ${String((e as { body?: string })?.body ?? (e as Error)?.message ?? "").slice(0, 120)}`;
       // Suscripción muerta (desinstaló o bloqueó): se limpia para no reintentar.
       if (code === 404 || code === 410) {
         await admin.from("push_suscripciones").delete().eq("endpoint", s.endpoint);
       }
     }
   }
-  return { ok: true as const, enviadas };
+  return { ok: true as const, enviadas, error: ultimoError };
 }

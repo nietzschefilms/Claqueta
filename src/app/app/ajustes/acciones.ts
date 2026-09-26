@@ -30,6 +30,6 @@ export async function guardarPrefsNotif(raw: Record<string, boolean>) {
 
 export async function enviarPushPrueba() {
   const s = await requerirSesion();
-  const r = await enviarPush(s.userId, { titulo: MARCA.nombreCorto, cuerpo: "Así se ven tus avisos.", url: "/app/ajustes", tag: "prueba" });
+  const r = await enviarPush(s.userId, { titulo: MARCA.nombreCorto, cuerpo: "Así se ven tus avisos.", url: "/app/ajustes", tag: "prueba" }, { urgente: true, ttlSegundos: 600 });
   return { enviadas: r.enviadas };
 }
