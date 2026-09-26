@@ -77,7 +77,9 @@ const viernes = [
 ];
 const sabado = [
   foco("10:00", "13:00", "EK Bars", ["ek"]),
-  foco("14:30", "18:00", "Nietzsche y spots con Erik", ["nietzsche"])
+  foco("14:30", "17:30", "Top Mart", ["topmart"]),
+  // Nietzsche es lo más ligero e informal: solo una hora.
+  foco("17:30", "18:30", "Nietzsche y spots con Erik", ["nietzsche"])
 ];
 const domingo = [
   foco("11:00", "13:00", "Escuela", ["escuela"]),
