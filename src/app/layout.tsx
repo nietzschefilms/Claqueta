@@ -17,6 +17,8 @@ export const metadata: Metadata = {
   applicationName: MARCA.nombre,
   appleWebApp: { capable: true, title: MARCA.nombreCorto, statusBarStyle: "default" },
   icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
+  // App privada: fuera de buscadores.
+  robots: { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } },
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000")
 };
 
