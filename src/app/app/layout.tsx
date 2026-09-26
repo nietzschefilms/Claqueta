@@ -20,7 +20,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen">
-      <header className="vidrio-fuerte sticky top-0 z-30 rounded-none border-x-0 border-t-0 md:hidden">
+      <header className="vidrio-fuerte zona-arriba sticky top-0 z-30 rounded-none border-x-0 border-t-0 md:hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-2.5">
           <Link href="/app" className="flex items-center gap-2.5 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-rojo">
             <Logo className="h-7 w-7" />

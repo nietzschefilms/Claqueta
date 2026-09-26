@@ -121,9 +121,29 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Respeta las zonas seguras del iPhone (notch y barra de inicio). */
-body {
+/* Pantalla completa en iPhone: la app va detrás de la hora y la Dynamic Island.
+   Cada barra fija agrega su propia zona segura (arriba el header, abajo las pestañas). */
+.zona-arriba {
   padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* La hora del iPhone en modo app es blanca: en tema claro se pone un velo
+   oscuro muy suave solo detrás de ella para que se lea. En oscuro no hace falta. */
+.velo-estado {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: env(safe-area-inset-top, 0px);
+  z-index: 60;
+  pointer-events: none;
+  background: linear-gradient(rgb(0 0 0 / 0.5), rgb(0 0 0 / 0.15));
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) .velo-estado {
+    display: none;
+  }
+}
+:root[data-tema="oscuro"] .velo-estado {
+  display: none;
 }
 
 /* Fondo ambiental fijo: tres manchas suaves detrás del vidrio. */
@@ -247,6 +267,49 @@ body {
 }
 .latido {
   animation: latido 2s ease-in-out infinite;
+}
+
+/* Logo de carga: el aro y el punto rojo giran juntos; el punto late. */
+@keyframes giro-logo {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+@keyframes latido-punto {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 0.85;
+  }
+}
+@keyframes trazo-logo {
+  0%,
+  100% {
+    stroke-dasharray: 100 100;
+  }
+  50% {
+    stroke-dasharray: 80 100;
+  }
+}
+.logo-carga .giro {
+  transform-box: view-box;
+  transform-origin: 50px 50px;
+  animation: giro-logo 1.15s cubic-bezier(0.55, 0.15, 0.35, 0.9) infinite;
+}
+.logo-carga .aro {
+  animation: trazo-logo 1.15s ease-in-out infinite;
+}
+.logo-carga .punto {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: latido-punto 1.15s ease-in-out infinite;
 }
 
 /* Carril horizontal sin barra visible (tablero en celular). */

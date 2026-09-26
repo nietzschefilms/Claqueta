@@ -15,7 +15,8 @@ export const metadata: Metadata = {
   title: { default: MARCA.nombre, template: `%s · ${MARCA.nombreCorto}` },
   description: MARCA.descripcion,
   applicationName: MARCA.nombre,
-  appleWebApp: { capable: true, title: MARCA.nombreCorto, statusBarStyle: "default" },
+  // black-translucent: la app se dibuja detrás de la hora y la Dynamic Island (pantalla completa).
+  appleWebApp: { capable: true, title: MARCA.nombreCorto, statusBarStyle: "black-translucent" },
   icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
   // App privada: fuera de buscadores.
   robots: { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } },
@@ -23,7 +24,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: MARCA.colorTema,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F0EDE7" },
+    { media: "(prefers-color-scheme: dark)", color: MARCA.colorTema }
+  ],
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover"
@@ -37,6 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen antialiased">
         <div className="ambiente" aria-hidden="true" />
+        <div className="velo-estado" aria-hidden="true" />
         {children}
         <InstalarApp />
         <ActualizarApp />
