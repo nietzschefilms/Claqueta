@@ -10,7 +10,8 @@ Si este archivo vive en un repo de cliente, la sección **Cliente** de abajo man
 - **Frentes:** EK Bars (peso 1.3), Escuela (1.2), Top Mart (1.15), Rompiendo Tabúes (1.0), Nietzsche Studios (0.8), Personal (0.9). Viven en `src/lib/claqueta/frentes.ts`.
 - **Contrato:** no aplica (uso propio).
 - **Supabase project id:** `ouigbpfyggjbaswyudyu` (proyecto "claqueta"). Proyecto de desarrollo, sin datos de terceros.
-- **Vercel / dominio:** pendiente.
+- **Vercel / dominio:** proyecto `claqueta` (equipo nietzschefilms-4988s-projects), https://app.nietzschefilms.com. No tocar los proyectos de nietzschefilms.com ni Rompiendo Tabúes.
+- **SQL:** en Claqueta, Claude corre todo el SQL y las migraciones (excepción a la regla 3 del estudio), siempre confirmando el project id antes.
 - **Diseño:** estilo Nietzsche Studios. Negro `#0A0A0A`, hueso `#EBE7E0` y un solo rojo `#FF0000` para lo que importa (punto del logo, botón de captura, crítico, hora actual). Títulos en Archivo condensado, texto en Public Sans, horas y montos en IBM Plex Mono. Un color apagado por frente. Tokens en `src/app/globals.css`.
 - **Datos sensibles:** dinero (ingresos, gastos, contrato EK). Cero errores: se verifica contra el dato real antes de escribir.
 - **Ramas:** en las sesiones de Claude Code se trabaja en la rama asignada a la sesión.
@@ -26,7 +27,7 @@ Si este archivo vive en un repo de cliente, la sección **Cliente** de abajo man
 ## Reglas del estudio (romper una = incidente)
 1. **Un cliente, un repo, un proyecto de Supabase, un proyecto de Vercel.** Nunca se comparte base de datos entre clientes. Nunca se copian datos reales de un cliente a otro.
 2. **Llaves solo en variables de entorno** (`.env.local` y Vercel). Nada de llaves, contraseñas ni datos personales en el código ni en `scripts/`.
-3. **En producción el SQL lo corre James.** Claude prepara la migración y la explica; James la aplica. En proyectos de desarrollo sin datos reales Claude puede aplicar migraciones.
+3. **En producción el SQL lo corre James.** Claude prepara la migración y la explica; James la aplica. En proyectos de desarrollo sin datos reales Claude puede aplicar migraciones. **Excepción: en Claqueta, Claude corre todo el SQL** (ver sección Cliente).
 4. **Claude no crea cuentas de personas reales.** Las cuentas se crean desde `/app/soporte`.
 5. **Nada se borra en duro.** Personas y registros con historial se desactivan (`activo = false`). Antes de cualquier acción destructiva, se confirma con James.
 6. **Toda función nueva se audita antes de desplegar:** funciona, y cada rol ve SOLO lo que le toca. Revisar RLS con los advisors de Supabase después de cada migración.
