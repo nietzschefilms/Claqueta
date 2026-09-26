@@ -20,22 +20,61 @@ const PROYECTO = "ouigbpfyggjbaswyudyu";
 const f = (inicio, fin, label, areas) => ({ start_time: inicio, end_time: fin, label, kind: "fixed", areas: areas ?? [] });
 const foco = (inicio, fin, label, areas) => ({ start_time: inicio, end_time: fin, label, kind: "focus", areas });
 
-const entreSemanaHastaTopMart = [
-  f("07:00", "08:00", "Arranque"),
-  f("08:00", "15:00", "Escuela"),
-  f("15:00", "16:00", "Comida"),
+// Escuela Superior de Cine · 18ª-2 · 1er trimestre (28 sep – 4 dic 2026).
+// Cada clase es un bloque fijo con su salón. Los huecos quedan como bloques
+// libres para que el planeador los llene con lo más urgente.
+const tarde = [
   foco("16:00", "18:00", "EK Bars", ["ek"]),
   f("18:00", "18:20", "Pausa"),
   foco("18:20", "19:30", "Tarea", ["escuela"]),
-  foco("19:30", "20:30", "Top Mart y RT", ["topmart", "rt"])
-];
-const lunesAJueves = [
-  ...entreSemanaHastaTopMart,
+  foco("19:30", "20:30", "Top Mart y RT", ["topmart", "rt"]),
   f("20:30", "21:15", "Cena"),
   foco("21:15", "22:15", "Bloque libre", []),
   f("22:15", "22:30", "Cierre del día")
 ];
-const viernes = [...entreSemanaHastaTopMart, f("20:30", "23:30", "Noche libre")];
+const lunes = [
+  f("07:00", "08:00", "Arranque"),
+  f("08:00", "11:00", "Edición I · Sala de cine"),
+  foco("11:00", "12:00", "Hueco libre", []),
+  f("12:00", "15:00", "Historia del Cine I · Sala de cine"),
+  f("15:00", "16:00", "Comida"),
+  ...tarde
+];
+const martes = [
+  f("07:00", "08:00", "Arranque"),
+  f("08:00", "12:00", "Cinefotografía I · Foro + Salón 2"),
+  f("12:00", "13:00", "Comida"),
+  f("13:00", "16:00", "Escritura creativa · Salón 4"),
+  ...tarde
+];
+const miercoles = [
+  f("07:00", "08:00", "Arranque"),
+  foco("08:00", "12:00", "Mañana libre", []),
+  f("12:00", "15:00", "Sonido I · Salón 1"),
+  f("15:00", "16:00", "Comida"),
+  ...tarde
+];
+const jueves = [
+  f("07:00", "08:00", "Arranque"),
+  foco("08:00", "09:00", "Hueco libre", []),
+  f("09:00", "12:00", "Literatura I · Sala de cine"),
+  f("12:00", "15:00", "Actuación · La Vaquita"),
+  f("15:00", "16:00", "Comida"),
+  ...tarde
+];
+// Viernes: Lenguaje I es de 13 a 17, así que EK Bars pasa a la mañana.
+const viernes = [
+  f("07:00", "08:00", "Arranque"),
+  foco("08:00", "09:00", "Mañana libre", []),
+  foco("09:00", "11:00", "EK Bars", ["ek"]),
+  foco("11:00", "12:00", "Bloque libre", []),
+  f("12:00", "13:00", "Comida"),
+  f("13:00", "17:00", "Lenguaje I · Salón 3"),
+  f("17:00", "18:20", "Regreso y descanso"),
+  foco("18:20", "19:30", "Tarea", ["escuela"]),
+  foco("19:30", "20:30", "Top Mart y RT", ["topmart", "rt"]),
+  f("20:30", "23:30", "Noche libre")
+];
 const sabado = [
   foco("10:00", "13:00", "EK Bars", ["ek"]),
   foco("14:30", "18:00", "Nietzsche y spots con Erik", ["nietzsche"])
@@ -48,8 +87,7 @@ const domingo = [
 
 const RUTINA = [
   ...domingo.map((b) => ({ weekday: 0, ...b })),
-  ...[1, 2, 3, 4].flatMap((d) => lunesAJueves.map((b) => ({ weekday: d, ...b }))),
-  ...viernes.map((b) => ({ weekday: 5, ...b })),
+  ...[lunes, martes, miercoles, jueves, viernes].flatMap((dia, i) => dia.map((b) => ({ weekday: i + 1, ...b }))),
   ...sabado.map((b) => ({ weekday: 6, ...b }))
 ];
 
