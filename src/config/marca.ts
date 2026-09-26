@@ -53,6 +53,7 @@ export const MENU: ItemMenu[] = [
   { href: "/app", label: "Hoy", roles: "todos" },
   { href: "/app/semana", label: "Semana", roles: "todos" },
   { href: "/app/tablero", label: "Tablero", roles: "todos" },
+  { href: "/app/dinero", label: "Dinero", roles: "todos" },
   { href: "/app/notificaciones", label: "Avisos", roles: "todos" },
   { href: "/app/ajustes", label: "Ajustes", roles: "todos" },
   { href: "/app/soporte", label: "Soporte", roles: ["admin"], soloSoporte: true }

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { requerirSesion } from "@/lib/sesion";
-import { cargarHitos, cargarRutina, cargarTareas } from "@/lib/claqueta/datos";
+import { cargarDinero, cargarHitos, cargarRutina, cargarTareas } from "@/lib/claqueta/datos";
+import { esperados, pesos } from "@/lib/claqueta/dinero";
+import Link from "next/link";
 import { diaSemana, fechaCDMX, fechaRelativa, minutosAHora, minutosAhoraCDMX } from "@/lib/claqueta/fechas";
 import { lasTresDeHoy, planearDia, type BloquePlaneado } from "@/lib/claqueta/planeador";
 import { puntaje } from "@/lib/claqueta/prioridad";
@@ -30,7 +32,10 @@ export default async function Hoy() {
   await requerirSesion();
   const hoy = fechaCDMX();
   const ahora = minutosAhoraCDMX();
-  const [tareas, rutina, hitos] = await Promise.all([cargarTareas(hoy), cargarRutina(), cargarHitos("ek")]);
+  const [tareas, rutina, hitos, dinero] = await Promise.all([cargarTareas(hoy), cargarRutina(), cargarHitos("ek"), cargarDinero()]);
+  const cobros = esperados(dinero.reglas, dinero.pagos, hoy);
+  const cobroHoy = [...cobros.atrasados, ...cobros.hoy];
+  const proximoCobro = cobros.proximos[0];
 
   const plan = planearDia(rutina.filter((b) => b.weekday === diaSemana(hoy)), tareas, hoy);
   const tres = lasTresDeHoy(tareas, hoy);
@@ -65,7 +70,18 @@ export default async function Hoy() {
               <span className={`h-2 w-2 rounded-full ${SEMAFORO[ek.semaforo]}`} aria-hidden="true" />
               EK · Sem {Math.min(ek.semana, EK_SEMANAS)}/{EK_SEMANAS} · {ek.texto}
             </span>
-            <span className="pastilla text-muted">$ Cobros · fase 2</span>
+            <Link href="/app/dinero" className="pastilla transition hover:bg-superficie focus-visible:outline focus-visible:outline-2 focus-visible:outline-rojo">
+              {cobroHoy.length > 0 ? (
+                <>
+                  <span className="h-2 w-2 rounded-full bg-ok" aria-hidden="true" />
+                  Cobro hoy · {cobroHoy.map((c) => `${c.regla.source} ${pesos(c.centavos)}`).join(" · ")}
+                </>
+              ) : proximoCobro ? (
+                <span className="text-muted">$ Próximo · {proximoCobro.regla.source} {pesos(proximoCobro.centavos)} · {fechaRelativa(proximoCobro.fecha, hoy)}</span>
+              ) : (
+                <span className="text-muted">$ Dinero</span>
+              )}
+            </Link>
           </div>
         </div>
       </header>

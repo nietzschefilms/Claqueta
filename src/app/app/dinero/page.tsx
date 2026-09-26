@@ -1,0 +1,225 @@
+import type { Metadata } from "next";
+import { requerirSesion } from "@/lib/sesion";
+import { cargarDinero } from "@/lib/claqueta/datos";
+import { fechaCDMX, fechaRelativa } from "@/lib/claqueta/fechas";
+import { aCentavos, avanceContrato, esperados, gastoPorCategoria, pesos, resumen, type Esperado } from "@/lib/claqueta/dinero";
+import { ChipFrente, estiloFrente } from "@/components/claqueta/frente-ui";
+import { Encabezado } from "@/components/Encabezado";
+import { BotonAnular, BotonCobro, FormEntrada, FormGasto } from "./Formularios";
+
+export const metadata: Metadata = { title: "Dinero" };
+
+const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
+// DINERO · cuánto entra, cuánto sale y cuánto falta del contrato de EK.
+export default async function Dinero() {
+  await requerirSesion();
+  const hoy = fechaCDMX();
+  const mes = hoy.slice(0, 7);
+  const { reglas, pagos, gastos, contratos } = await cargarDinero();
+
+  const r = resumen(pagos, gastos, mes);
+  const cobros = esperados(reglas, pagos, hoy);
+  const porCategoria = gastoPorCategoria(gastos, mes);
+  const maxCategoria = Math.max(1, ...porCategoria.map((c) => c.centavos));
+  const clinica = reglas.find((x) => x.area === "rt");
+
+  const movimientos = [
+    ...pagos.map((p) => ({ tipo: "entrada" as const, id: p.id, fecha: p.date, titulo: p.source, detalle: p.note, centavos: aCentavos(p.amount) ?? 0, area: p.area })),
+    ...gastos.map((g) => ({ tipo: "gasto" as const, id: g.id, fecha: g.date, titulo: g.category, detalle: g.note, centavos: aCentavos(g.amount) ?? 0, area: null }))
+  ]
+    .sort((a, b) => b.fecha.localeCompare(a.fecha))
+    .slice(0, 25);
+
+  return (
+    <div className="space-y-6">
+      <Encabezado etiqueta={`${MESES[Number(mes.slice(5)) - 1]} ${mes.slice(0, 4)}`} titulo="Dinero" />
+
+      {/* ── Saldo ── */}
+      <section aria-label="Saldo" className="vidrio aparecer relative overflow-hidden rounded-tarjeta p-5 md:p-7">
+        <span className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-ok/20 blur-3xl" aria-hidden="true" />
+        <div className="relative grid gap-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+          <div>
+            <p className="etiqueta">Tienes</p>
+            <p className={`cifra mt-1 text-[clamp(2.75rem,12vw,4.75rem)] font-semibold leading-none tracking-tight ${r.saldo < 0 ? "text-acento" : ""}`}>{pesos(r.saldo)}</p>
+            <p className="mt-2 text-sm text-muted">Desde que empezaste a llevar la cuenta.</p>
+          </div>
+          <dl className="grid grid-cols-2 gap-3 md:w-80">
+            <div className="rounded-2xl bg-ok/10 p-3">
+              <dt className="etiqueta text-ok">Entró este mes</dt>
+              <dd className="cifra mt-1 text-xl font-semibold">{pesos(r.entradas)}</dd>
+            </div>
+            <div className="rounded-2xl bg-tinta/[0.05] p-3">
+              <dt className="etiqueta">Salió este mes</dt>
+              <dd className="cifra mt-1 text-xl font-semibold">{pesos(r.salidas)}</dd>
+            </div>
+          </dl>
+        </div>
+      </section>
+
+      <div className="grid gap-6 lg:grid-cols-12 lg:items-start">
+        <div className="space-y-6 lg:col-span-7">
+          {/* ── Gasto rápido ── */}
+          <section aria-labelledby="gasto" className="tarjeta aparecer">
+            <h2 id="gasto" className="titulo mb-4 text-2xl">Anotar gasto</h2>
+            <FormGasto hoy={hoy} />
+          </section>
+
+          {/* ── En qué se va ── */}
+          {porCategoria.length > 0 && (
+            <section aria-labelledby="categorias" className="tarjeta aparecer">
+              <h2 id="categorias" className="titulo mb-4 text-2xl">En qué se va</h2>
+              <ul className="space-y-3">
+                {porCategoria.map((c) => (
+                  <li key={c.categoria}>
+                    <div className="flex items-baseline justify-between text-sm">
+                      <span className="font-medium">{c.categoria}</span>
+                      <span className="cifra">{pesos(c.centavos)}</span>
+                    </div>
+                    <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-tinta/[0.07]" aria-hidden="true">
+                      <div className="h-full rounded-full bg-tinta/70" style={{ width: `${(c.centavos / maxCategoria) * 100}%` }} />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {/* ── Movimientos ── */}
+          <section aria-labelledby="movs" className="tarjeta aparecer p-0">
+            <h2 id="movs" className="titulo px-5 pb-2 pt-5 text-2xl">Movimientos</h2>
+            {movimientos.length === 0 ? (
+              <p className="px-5 pb-5 text-sm text-muted">Aún no hay movimientos.</p>
+            ) : (
+              <ul className="divide-y divide-borde/60">
+                {movimientos.map((m) => (
+                  <li key={`${m.tipo}-${m.id}`} className="flex items-center gap-3 px-5 py-3">
+                    <span
+                      className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-semibold ${m.tipo === "entrada" ? "bg-ok/15 text-ok" : "bg-tinta/[0.06] text-muted"}`}
+                      aria-hidden="true"
+                    >
+                      {m.tipo === "entrada" ? "↓" : "↑"}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{m.titulo}</p>
+                      <p className="cifra truncate text-[11px] text-muted">
+                        {fechaRelativa(m.fecha, hoy)}
+                        {m.detalle ? ` · ${m.detalle}` : ""}
+                      </p>
+                    </div>
+                    <span className={`cifra shrink-0 text-sm font-semibold ${m.tipo === "entrada" ? "text-ok" : ""}`}>
+                      {m.tipo === "entrada" ? "+" : "−"}
+                      {pesos(m.centavos)}
+                    </span>
+                    <BotonAnular tipo={m.tipo} id={m.id} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        <div className="space-y-6 lg:col-span-5">
+          {/* ── Cobros esperados ── */}
+          <section aria-labelledby="cobros" className="tarjeta aparecer p-0">
+            <div className="flex items-baseline justify-between px-5 pb-2 pt-5">
+              <h2 id="cobros" className="titulo text-2xl">Cobros</h2>
+              <span className="etiqueta">Próximos 14 días</span>
+            </div>
+            {cobros.atrasados.length + cobros.hoy.length + cobros.proximos.length === 0 ? (
+              <p className="px-5 pb-5 text-sm text-muted">Nada esperado en estos días.</p>
+            ) : (
+              <ul className="divide-y divide-borde/60">
+                {[...cobros.atrasados, ...cobros.hoy, ...cobros.proximos].map((e) => (
+                  <FilaCobro key={e.clave} e={e} hoy={hoy} />
+                ))}
+              </ul>
+            )}
+          </section>
+
+          {/* ── Contratos (EK Bars) ── */}
+          {contratos.map((c) => {
+            const a = avanceContrato(c, pagos, hoy);
+            return (
+              <section key={c.id} aria-label={`Contrato ${c.client}`} style={c.area ? estiloFrente(c.area) : undefined} className="tarjeta aparecer relative overflow-hidden">
+                <span className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[rgb(var(--fc,var(--c-tinta))/0.18)] to-transparent" aria-hidden="true" />
+                <div className="relative">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <h2 className="titulo text-2xl">{c.client}</h2>
+                    <span className="etiqueta">Contrato</span>
+                  </div>
+                  <p className="cifra mt-3 text-3xl font-semibold">
+                    {pesos(a.pagado)} <span className="text-base font-normal text-muted">de {pesos(a.total)}</span>
+                  </p>
+                  <div className="mt-3 h-3 overflow-hidden rounded-full bg-tinta/10" role="progressbar" aria-label="Avance de pago" aria-valuenow={Math.round(a.porcentaje * 100)} aria-valuemin={0} aria-valuemax={100}>
+                    <div className="h-full rounded-full bg-[rgb(var(--fc,var(--c-ok)))]" style={{ width: `${Math.max(2, a.porcentaje * 100)}%` }} />
+                  </div>
+                  <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <dt className="etiqueta">Faltan</dt>
+                      <dd className="cifra mt-0.5 text-lg font-semibold">{pesos(a.restante)}</dd>
+                    </div>
+                    {a.mesesRestantes && a.restante > 0 && (
+                      <div>
+                        <dt className="etiqueta">Ritmo sugerido</dt>
+                        <dd className="cifra mt-0.5 text-lg font-semibold">
+                          {pesos(a.sugeridoMensual)}
+                          <span className="text-xs font-normal text-muted"> /mes · {a.mesesRestantes} meses</span>
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+                  {a.abonos.length > 0 && (
+                    <ul className="mt-4 space-y-1.5 border-t border-borde/60 pt-3">
+                      {a.abonos.map((p, i) => (
+                        <li key={p.id} className="flex items-baseline justify-between gap-2 text-sm">
+                          <span className="text-muted">
+                            <span className="cifra text-[11px]">#{i + 1}</span> {p.note || "Abono"} · <span className="cifra text-[11px]">{fechaRelativa(p.date, hoy)}</span>
+                          </span>
+                          <span className="cifra font-semibold">{pesos(aCentavos(p.amount) ?? 0)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="mt-5">
+                    <p className="etiqueta mb-2">Registrar pago del cliente</p>
+                    <FormEntrada hoy={hoy} fuente={c.client} area={c.area ?? ""} contrato={c.id} boton="Guardar pago" idBase={`contrato-${c.id}`} />
+                  </div>
+                </div>
+              </section>
+            );
+          })}
+
+          {/* ── Comisiones de la clínica ── */}
+          {clinica && (
+            <section aria-labelledby="comisiones" style={estiloFrente("rt")} className="tarjeta aparecer">
+              <div className="flex items-baseline justify-between gap-2">
+                <h2 id="comisiones" className="titulo text-2xl">Comisiones</h2>
+                <ChipFrente id="rt" />
+              </div>
+              <p className="mb-4 mt-1 text-sm text-muted">Lo que te tocó de comisiones esta semana, aparte de tu fijo.</p>
+              <FormEntrada hoy={hoy} fuente={`${clinica.source} · comisiones`} area="rt" boton="Guardar comisiones" idBase="comisiones" />
+            </section>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FilaCobro({ e, hoy }: { e: Esperado; hoy: string }) {
+  const atrasado = e.fecha < hoy;
+  return (
+    <li className="flex items-center gap-3 px-5 py-3.5" style={e.regla.area ? estiloFrente(e.regla.area) : undefined}>
+      <span className="h-9 w-1 shrink-0 rounded-full bg-[rgb(var(--fc,var(--c-borde)))]" aria-hidden="true" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold">{e.regla.source}</p>
+        <p className={`cifra text-[11px] ${atrasado ? "font-semibold text-acento" : e.fecha === hoy ? "font-semibold text-tinta" : "text-muted"}`}>
+          {atrasado ? "no ha llegado · " : ""}
+          {fechaRelativa(e.fecha, hoy)} · {pesos(e.centavos)}
+        </p>
+      </div>
+      <BotonCobro reglaId={e.regla.id} fecha={e.fecha} monto={(e.centavos / 100).toString()} />
+    </li>
+  );
+}
