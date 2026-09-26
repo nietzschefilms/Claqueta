@@ -23,7 +23,7 @@ export async function GET(req: Request) {
 
   for (const { id } of personas ?? []) {
     const [{ data: bloques }, { data: tareas }] = await Promise.all([
-      admin.from("routine_blocks").select("id, weekday, start_time, end_time, label, kind, areas").eq("user_id", id).eq("weekday", diaSemana(hoy)),
+      admin.from("routine_blocks").select("id, weekday, start_time, end_time, label, kind, areas, salon, piso, profesor, clave").eq("user_id", id).eq("weekday", diaSemana(hoy)),
       admin
         .from("tasks")
         .select("id, title, area, due_date, est_minutes, impact, status, done_at, repeat, notes, milestone_id, created_at, materia, dificultad")

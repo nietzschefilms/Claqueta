@@ -18,6 +18,8 @@ const PROYECTO = "ouigbpfyggjbaswyudyu";
 // ─── Rutina ───────────────────────────────────────────────────────────────
 // weekday: 0 domingo … 6 sábado. areas vacío en un focus = bloque libre (flex).
 const f = (inicio, fin, label, areas) => ({ start_time: inicio, end_time: fin, label, kind: "fixed", areas: areas ?? [] });
+// Clase: bloque fijo con salón, maestro y clave (el piso se pone desde la app).
+const clase = (inicio, fin, label, salon, profesor, clave = null) => ({ ...f(inicio, fin, label), salon, profesor, clave, piso: null });
 const foco = (inicio, fin, label, areas) => ({ start_time: inicio, end_time: fin, label, kind: "focus", areas });
 
 // Escuela Superior de Cine · 18ª-2 · 1er trimestre (28 sep – 4 dic 2026).
@@ -34,31 +36,31 @@ const tarde = [
 ];
 const lunes = [
   f("07:00", "08:00", "Arranque"),
-  f("08:00", "11:00", "Edición I · Sala de cine"),
+  clase("08:00", "11:00", "Edición I", "Sala de cine", "Pierre Dominik Tatarka Dudet", "LC107"),
   foco("11:00", "12:00", "Hueco libre", []),
-  f("12:00", "15:00", "Historia del Cine I · Sala de cine"),
+  clase("12:00", "15:00", "Historia del Cine I", "Sala de cine", "Abel Muñoz Henonin", "LC104"),
   f("15:00", "16:00", "Comida"),
   ...tarde
 ];
 const martes = [
   f("07:00", "08:00", "Arranque"),
-  f("08:00", "12:00", "Cinefotografía I · Foro + Salón 2"),
+  clase("08:00", "12:00", "Cinefotografía I", "Foro + Salón 2", "Rosalie Hübl", "LC103"),
   f("12:00", "13:00", "Comida"),
-  f("13:00", "16:00", "Escritura creativa · Salón 4"),
+  clase("13:00", "16:00", "Escritura creativa", "Salón 4", "Emmanuel Pérez Vizcaya"),
   ...tarde
 ];
 const miercoles = [
   f("07:00", "08:00", "Arranque"),
   foco("08:00", "12:00", "Mañana libre", []),
-  f("12:00", "15:00", "Sonido I · Salón 1"),
+  clase("12:00", "15:00", "Sonido I", "Salón 1", "Samuel Larson Guerra", "LC106"),
   f("15:00", "16:00", "Comida"),
   ...tarde
 ];
 const jueves = [
   f("07:00", "08:00", "Arranque"),
   foco("08:00", "09:00", "Hueco libre", []),
-  f("09:00", "12:00", "Literatura I · Sala de cine"),
-  f("12:00", "15:00", "Actuación · La Vaquita"),
+  clase("09:00", "12:00", "Literatura I", "Sala de cine", "Andrés Cota Hiriart", "LC102"),
+  clase("12:00", "15:00", "Actuación", "La Vaquita", "Israel León Fajer", "LC105"),
   f("15:00", "16:00", "Comida"),
   ...tarde
 ];
@@ -69,7 +71,7 @@ const viernes = [
   foco("09:00", "11:00", "EK Bars", ["ek"]),
   foco("11:00", "12:00", "Bloque libre", []),
   f("12:00", "13:00", "Comida"),
-  f("13:00", "17:00", "Lenguaje I · Salón 3"),
+  clase("13:00", "17:00", "Lenguaje I", "Salón 3", "Alejandro Guzmán Alvarez", "LC101"),
   f("17:00", "18:20", "Regreso y descanso"),
   foco("18:20", "19:30", "Tarea", ["escuela"]),
   foco("19:30", "20:30", "Top Mart y RT", ["topmart", "rt"]),
@@ -132,7 +134,7 @@ function sql(userId) {
   if (!/^[0-9a-f-]{36}$/i.test(userId)) throw new Error("SEMILLA_USER_ID no parece un uuid.");
   const u = lit(userId);
   const rutina = RUTINA.map(
-    (b) => `(${u}, ${b.weekday}, ${lit(b.start_time)}, ${lit(b.end_time)}, ${lit(b.label)}, ${lit(b.kind)}, ${arr(b.areas)})`
+    (b) => `(${u}, ${b.weekday}, ${lit(b.start_time)}, ${lit(b.end_time)}, ${lit(b.label)}, ${lit(b.kind)}, ${arr(b.areas)}, ${lit(b.salon)}, ${lit(b.profesor)}, ${lit(b.clave)})`
   ).join(",\n    ");
   const hitos = HITOS.map((h) => `(${u}, ${lit(h.project)}, ${h.week}, ${lit(h.title)})`).join(",\n    ");
   const tareas = TAREAS.map(
@@ -150,7 +152,7 @@ begin
   end if;
 
   if not exists (select 1 from public.routine_blocks where user_id = ${u}) then
-    insert into public.routine_blocks (user_id, weekday, start_time, end_time, label, kind, areas) values
+    insert into public.routine_blocks (user_id, weekday, start_time, end_time, label, kind, areas, salon, profesor, clave) values
     ${rutina};
   end if;
 

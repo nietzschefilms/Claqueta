@@ -32,3 +32,17 @@ describe("avisos de rutina", () => {
     expect(avisosRutina(b, 15 * 60 + 50, "2026-09-28")).toHaveLength(0);
   });
 });
+
+describe("avisos de clase", () => {
+  it("dice salón y piso", () => {
+    const clase = bloque("son", 12 * 60, 15 * 60, "Sonido I");
+    clase.bloque = { ...clase.bloque, kind: "fixed", salon: "Salón 1", piso: "2" };
+    expect(avisosRutina([clase], 11 * 60 + 55, "2026-09-30")[0]).toEqual({
+      clave: "2026-09-30:son:antes",
+      titulo: "En 5 min: Sonido I",
+      cuerpo: "Salón 1, piso 2 · 12:00 a 15:00"
+    });
+    clase.bloque.piso = null;
+    expect(avisosRutina([clase], 12 * 60, "2026-09-30")[0].cuerpo).toBe("Salón 1 · Hasta las 15:00");
+  });
+});

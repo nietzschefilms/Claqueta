@@ -27,7 +27,19 @@ export type Bloque = {
   label: string;
   kind: "fixed" | "focus";
   areas: FrenteId[];
+  // Solo clases.
+  salon?: string | null;
+  piso?: string | null;
+  profesor?: string | null;
+  clave?: string | null;
 };
+
+export const esClase = (b: Pick<Bloque, "salon">) => !!b.salon;
+
+// "Sala de cine, piso 2" (sin piso si no se ha puesto).
+export function lugarClase(b: Pick<Bloque, "salon" | "piso">): string {
+  return [b.salon, b.piso ? `piso ${b.piso}` : null].filter(Boolean).join(", ");
+}
 
 export type Hito = {
   id: string;

@@ -8,7 +8,7 @@ import { lasTresDeHoy, planearDia, type BloquePlaneado } from "@/lib/claqueta/pl
 import { puntaje } from "@/lib/claqueta/prioridad";
 import { riesgoEK, EK_SEMANAS } from "@/lib/claqueta/ek";
 import { FRENTES } from "@/lib/claqueta/frentes";
-import type { Tarea } from "@/lib/claqueta/tipos";
+import { esClase, lugarClase, type Tarea } from "@/lib/claqueta/tipos";
 import { CheckTarea } from "@/components/claqueta/CheckTarea";
 import { BotonMoverManana } from "@/components/claqueta/AccionesTarea";
 import { Anillo, ChipFrente, EtiquetaPrioridad, estiloFrente } from "@/components/claqueta/frente-ui";
@@ -234,6 +234,12 @@ function TarjetaAhora({ actual, siguiente, ahora }: { actual?: BloquePlaneado; s
               {minutosAHora(bp.inicio)} – {minutosAHora(bp.fin)}
               {actual ? ` · quedan ${duracionCorta(actual.fin - ahora)}` : ` · empieza en ${duracionCorta(bp.inicio - ahora)}`}
             </p>
+            {esClase(bp.bloque) && (
+              <p className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                <span className="rounded-full bg-f-escuela/15 px-2.5 py-1 font-semibold text-f-escuela">{lugarClase(bp.bloque)}</span>
+                {bp.bloque.profesor && <span className="text-muted">{bp.bloque.profesor}</span>}
+              </p>
+            )}
             {actual && (
               <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-tinta/10" role="progressbar" aria-label="Avance del bloque" aria-valuenow={Math.round(avance * 100)} aria-valuemin={0} aria-valuemax={100}>
                 <div className="h-full rounded-full bg-rojo" style={{ width: `${Math.max(3, avance * 100)}%` }} />
@@ -291,7 +297,18 @@ function Bloque({ bp, ahora, hoy }: { bp: BloquePlaneado; ahora: number; hoy: st
         aria-hidden="true"
       />
 
-      {fijo ? (
+      {fijo && esClase(bp.bloque) ? (
+        <div className={`ml-2 rounded-2xl border border-f-escuela/25 bg-f-escuela/[0.07] px-3.5 py-2.5 ${enCurso ? "border-rojo/40" : ""} ${pasado && !enCurso ? "opacity-50" : ""}`}>
+          <p className="text-sm font-semibold">
+            {bp.bloque.label}
+            {enCurso && <AhoraPill />}
+          </p>
+          <p className="cifra mt-0.5 text-[11px] text-muted">
+            {minutosAHora(bp.inicio)}–{minutosAHora(bp.fin)} · <span className="font-semibold text-f-escuela">{lugarClase(bp.bloque)}</span>
+            {bp.bloque.profesor ? ` · ${bp.bloque.profesor}` : ""}
+          </p>
+        </div>
+      ) : fijo ? (
         <p className={`py-2.5 pl-2 text-sm text-muted ${pasado && !enCurso ? "opacity-50" : ""}`}>
           {bp.bloque.label}
           {enCurso && <AhoraPill />}

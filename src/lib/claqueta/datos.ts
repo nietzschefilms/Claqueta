@@ -28,7 +28,7 @@ export async function cargarRutina(): Promise<Bloque[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("routine_blocks")
-    .select("id, weekday, start_time, end_time, label, kind, areas")
+    .select("id, weekday, start_time, end_time, label, kind, areas, salon, piso, profesor, clave")
     .order("weekday")
     .order("start_time");
   if (error) throw new Error(`No se pudo leer la rutina: ${error.message}`);

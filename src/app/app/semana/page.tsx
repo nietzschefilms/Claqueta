@@ -5,6 +5,7 @@ import { cargarRutina, cargarTareas } from "@/lib/claqueta/datos";
 import { diaSemana, esFechaISO, fechaCDMX, horaAMinutos, lunesDe, minutosAHora, sumarDias } from "@/lib/claqueta/fechas";
 import { ordenarPorPuntaje } from "@/lib/claqueta/prioridad";
 import { ChipFrente, estiloFrente } from "@/components/claqueta/frente-ui";
+import { esClase, lugarClase } from "@/lib/claqueta/tipos";
 
 export const metadata: Metadata = { title: "Semana" };
 
@@ -41,6 +42,7 @@ export default async function Semana({ searchParams }: { searchParams: Promise<{
     return {
       d,
       focus,
+      agenda: bloques.filter((b) => b.kind === "focus" || esClase(b)),
       minutosFoco: focus.reduce((a, b) => a + horaAMinutos(b.end_time) - horaAMinutos(b.start_time), 0),
       vencen: ordenarPorPuntaje(abiertas.filter((t) => t.due_date === d), hoy)
     };
@@ -110,7 +112,7 @@ export default async function Semana({ searchParams }: { searchParams: Promise<{
       )}
 
       <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
-        {resumen.map(({ d, focus, minutosFoco, vencen }) => {
+        {resumen.map(({ d, agenda, minutosFoco, vencen }) => {
           const esHoy = d === hoy;
           const pasado = d < hoy;
           return (
@@ -129,16 +131,23 @@ export default async function Semana({ searchParams }: { searchParams: Promise<{
               </div>
 
               <div className="flex-1 space-y-3 px-4 pb-4">
-                {focus.length === 0 ? (
-                  <p className="text-xs text-muted">Sin bloques de foco.</p>
+                {agenda.length === 0 ? (
+                  <p className="text-xs text-muted">Sin bloques.</p>
                 ) : (
                   <ul className="space-y-1">
-                    {focus.map((b) => {
-                      const f = b.areas[0];
-                      return (
+                    {agenda.map((b) =>
+                      esClase(b) ? (
+                        <li key={b.id} className="rounded-xl border border-f-escuela/25 bg-f-escuela/[0.08] px-2 py-1.5 text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="cifra w-10 shrink-0 text-muted">{minutosAHora(horaAMinutos(b.start_time))}</span>
+                            <span className="min-w-0 truncate font-semibold">{b.label}</span>
+                          </div>
+                          <p className="truncate pl-12 text-[10px] text-f-escuela">{lugarClase(b)}</p>
+                        </li>
+                      ) : (
                         <li
                           key={b.id}
-                          style={f ? estiloFrente(f) : undefined}
+                          style={b.areas[0] ? estiloFrente(b.areas[0]) : undefined}
                           className="flex items-center gap-2 rounded-xl bg-[rgb(var(--fc,var(--c-tinta))/0.07)] px-2 py-1.5 text-xs"
                         >
                           <span className="h-4 w-1 shrink-0 rounded-full bg-[rgb(var(--fc,var(--c-borde)))]" aria-hidden="true" />
@@ -148,8 +157,8 @@ export default async function Semana({ searchParams }: { searchParams: Promise<{
                             {b.areas.length === 0 && <span className="font-normal text-muted"> · libre</span>}
                           </span>
                         </li>
-                      );
-                    })}
+                      )
+                    )}
                   </ul>
                 )}
 

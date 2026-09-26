@@ -3,6 +3,7 @@
 // la clave evita mandar el mismo aviso dos veces.
 import { minutosAHora } from "./fechas";
 import type { BloquePlaneado } from "./planeador";
+import { lugarClase } from "./tipos";
 
 export const MINUTOS_ANTES = 5;
 
@@ -15,12 +16,13 @@ export function avisosRutina(bloques: BloquePlaneado[], ahora: number, hoy: stri
     const pendientes = bp.tareas.filter((t) => t.status !== "hecho");
     const queToca = pendientes.length ? `Toca: ${pendientes[0].title}${pendientes.length > 1 ? ` (+${pendientes.length - 1})` : ""}` : "";
     const horario = `${minutosAHora(bp.inicio)} a ${minutosAHora(bp.fin)}`;
+    const lugar = lugarClase(bp.bloque);
 
     if (faltan > 0 && faltan <= MINUTOS_ANTES) {
       out.push({
         clave: `${hoy}:${bp.bloque.id}:antes`,
         titulo: `En ${faltan} min: ${bp.bloque.label}`,
-        cuerpo: [horario, queToca].filter(Boolean).join(" · ")
+        cuerpo: [lugar, horario, queToca].filter(Boolean).join(" · ")
       });
     }
     // Al empezar (hasta 2 min tarde por si el cron se retrasó).
@@ -28,7 +30,7 @@ export function avisosRutina(bloques: BloquePlaneado[], ahora: number, hoy: stri
       out.push({
         clave: `${hoy}:${bp.bloque.id}:ahora`,
         titulo: `Ahora: ${bp.bloque.label}`,
-        cuerpo: [`Hasta las ${minutosAHora(bp.fin)}`, queToca].filter(Boolean).join(" · ")
+        cuerpo: [lugar, `Hasta las ${minutosAHora(bp.fin)}`, queToca].filter(Boolean).join(" · ")
       });
     }
   }
