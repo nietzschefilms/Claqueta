@@ -27,6 +27,8 @@ export async function crearTarea(_prev: Resultado | null, form: FormData): Promi
   const est = Number(form.get("est_minutes") ?? 30);
   const impact = Number(form.get("impact") ?? 2);
   const semanal = form.get("repeat") === "weekly";
+  const materia = String(form.get("materia") ?? "").trim();
+  const dificultad = Number(form.get("dificultad") ?? 0);
 
   if (!title) return { ok: false, error: "Escribe qué hay que hacer." };
   if (title.length > 200) return { ok: false, error: "El título es muy largo. Déjalo en menos de 200 letras." };
@@ -35,6 +37,8 @@ export async function crearTarea(_prev: Resultado | null, form: FormData): Promi
   if (semanal && !due) return { ok: false, error: "Una tarea semanal necesita fecha para saber qué día se repite." };
   if (!Number.isInteger(est) || est < 5 || est > 720) return { ok: false, error: "El tiempo debe estar entre 5 minutos y 12 horas." };
   if (![1, 2, 3].includes(impact)) return { ok: false, error: "El impacto va de 1 a 3." };
+  if (materia.length > 60) return { ok: false, error: "El nombre de la materia es muy largo." };
+  if (dificultad && ![1, 2, 3].includes(dificultad)) return { ok: false, error: "La dificultad va de fácil a difícil." };
 
   const supabase = await createClient();
   const { error } = await supabase.from("tasks").insert({
@@ -44,7 +48,9 @@ export async function crearTarea(_prev: Resultado | null, form: FormData): Promi
     due_date: due || null,
     est_minutes: est,
     impact,
-    repeat: semanal ? "weekly" : "none"
+    repeat: semanal ? "weekly" : "none",
+    materia: materia || null,
+    dificultad: dificultad || null
   });
   if (error) return { ok: false, error: "No se guardó. Revisa tu conexión e inténtalo de nuevo." };
   refrescar();

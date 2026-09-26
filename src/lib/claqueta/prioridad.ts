@@ -4,13 +4,19 @@ import type { Tarea } from "./tipos";
 
 export type Etiqueta = "Crítico" | "Alta" | "Media" | "Baja";
 
+// Días de anticipación según dificultad: lo difícil se empieza antes.
+export const ANTICIPO_DIFICULTAD = { 1: 0, 2: 1, 3: 2 } as const;
+
 // Urgencia por fecha: vencida 100, hoy 80, mañana 60, 2 a 3 días 45,
 // 4 a 7 días 30, más lejos 15, sin fecha 10. "haciendo" suma 10.
-export function urgencia(t: Pick<Tarea, "due_date" | "status">, hoy: string): number {
+// Con dificultad, la fecha se "adelanta": difícil en 3 días cuenta como mañana
+// (sin llegar a vencida si todavía no vence).
+export function urgencia(t: Pick<Tarea, "due_date" | "status"> & { dificultad?: 1 | 2 | 3 | null }, hoy: string): number {
   let u: number;
   if (!t.due_date) u = 10;
   else {
-    const d = diasEntre(hoy, t.due_date);
+    const real = diasEntre(hoy, t.due_date);
+    const d = real < 0 ? real : Math.max(0, real - (t.dificultad ? ANTICIPO_DIFICULTAD[t.dificultad] : 0));
     if (d < 0) u = 100;
     else if (d === 0) u = 80;
     else if (d === 1) u = 60;
@@ -22,7 +28,7 @@ export function urgencia(t: Pick<Tarea, "due_date" | "status">, hoy: string): nu
 }
 
 // puntaje = (urgencia + impacto × 8) × peso del frente
-export function puntaje(t: Pick<Tarea, "due_date" | "status" | "impact" | "area">, hoy: string): number {
+export function puntaje(t: Pick<Tarea, "due_date" | "status" | "impact" | "area"> & { dificultad?: 1 | 2 | 3 | null }, hoy: string): number {
   const bruto = (urgencia(t, hoy) + t.impact * 8) * FRENTES[t.area].peso;
   return Math.round(bruto * 100) / 100;
 }

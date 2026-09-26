@@ -15,6 +15,8 @@ export type Tarea = {
   notes: string | null;
   milestone_id: string | null;
   created_at?: string;
+  materia?: string | null;
+  dificultad?: 1 | 2 | 3 | null;
 };
 
 export type Bloque = {

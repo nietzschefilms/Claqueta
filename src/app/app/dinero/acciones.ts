@@ -162,3 +162,32 @@ export async function anularMovimiento(tipo: keyof typeof TABLA, id: string): Pr
   refrescar();
   return { ok: true };
 }
+
+// Cargo de una suscripción del mes ("Ya se cobró"). En dólares se anota lo que
+// realmente cobró la tarjeta en pesos. El índice único evita anotarlo dos veces.
+export async function confirmarFijo(fijoId: string, mes: string, montoTexto: string, cuentaId: string): Promise<Resultado> {
+  const s = await requerirSesion();
+  if (!UUID.test(fijoId) || !/^\d{4}-\d{2}$/.test(mes)) return { ok: false, error: "Cargo no válido." };
+  const centavos = aCentavos(montoTexto);
+  if (!centavos) return { ok: false, error: "Escribe cuánto te cobraron en pesos." };
+  const supabase = await createClient();
+  const { data: f } = await supabase.from("gastos_fijos").select("id, nombre, categoria").eq("id", fijoId).maybeSingle<{ id: string; nombre: string; categoria: string }>();
+  if (!f) return { ok: false, error: "No encontré esa suscripción." };
+  if (!(await cuentaValida(supabase, cuentaId, ["debito", "efectivo", "credito"]))) return { ok: false, error: "Elige con qué se pagó." };
+  const hoy = fechaCDMX();
+  const { error } = await supabase.from("expenses").insert({
+    user_id: s.userId,
+    amount: pesosDe(centavos),
+    category: f.categoria,
+    date: hoy.startsWith(mes) ? hoy : `${mes}-01`,
+    note: f.nombre,
+    cuenta_id: cuentaId,
+    fijo_key: `${f.id}:${mes}`
+  });
+  if (error?.code === "23505") return { ok: true, mensaje: "Ya estaba anotado este mes." };
+  if (error) return { ok: false, error: "No se guardó. Inténtalo de nuevo." };
+  // Guarda con qué se paga para la próxima vez.
+  await supabase.from("gastos_fijos").update({ cuenta_id: cuentaId }).eq("id", f.id);
+  refrescar();
+  return { ok: true };
+}

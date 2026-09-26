@@ -6,7 +6,8 @@ import { aCentavos, avanceContrato, esperados, fechasTarjeta, gastoPorCategoria,
 import { ChipFrente, estiloFrente } from "@/components/claqueta/frente-ui";
 import { Encabezado } from "@/components/Encabezado";
 import { estimadoMes } from "@/lib/claqueta/impuestos";
-import { BotonAnular, BotonCobro, FormEntrada, FormGasto, FormMover, type OpcionCuenta } from "./Formularios";
+import { BotonAnular, BotonCobro, BotonFijo, FormEntrada, FormGasto, FormMover, type OpcionCuenta } from "./Formularios";
+import Link from "next/link";
 
 export const metadata: Metadata = { title: "Dinero" };
 
@@ -17,7 +18,9 @@ export default async function Dinero() {
   await requerirSesion();
   const hoy = fechaCDMX();
   const mes = hoy.slice(0, 7);
-  const { reglas, pagos, gastos, contratos, cuentas, transferencias } = await cargarDinero();
+  const { reglas, pagos, gastos, contratos, cuentas, transferencias, fijos } = await cargarDinero();
+  const cobradosFijos = new Set(gastos.map((g) => g.fijo_key).filter(Boolean));
+  const totalFijos = fijos.reduce((a, f) => a + (aCentavos(f.monto_mxn) ?? 0), 0);
   const saldos = saldosCuentas(cuentas, pagos, gastos, transferencias);
   const nombreCuenta = new Map(cuentas.map((c) => [c.id, c.nombre]));
   const opciones: OpcionCuenta[] = cuentas.map((c) => ({ id: c.id, nombre: c.nombre, tipo: c.tipo }));
@@ -42,7 +45,11 @@ export default async function Dinero() {
 
   return (
     <div className="space-y-6">
-      <Encabezado etiqueta={`${MESES[Number(mes.slice(5)) - 1]} ${mes.slice(0, 4)}`} titulo="Dinero" />
+      <Encabezado etiqueta={`${MESES[Number(mes.slice(5)) - 1]} ${mes.slice(0, 4)}`} titulo="Dinero">
+        <Link href="/app/dinero/plan" className="btn-primario">
+          Plan y contador <span aria-hidden="true">→</span>
+        </Link>
+      </Encabezado>
 
       {/* ── Saldo ── */}
       <section aria-label="Saldo" className="vidrio aparecer relative overflow-hidden rounded-tarjeta p-5 md:p-7">
@@ -190,6 +197,39 @@ export default async function Dinero() {
                 <FormMover hoy={hoy} cuentas={opciones} />
               </div>
             </details>
+          </section>
+
+          {/* ── Suscripciones ── */}
+          <section aria-labelledby="fijos" className="tarjeta aparecer p-0">
+            <div className="flex items-baseline justify-between px-5 pb-2 pt-5">
+              <h2 id="fijos" className="titulo text-2xl">Suscripciones</h2>
+              <span className="cifra text-xs text-muted">≈ {pesos(totalFijos)} /mes</span>
+            </div>
+            {fijos.length === 0 ? (
+              <p className="px-5 pb-5 text-sm text-muted">Sin suscripciones.</p>
+            ) : (
+              <ul className="divide-y divide-borde/60">
+                {fijos.map((f) => {
+                  const cobrado = cobradosFijos.has(`${f.id}:${mes}`);
+                  return (
+                    <li key={f.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold">{f.nombre}</p>
+                        <p className="cifra text-[11px] text-muted">
+                          {f.moneda === "USD" ? `US$${Number(f.monto)} ≈ ${pesos(aCentavos(f.monto_mxn) ?? 0)}` : pesos(aCentavos(f.monto_mxn) ?? 0)}
+                          {f.dia ? ` · cada día ${f.dia}` : " · mensual"}
+                        </p>
+                      </div>
+                      {cobrado ? (
+                        <span className="rounded-full bg-ok/15 px-3 py-1 text-xs font-semibold text-ok">Cobrado este mes ✓</span>
+                      ) : (
+                        <BotonFijo fijoId={f.id} mes={mes} montoMxn={String(Number(f.monto_mxn))} cuentas={paraGastar} cuentaInicial={f.cuenta_id} />
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </section>
 
           {/* ── Cobros esperados ── */}

@@ -218,3 +218,16 @@ describe("riesgo EK", () => {
     expect(r.tiempo).toBe(1);
   });
 });
+
+describe("dificultad", () => {
+  it("lo difícil se prioriza antes", () => {
+    const facil = tarea({ area: "escuela", due_date: sumarDias(HOY, 3), dificultad: 1 });
+    const dificil = tarea({ area: "escuela", due_date: sumarDias(HOY, 3), dificultad: 3 });
+    expect(urgencia(facil, HOY)).toBe(45);
+    expect(urgencia(dificil, HOY)).toBe(60); // 3 días - 2 de anticipo = mañana
+    expect(ordenarPorPuntaje([facil, dificil], HOY)[0].id).toBe(dificil.id);
+  });
+  it("el anticipo no la vuelve vencida", () => {
+    expect(urgencia(tarea({ due_date: sumarDias(HOY, 1), dificultad: 3 }), HOY)).toBe(80);
+  });
+});

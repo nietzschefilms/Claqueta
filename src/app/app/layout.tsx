@@ -8,7 +8,7 @@ import { NavApp } from "@/components/NavApp";
 import { ContrasenaObligatoria } from "@/components/ContrasenaObligatoria";
 import { Logo } from "@/components/claqueta/Logo";
 import { Captura } from "@/components/claqueta/Captura";
-import { IconoAjustes } from "@/components/Iconos";
+import { IconoAjustes, IconoAvisos } from "@/components/Iconos";
 
 // Cascarón de la zona privada.
 // Celular: barra superior de vidrio y pestañas flotantes abajo.
@@ -28,6 +28,10 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
           </Link>
           <div className="flex items-center gap-2">
             <BotonTema />
+            <Link href="/app/notificaciones" aria-label={noLeidas ? `Avisos, ${noLeidas} sin leer` : "Avisos"} className="vidrio relative grid h-10 w-10 place-items-center rounded-full text-tinta transition active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rojo">
+              <IconoAvisos className="h-5 w-5" />
+              {noLeidas > 0 && <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-acento ring-2 ring-fondo" aria-hidden="true" />}
+            </Link>
             <Link href="/app/ajustes" aria-label="Ajustes" className="vidrio grid h-10 w-10 place-items-center rounded-full text-tinta transition active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rojo">
               <IconoAjustes className="h-5 w-5" />
             </Link>

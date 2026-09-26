@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef, useState, useTransition } from "reac
 import { aCentavos, pesos } from "@/lib/claqueta/dinero";
 import { desgloseFactura, type ClienteTipo } from "@/lib/claqueta/impuestos";
 import { Interruptor } from "@/components/Interruptor";
-import { anularMovimiento, confirmarCobro, registrarEntrada, registrarGasto, registrarTransferencia, type Resultado } from "./acciones";
+import { anularMovimiento, confirmarCobro, confirmarFijo, registrarEntrada, registrarGasto, registrarTransferencia, type Resultado } from "./acciones";
 
 export type OpcionCuenta = { id: string; nombre: string; tipo: "debito" | "efectivo" | "credito" | "garantia" };
 
@@ -35,7 +35,7 @@ function ElegirCuenta({ cuentas, nombre = "cuenta", etiqueta, inicial }: { cuent
   );
 }
 
-export const CATEGORIAS = ["Comida", "Transporte", "Casa", "Escuela", "Equipo", "Salidas", "Suscripciones", "Otros"];
+export const CATEGORIAS = ["Comida", "Transporte", "Equipo de video", "Suscripciones", "Escuela", "Casa", "Salidas", "Otros"];
 
 const campoMonto =
   "cifra w-full rounded-2xl border border-borde/80 bg-superficie/70 py-3 pl-9 pr-4 text-2xl font-semibold text-tinta outline-none transition placeholder:text-muted/50 focus:border-tinta/60 focus:bg-superficie focus:ring-4 focus:ring-tinta/5";
@@ -344,5 +344,52 @@ export function FormMover({ hoy, cuentas }: { hoy: string; cuentas: OpcionCuenta
         {enviando ? "Guardando…" : "Mover dinero"}
       </button>
     </form>
+  );
+}
+
+// "Ya se cobró" de una suscripción: monto real en pesos y con qué se pagó.
+export function BotonFijo({ fijoId, mes, montoMxn, cuentas, cuentaInicial }: { fijoId: string; mes: string; montoMxn: string; cuentas: OpcionCuenta[]; cuentaInicial?: string | null }) {
+  const [p, iniciar] = useTransition();
+  const [abierto, setAbierto] = useState(false);
+  const [valor, setValor] = useState(montoMxn);
+  const [cuenta, setCuenta] = useState(cuentaInicial ?? cuentas[0]?.id ?? "");
+  const [error, setError] = useState<string | null>(null);
+
+  if (!abierto)
+    return (
+      <button type="button" onClick={() => setAbierto(true)} className="rounded-full bg-tinta/[0.07] px-3.5 py-1.5 text-xs font-semibold text-tinta transition active:scale-95 hover:bg-tinta/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rojo">
+        Ya se cobró
+      </button>
+    );
+
+  return (
+    <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:items-end">
+      <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
+        <select value={cuenta} onChange={(e) => setCuenta(e.target.value)} aria-label="Con qué se pagó" className="campo w-auto rounded-full px-3 py-1.5 text-xs">
+          {cuentas.map((c) => (
+            <option key={c.id} value={c.id}>{c.nombre}</option>
+          ))}
+        </select>
+        <span className="relative">
+          <span className="cifra pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted">$</span>
+          <input value={valor} onChange={(e) => setValor(e.target.value)} inputMode="decimal" aria-label="Cuánto te cobraron en pesos" className="campo cifra w-24 rounded-full py-1.5 pl-5 pr-2 text-sm" />
+        </span>
+        <button
+          type="button"
+          disabled={p}
+          onClick={() =>
+            iniciar(async () => {
+              setError(null);
+              const r = await confirmarFijo(fijoId, mes, valor, cuenta);
+              if (!r.ok) setError(r.error ?? "No se pudo.");
+            })
+          }
+          className="rounded-full bg-tinta px-3.5 py-1.5 text-xs font-semibold text-fondo disabled:opacity-50"
+        >
+          {p ? "…" : "Guardar"}
+        </button>
+      </div>
+      {error && <p className="text-[11px] text-acento" role="alert">{error}</p>}
+    </div>
   );
 }

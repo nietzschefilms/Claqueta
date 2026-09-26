@@ -25,6 +25,9 @@ export type Cuenta = {
   dia_corte: number | null;
   dia_pago: number | null;
   orden: number;
+  limite?: number | string | null;
+  garantia_id?: string | null;
+  limite_extra?: number | string | null;
 };
 
 export type Transferencia = {
@@ -62,6 +65,7 @@ export type Gasto = {
   category: string;
   date: string;
   note: string | null;
+  fijo_key?: string | null;
 };
 
 export type Contrato = {

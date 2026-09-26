@@ -3,10 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { sumarDias } from "./fechas";
 import type { Bloque, Hito, Tarea } from "./tipos";
 import type { Contrato, Cuenta, Gasto, Pago, ReglaIngreso, Transferencia } from "./dinero";
+import type { GastoFijo } from "./plan";
 
 // Lecturas con el cliente de sesión: RLS deja ver solo lo propio.
 
-const CAMPOS_TAREA = "id, title, area, due_date, est_minutes, impact, status, done_at, repeat, notes, milestone_id, created_at";
+const CAMPOS_TAREA = "id, title, area, due_date, est_minutes, impact, status, done_at, repeat, notes, milestone_id, created_at, materia, dificultad";
 
 // Pendientes y en curso, más lo hecho en los últimos días (para verlo tachado).
 export async function cargarTareas(hoy: string): Promise<Tarea[]> {
@@ -49,15 +50,16 @@ export async function cargarHitos(project = "ek"): Promise<Hito[]> {
 
 export async function cargarDinero() {
   const supabase = await createClient();
-  const [reglas, pagos, gastos, contratos, cuentas, transferencias] = await Promise.all([
+  const [reglas, pagos, gastos, contratos, cuentas, transferencias, fijos] = await Promise.all([
     supabase.from("income_rules").select("id, source, amount, rule, date, area, desde, activo, gravable").eq("activo", true).order("source"),
     supabase.from("payments").select("id, cuenta_id, source, amount, date, expected_key, contract_id, area, note, gravable, factura, cliente_tipo, subtotal, iva, ret_isr, ret_iva").is("anulado_at", null).order("date", { ascending: false }).limit(2000),
-    supabase.from("expenses").select("id, cuenta_id, amount, category, date, note").is("anulado_at", null).order("date", { ascending: false }).limit(2000),
+    supabase.from("expenses").select("id, cuenta_id, amount, category, date, note, fijo_key").is("anulado_at", null).order("date", { ascending: false }).limit(2000),
     supabase.from("contracts").select("id, client, total, start_date, pay_deadline, area").order("start_date"),
-    supabase.from("cuentas").select("id, nombre, tipo, saldo_inicial, dia_corte, dia_pago, orden").eq("activo", true).order("orden"),
-    supabase.from("transferencias").select("id, desde_id, hacia_id, amount, date, note").is("anulado_at", null).order("date", { ascending: false }).limit(2000)
+    supabase.from("cuentas").select("id, nombre, tipo, saldo_inicial, dia_corte, dia_pago, orden, limite, garantia_id, limite_extra").eq("activo", true).order("orden"),
+    supabase.from("transferencias").select("id, desde_id, hacia_id, amount, date, note").is("anulado_at", null).order("date", { ascending: false }).limit(2000),
+    supabase.from("gastos_fijos").select("id, nombre, categoria, moneda, monto, monto_mxn, dia, cuenta_id").eq("activo", true).order("nombre")
   ]);
-  const error = reglas.error ?? pagos.error ?? gastos.error ?? contratos.error ?? cuentas.error ?? transferencias.error;
+  const error = reglas.error ?? pagos.error ?? gastos.error ?? contratos.error ?? cuentas.error ?? transferencias.error ?? fijos.error;
   if (error) throw new Error(`No se pudo leer el dinero: ${error.message}`);
   return {
     reglas: (reglas.data ?? []) as ReglaIngreso[],
@@ -65,6 +67,7 @@ export async function cargarDinero() {
     gastos: (gastos.data ?? []) as Gasto[],
     contratos: (contratos.data ?? []) as Contrato[],
     cuentas: (cuentas.data ?? []) as Cuenta[],
-    transferencias: (transferencias.data ?? []) as Transferencia[]
+    transferencias: (transferencias.data ?? []) as Transferencia[],
+    fijos: (fijos.data ?? []) as GastoFijo[]
   };
 }

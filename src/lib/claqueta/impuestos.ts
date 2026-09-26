@@ -71,3 +71,56 @@ export function estimadoMes(pagos: PagoFiscal[], mes: string) {
   const ivaPagar = Math.max(0, ivaCobrado - retIva);
   return { base, facturado, tasa, isr, retIsr, isrPagar, ivaCobrado, retIva, ivaPagar, total: isrPagar + ivaPagar, limite: limiteDeclaracion(mes) };
 }
+
+// ─── Contador: formas legales de pagar menos o no pagar de más ───────────
+// Solo planeación legal (no evasión). Cada consejo dice por qué aplica.
+export type ConsejoFiscal = { titulo: string; texto: string; aplica?: boolean };
+
+export function consejosFiscales(e: ReturnType<typeof estimadoMes>, datos: { facturasEmitidas: number }): ConsejoFiscal[] {
+  const tope = TABLA_RESICO[0][0];
+  return [
+    {
+      titulo: "Quédate en RESICO",
+      texto: "Pagas de 1% a 2.5% sobre lo que cobras, sin llevar deducciones. Es de las tasas más bajas de México. El límite es 3.5 millones al año.",
+      aplica: true
+    },
+    {
+      titulo: e.base > tope * 0.8 ? "Cerca del tramo de 1.1%" : "Estás en el tramo de 1%",
+      texto:
+        e.base > tope * 0.8
+          ? "Arriba de $25,000 en el mes la tasa sube a 1.1% sobre TODO lo del mes. Si un cliente te puede pagar el 1 del mes siguiente en lugar del 30, cobrarlo después es legal y te deja en 1%."
+          : "Mientras cobres hasta $25,000 al mes pagas 1%. Si un mes viene cargado, pedir que un pago caiga el mes siguiente te mantiene en 1% (es legal: RESICO cuenta lo cobrado, no lo facturado).",
+      aplica: true
+    },
+    {
+      titulo: "Pide factura de todo lo de trabajo",
+      texto: "Equipo de video, software, discos, renta de equipo. En RESICO no te bajan el ISR, pero el IVA de esas facturas se resta del IVA que cobres a tus clientes (IVA acreditable). Pide la factura a tu RFC con uso 'Gastos en general'.",
+      aplica: true
+    },
+    {
+      titulo: "Compra equipo el mes que factures con IVA",
+      texto: "Si compras una cámara de $20,000 + IVA el mismo mes que cobras IVA, sus $3,200 de IVA bajan lo que pagas ese mes. Hazlo con factura y pagando con tarjeta o transferencia (no efectivo arriba de $2,000).",
+      aplica: true
+    },
+    {
+      titulo: "Factura a empresas: la retención ya es pago",
+      texto: "Cuando una empresa te retiene 1.25% de ISR y 2/3 del IVA, eso ya lo pagó por ti al SAT. Resta esas retenciones en tu declaración para no pagar doble. Guarda cada factura con su retención.",
+      aplica: datos.facturasEmitidas > 0
+    },
+    {
+      titulo: "Declara antes del 17, aunque sea en ceros",
+      texto: "Evitas recargos y multas. Ojo: en RESICO, si dejas de declarar 3 meses seguidos te sacan del régimen y pagarías mucho más en otro.",
+      aplica: true
+    },
+    {
+      titulo: "Separa una cuenta para tu trabajo",
+      texto: "Que ahí entren tus cobros y salgan tus gastos de trabajo. Si el SAT pregunta, se ve claro qué es ingreso y qué es regalo de tus papás (los regalos de padres a hijos no pagan ISR).",
+      aplica: true
+    },
+    {
+      titulo: "Aparta el impuesto al cobrar",
+      texto: "Cada vez que te paguen, mueve el 1% (y el IVA si cobraste) a tu apartado. Así nunca se te junta.",
+      aplica: true
+    }
+  ];
+}

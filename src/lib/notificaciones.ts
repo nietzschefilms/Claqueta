@@ -8,11 +8,12 @@ import { CATEGORIAS, prefsDe, type Categoria } from "@/lib/notif-prefs";
 // Nunca truena: una notificación fallida no debe romper la acción que la causó.
 export async function notificar(
   usuarioId: string,
-  n: { titulo: string; cuerpo?: string; href?: string; categoria?: Categoria; tag?: string }
+  n: { titulo: string; cuerpo?: string; href?: string; categoria?: Categoria; tag?: string; soloPush?: boolean }
 ): Promise<void> {
   const categoria = n.categoria ?? "operativo";
   const admin = createAdminClient();
-  try {
+  // soloPush: avisos de momento (rutina) que no se guardan en la bandeja.
+  if (!n.soloPush) try {
     await admin.from("notificaciones").insert({
       usuario_id: usuarioId,
       titulo: n.titulo,
