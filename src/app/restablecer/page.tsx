@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { CampoContrasena } from "@/components/CampoContrasena";
+import { errorContrasena, MIN_CONTRASENA } from "@/lib/contrasena";
 
 // Crear contraseña nueva después del link de recuperación.
 export default function Restablecer() {
@@ -35,7 +36,8 @@ export default function Restablecer() {
   async function guardar(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (pass.length < 8) return setError("Usa al menos 8 caracteres.");
+    const invalida = errorContrasena(pass);
+    if (invalida) return setError(invalida);
     if (pass !== pass2) return setError("Las contraseñas no coinciden.");
     setCargando(true);
     const { error: err } = await createClient().auth.updateUser({ password: pass, data: { pwd_set: true } });
@@ -58,11 +60,11 @@ export default function Restablecer() {
       ) : (
         <>
           <h1 className="font-display text-3xl font-bold">Crea tu contraseña nueva</h1>
-          <p className="mt-1 text-sm text-muted">Al menos 8 caracteres.</p>
+          <p className="mt-1 text-sm text-muted">Al menos {MIN_CONTRASENA} caracteres, con minúsculas, mayúsculas y un número.</p>
           <form onSubmit={guardar} className="mt-6 space-y-3">
             {error && <p className="alerta-error" role="alert">{error}</p>}
-            <CampoContrasena id="restablecer-pass" autoComplete="new-password" required minLength={8} value={pass} onChange={(e) => setPass(e.target.value)} placeholder="Contraseña nueva" className="campo" />
-            <CampoContrasena id="restablecer-pass2" autoComplete="new-password" required minLength={8} value={pass2} onChange={(e) => setPass2(e.target.value)} placeholder="Repítela" className="campo" />
+            <CampoContrasena id="restablecer-pass" autoComplete="new-password" required minLength={MIN_CONTRASENA} value={pass} onChange={(e) => setPass(e.target.value)} placeholder="Contraseña nueva" className="campo" />
+            <CampoContrasena id="restablecer-pass2" autoComplete="new-password" required minLength={MIN_CONTRASENA} value={pass2} onChange={(e) => setPass2(e.target.value)} placeholder="Repítela" className="campo" />
             <button type="submit" disabled={cargando || haySesion === null} className="btn-primario w-full">
               {cargando ? "Guardando..." : "Guardar contraseña"}
             </button>

@@ -20,11 +20,17 @@ export type Cuenta = {
 
 // Contraseña temporal legible y distinta cada vez (en RT era una fija; aquí no,
 // para que nadie pueda adivinar la de otra persona). Sin 0/O ni 1/l.
+// Siempre trae minúscula, mayúscula y número para cumplir la regla de Supabase.
 function contrasenaTemporal() {
-  const abc = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-  let s = "";
-  for (let i = 0; i < 10; i++) s += abc[randomInt(abc.length)];
-  return s;
+  const grupos = ["ABCDEFGHJKMNPQRSTUVWXYZ", "abcdefghjkmnpqrstuvwxyz", "23456789"];
+  const abc = grupos.join("");
+  const letras = grupos.map((g) => g[randomInt(g.length)]);
+  while (letras.length < 14) letras.push(abc[randomInt(abc.length)]);
+  for (let i = letras.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [letras[i], letras[j]] = [letras[j], letras[i]];
+  }
+  return letras.join("");
 }
 
 const limpiar = (q: string) => q.replace(/[%_,()]/g, "").trim();
