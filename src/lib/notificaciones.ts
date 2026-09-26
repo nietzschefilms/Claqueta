@@ -8,7 +8,7 @@ import { CATEGORIAS, prefsDe, type Categoria } from "@/lib/notif-prefs";
 // Nunca truena: una notificación fallida no debe romper la acción que la causó.
 export async function notificar(
   usuarioId: string,
-  n: { titulo: string; cuerpo?: string; href?: string; categoria?: Categoria; tag?: string; soloPush?: boolean; urgente?: boolean; ttlSegundos?: number }
+  n: { titulo: string; cuerpo?: string; href?: string; categoria?: Categoria; tag?: string; soloPush?: boolean; urgente?: boolean; ttlSegundos?: number; silencioso?: boolean }
 ): Promise<{ enviadas: number; error?: string | null; apagada?: boolean }> {
   const categoria = n.categoria ?? "operativo";
   const admin = createAdminClient();
@@ -32,7 +32,7 @@ export async function notificar(
     if (!obligatoria && prefs[categoria] === false) return { enviadas: 0, apagada: true };
     const r = await enviarPush(
       usuarioId,
-      { titulo: n.titulo, cuerpo: n.cuerpo, url: n.href ?? "/app", tag: n.tag ?? categoria },
+      { titulo: n.titulo, cuerpo: n.cuerpo, url: n.href ?? "/app", tag: n.tag ?? categoria, silencioso: n.silencioso },
       { urgente: n.urgente, ttlSegundos: n.ttlSegundos }
     );
     return { enviadas: r.enviadas, error: "error" in r ? r.error : null };

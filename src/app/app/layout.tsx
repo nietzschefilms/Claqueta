@@ -9,6 +9,12 @@ import { ContrasenaObligatoria } from "@/components/ContrasenaObligatoria";
 import { Logo } from "@/components/claqueta/Logo";
 import { Captura } from "@/components/claqueta/Captura";
 import { IconoAjustes, IconoAvisos } from "@/components/Iconos";
+import { EnVivo, type BloqueHoy } from "@/components/claqueta/EnVivo";
+import { cargarRutina } from "@/lib/claqueta/datos";
+import { diaSemana, fechaCDMX, horaAMinutos } from "@/lib/claqueta/fechas";
+import { lugarClase } from "@/lib/claqueta/tipos";
+import { prefsDe } from "@/lib/notif-prefs";
+import { createClient } from "@/lib/supabase/server";
 
 // Cascarón de la zona privada.
 // Celular: barra superior de vidrio y pestañas flotantes abajo.
@@ -16,7 +22,16 @@ import { IconoAjustes, IconoAvisos } from "@/components/Iconos";
 export default async function LayoutApp({ children }: { children: React.ReactNode }) {
   const s = await requerirSesion();
   const menu = menuPara(s.rol, s.esSoporte);
-  const noLeidas = await contarNoLeidas(s.userId);
+  const hoy = fechaCDMX();
+  const [noLeidas, rutina, { data: perfil }] = await Promise.all([
+    contarNoLeidas(s.userId),
+    cargarRutina(),
+    (await createClient()).from("perfiles").select("notif_prefs").eq("id", s.userId).maybeSingle()
+  ]);
+  const prefs = prefsDe(perfil?.notif_prefs);
+  const bloquesHoy: BloqueHoy[] = rutina
+    .filter((b) => b.weekday === diaSemana(hoy))
+    .map((b) => ({ id: b.id, inicio: horaAMinutos(b.start_time), fin: horaAMinutos(b.end_time), label: b.label, lugar: lugarClase(b) }));
 
   return (
     <div className="min-h-screen">
@@ -41,7 +56,10 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
 
       <div className="mx-auto max-w-[1440px] md:grid md:grid-cols-[236px_minmax(0,1fr)] md:gap-8 md:px-4 lg:gap-10 lg:pr-8">
         <NavApp items={menu.map(({ href, label }) => ({ href, label }))} noLeidas={noLeidas} usuario={s.nombre || s.email || ""} />
-        <main className="min-w-0 px-4 pb-36 pt-5 md:px-0 md:pb-16 md:pt-8">{children}</main>
+        <main className="min-w-0 px-4 pb-36 pt-5 md:px-0 md:pb-16 md:pt-8">
+          <EnVivo hoy={hoy} bloques={bloquesHoy} sonidoAhora={prefs.sonido_ahora} sonidoPrevio={prefs.sonido_previo} />
+          {children}
+        </main>
       </div>
 
       <Captura />

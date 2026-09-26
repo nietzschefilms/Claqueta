@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { enviarPushPrueba } from "@/app/app/ajustes/acciones";
+import { suscribir } from "@/lib/push/cliente";
 
 const CLAVE = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
@@ -39,12 +40,8 @@ export function PushActivar() {
     setEstado("ocupado");
     setMsg("");
     try {
-      const permiso = await Notification.requestPermission();
-      if (permiso !== "granted") return setEstado(permiso === "denied" ? "bloqueado" : "inactivo");
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64ToUint8(CLAVE as string) });
-      const r = await fetch("/api/push", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(sub) });
-      if (!r.ok) throw new Error();
+      const r = await suscribir();
+      if (r !== "activo") return setEstado(r);
       setEstado("activo");
       setMsg("Listo. Te llegarán los avisos importantes.");
     } catch {

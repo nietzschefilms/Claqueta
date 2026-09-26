@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { guardarPerfil, guardarPrefsNotif } from "./acciones";
-import { CATEGORIAS, type NotifPrefs } from "@/lib/notif-prefs";
+import { CATEGORIAS, SONIDOS, type NotifPrefs } from "@/lib/notif-prefs";
+import { sonarClaqueta } from "@/lib/sonido";
 import { Interruptor } from "@/components/Interruptor";
 
 export function FormPerfil({ nombre, telefono }: { nombre: string; telefono: string }) {
@@ -50,23 +51,28 @@ export function PrefsNotif({ inicial }: { inicial: NotifPrefs }) {
     });
   }
 
+  const fila = (clave: keyof NotifPrefs, label: string, desc: string, obligatoria = false) => (
+    <li key={clave} className="flex items-center justify-between gap-4 py-3">
+      <div>
+        <p className="text-sm font-semibold">{label}</p>
+        <p className="text-xs text-muted">{obligatoria ? `${desc} Siempre activos.` : desc}</p>
+      </div>
+      <Interruptor id={`notif-${clave}`} checked={prefs[clave]} disabled={obligatoria} onChange={(e) => cambiar(clave, e.target.checked)} aria-label={label} />
+    </li>
+  );
+
   return (
-    <ul className="divide-y divide-borde/60 border-t border-borde/60">
-      {CATEGORIAS.map((c) => (
-        <li key={c.clave} className="flex items-center justify-between gap-4 py-3">
-          <div>
-            <p className="text-sm font-semibold">{c.label}</p>
-            <p className="text-xs text-muted">{c.obligatoria ? `${c.desc} Siempre activas.` : c.desc}</p>
-          </div>
-          <Interruptor
-            id={`notif-${c.clave}`}
-            checked={prefs[c.clave]}
-            disabled={c.obligatoria}
-            onChange={(e) => cambiar(c.clave, e.target.checked)}
-            aria-label={c.label}
-          />
-        </li>
-      ))}
-    </ul>
+    <div className="space-y-4">
+      <ul className="divide-y divide-borde/60 border-t border-borde/60">{CATEGORIAS.map((c) => fila(c.clave, c.label, c.desc, c.obligatoria))}</ul>
+      <div>
+        <div className="flex items-center justify-between gap-3">
+          <p className="etiqueta">Sonido</p>
+          <button type="button" onClick={() => sonarClaqueta()} className="enlace-mono">
+            Escuchar la claqueta
+          </button>
+        </div>
+        <ul className="mt-1 divide-y divide-borde/60 border-t border-borde/60">{SONIDOS.map((x) => fila(x.clave, x.label, x.desc))}</ul>
+      </div>
+    </div>
   );
 }

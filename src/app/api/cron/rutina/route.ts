@@ -7,6 +7,7 @@ import { planearDia } from "@/lib/claqueta/planeador";
 import { avisosRutina } from "@/lib/claqueta/avisos";
 import type { Bloque, Tarea } from "@/lib/claqueta/tipos";
 import { estadoFijo, type GastoFijo } from "@/lib/claqueta/plan";
+import { prefsDe } from "@/lib/notif-prefs";
 import { aCentavos, pesos } from "@/lib/claqueta/dinero";
 
 export const dynamic = "force-dynamic";
@@ -20,10 +21,11 @@ export async function GET(req: Request) {
   const admin = createAdminClient();
   const hoy = fechaCDMX();
   const ahora = minutosAhoraCDMX();
-  const { data: personas } = await admin.from("perfiles").select("id").eq("activo", true);
+  const { data: personas } = await admin.from("perfiles").select("id, notif_prefs").eq("activo", true);
   let enviados = 0;
 
-  for (const { id } of personas ?? []) {
+  for (const { id, notif_prefs } of personas ?? []) {
+    const prefs = prefsDe(notif_prefs);
     // A las 9:00: cargos fijos que se cobran hoy (Claude, Meli+).
     if (ahora >= 9 * 60 && ahora < 9 * 60 + 3) {
       const [{ data: fijos }, { data: gastosMes }] = await Promise.all([
@@ -60,7 +62,18 @@ export async function GET(req: Request) {
       // Si ya existe la clave, otra corrida lo mandó: se salta.
       const { error } = await admin.from("avisos_enviados").insert({ user_id: id, clave: a.clave });
       if (error) continue;
-      const r = await notificar(id, { titulo: a.titulo, cuerpo: a.cuerpo, href: "/app", categoria: "rutina", tag: "rutina", soloPush: true, urgente: true, ttlSegundos: 10 * 60 });
+      const previo = a.clave.endsWith(":antes");
+      const r = await notificar(id, {
+        titulo: a.titulo,
+        cuerpo: a.cuerpo,
+        href: "/app",
+        categoria: previo ? "rutina_previo" : "rutina",
+        tag: "rutina",
+        soloPush: true,
+        urgente: true,
+        ttlSegundos: 10 * 60,
+        silencioso: previo ? !prefs.sonido_previo : !prefs.sonido_ahora
+      });
       await admin.from("avisos_enviados").update({ entregas: r.enviadas, error: r.error ?? (r.apagada ? "categoría apagada" : null) }).eq("user_id", id).eq("clave", a.clave);
       enviados += 1;
     }

@@ -98,6 +98,8 @@ self.addEventListener("push", (event) => {
     data: { url: datos.url || "/app" },
     tag: datos.tag || undefined,
     renotify: Boolean(datos.tag),
+    // Avisos previos (5 min antes) pueden llegar sin sonido si así se eligió en Ajustes.
+    silent: Boolean(datos.silencioso),
     // Vibración suave para que se sienta (el sonido lo pone el sistema).
     vibrate: [60, 40, 60]
   };

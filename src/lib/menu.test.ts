@@ -15,7 +15,7 @@ describe("menuPara", () => {
 
 describe("prefsDe", () => {
   it("lo obligatorio no se puede apagar y lo que falte queda encendido", () => {
-    expect(prefsDe({ operativo: false, novedades: false })).toEqual({ operativo: true, rutina: true, novedades: false });
-    expect(prefsDe(null)).toEqual({ operativo: true, rutina: true, novedades: true });
+    expect(prefsDe({ operativo: false, novedades: false })).toEqual({ operativo: true, rutina: true, rutina_previo: true, novedades: false, sonido_ahora: true, sonido_previo: false });
+    expect(prefsDe(null)).toEqual({ operativo: true, rutina: true, rutina_previo: true, novedades: true, sonido_ahora: true, sonido_previo: false });
   });
 });

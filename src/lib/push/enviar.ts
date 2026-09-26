@@ -18,7 +18,7 @@ function config() {
 
 // Texto CORTO: título breve y una línea de cuerpo (se lee en la pantalla
 // bloqueada). `tag` agrupa avisos del mismo tipo para no llenar la pantalla.
-export type Aviso = { titulo: string; cuerpo?: string; url?: string; tag?: string };
+export type Aviso = { titulo: string; cuerpo?: string; url?: string; tag?: string; silencioso?: boolean };
 
 // Manda un push a todos los dispositivos de una persona.
 // Silencioso si push no está configurado o la persona no lo activó.
