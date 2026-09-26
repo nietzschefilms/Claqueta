@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────────────────────────────────
+   COLORES DEL CLIENTE
+   Formato: canales R G B separados por espacio (para que Tailwind pueda
+   aplicar transparencia, ej. bg-primario/10).
+   Para un cliente nuevo cambia estos valores y MARCA.colorTema.
+   ───────────────────────────────────────────────────────────────────────── */
+:root {
+  --c-fondo: 244 245 247;
+  --c-superficie: 255 255 255;
+  --c-borde: 222 225 231;
+  --c-tinta: 22 26 34;
+  --c-muted: 102 110 124;
+  --c-primario: 31 42 68;
+  --c-primario-texto: 255 255 255;
+  --c-acento: 214 90 49;
+  --c-ok: 31 138 91;
+  --c-aviso: 194 122 14;
+  --c-peligro: 204 59 43;
+
+  --fuente-display: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --fuente-texto: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --radio-tarjeta: 1.25rem;
+  --radio-control: 0.875rem;
+
+  color-scheme: light;
+}
+
+/* Tema oscuro: por preferencia del sistema, salvo que la persona elija claro. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) {
+    --c-fondo: 14 16 21;
+    --c-superficie: 24 27 34;
+    --c-borde: 44 49 60;
+    --c-tinta: 233 235 240;
+    --c-muted: 150 157 171;
+    --c-primario: 138 160 214;
+    --c-primario-texto: 14 16 21;
+    --c-acento: 240 128 90;
+    --c-ok: 70 196 138;
+    --c-aviso: 229 163 58;
+    --c-peligro: 255 110 94;
+    color-scheme: dark;
+  }
+}
+:root[data-tema="oscuro"] {
+  --c-fondo: 14 16 21;
+  --c-superficie: 24 27 34;
+  --c-borde: 44 49 60;
+  --c-tinta: 233 235 240;
+  --c-muted: 150 157 171;
+  --c-primario: 138 160 214;
+  --c-primario-texto: 14 16 21;
+  --c-acento: 240 128 90;
+  --c-ok: 70 196 138;
+  --c-aviso: 229 163 58;
+  --c-peligro: 255 110 94;
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: rgb(var(--c-fondo));
+  color: rgb(var(--c-tinta));
+  font-family: var(--fuente-texto);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Respeta las zonas seguras del iPhone (notch y barra de inicio). */
+body {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@layer components {
+  .tarjeta {
+    @apply rounded-tarjeta border border-borde bg-superficie p-5 shadow-suave;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-control px-4 py-2.5 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primario disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-primario {
+    @apply btn bg-primario text-primario-texto hover:opacity-90;
+  }
+  .btn-secundario {
+    @apply btn border border-borde bg-superficie text-tinta hover:bg-fondo;
+  }
+  .btn-peligro {
+    @apply btn bg-peligro text-white hover:opacity-90;
+  }
+  .campo {
+    @apply w-full rounded-control border border-borde bg-superficie px-4 py-3 text-tinta outline-none placeholder:text-muted/70 focus:border-primario;
+  }
+  .etiqueta {
+    @apply text-xs font-semibold uppercase tracking-[0.12em] text-muted;
+  }
+  .alerta-error {
+    @apply rounded-control border border-peligro/40 bg-peligro/10 px-4 py-2 text-sm text-peligro;
+  }
+  .alerta-ok {
+    @apply rounded-control border border-ok/40 bg-ok/10 px-4 py-2 text-sm text-ok;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
