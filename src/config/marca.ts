@@ -6,13 +6,13 @@
 
 export const MARCA = {
   // Nombre completo y corto (el corto sale bajo el ícono del celular).
-  nombre: "Nietzsche Base",
-  nombreCorto: "Base",
-  descripcion: "App de Nietzsche Studios.",
-  // Color de la barra del sistema en el celular (igual a --c-primario).
-  colorTema: "#1F2A44",
-  // Fondo de la pantalla de arranque de la PWA (igual a --c-fondo en claro).
-  colorFondo: "#F4F5F7",
+  nombre: "Claqueta",
+  nombreCorto: "Claqueta",
+  descripcion: "Trabajo, escuela, clientes y dinero en una sola hoja de llamado.",
+  // Color de la barra del sistema en el celular: el negro del logo.
+  colorTema: "#0A0A0A",
+  // Fondo de la pantalla de arranque de la PWA.
+  colorFondo: "#0A0A0A",
   // Idioma y zona horaria de todo el proyecto.
   idioma: "es-MX",
   zonaHoraria: "America/Mexico_City",
@@ -50,7 +50,9 @@ export function esRol(valor: unknown): valor is Rol {
 export type ItemMenu = { href: string; label: string; roles: Rol[] | "todos"; soloSoporte?: boolean };
 
 export const MENU: ItemMenu[] = [
-  { href: "/app", label: "Inicio", roles: "todos" },
+  { href: "/app", label: "Hoy", roles: "todos" },
+  { href: "/app/semana", label: "Semana", roles: "todos" },
+  { href: "/app/tablero", label: "Tablero", roles: "todos" },
   { href: "/app/notificaciones", label: "Avisos", roles: "todos" },
   { href: "/app/ajustes", label: "Ajustes", roles: "todos" },
   { href: "/app/soporte", label: "Soporte", roles: ["admin"], soloSoporte: true }

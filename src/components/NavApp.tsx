@@ -26,10 +26,11 @@ export function NavApp({ items, noLeidas }: { items: Item[]; noLeidas: number })
               <Link
                 href={i.href}
                 aria-current={activo(i.href) ? "page" : undefined}
-                className={`flex items-center gap-2 rounded-control px-3 py-2 text-sm font-medium transition ${
-                  activo(i.href) ? "bg-primario text-primario-texto" : "text-tinta hover:bg-superficie"
+                className={`flex items-center gap-2.5 rounded-control px-3 py-2 font-mono text-xs uppercase tracking-wider transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-rojo ${
+                  activo(i.href) ? "text-tinta" : "text-muted hover:text-tinta"
                 }`}
               >
+                <span className={`h-1.5 w-1.5 rounded-full ${activo(i.href) ? "bg-rojo" : "bg-borde"}`} aria-hidden="true" />
                 {i.label}
                 {globo(i.href)}
               </Link>
@@ -49,10 +50,11 @@ export function NavApp({ items, noLeidas }: { items: Item[]; noLeidas: number })
               <Link
                 href={i.href}
                 aria-current={activo(i.href) ? "page" : undefined}
-                className={`flex min-h-14 flex-col items-center justify-center gap-0.5 px-1 text-xs font-semibold ${
-                  activo(i.href) ? "text-primario" : "text-muted"
+                className={`flex min-h-14 flex-col items-center justify-center gap-1 px-1 font-mono text-[11px] uppercase tracking-wider focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-rojo ${
+                  activo(i.href) ? "text-tinta" : "text-muted"
                 }`}
               >
+                <span className={`h-1.5 w-1.5 rounded-full ${activo(i.href) ? "bg-rojo" : "bg-transparent"}`} aria-hidden="true" />
                 <span className="flex items-center gap-1">{i.label}{globo(i.href)}</span>
               </Link>
             </li>

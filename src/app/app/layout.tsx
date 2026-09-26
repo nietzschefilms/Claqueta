@@ -2,10 +2,12 @@ import Link from "next/link";
 import { requerirSesion } from "@/lib/sesion";
 import { menuPara } from "@/lib/menu";
 import { contarNoLeidas } from "@/lib/notificaciones";
-import { MARCA, ROLES } from "@/config/marca";
+import { MARCA } from "@/config/marca";
 import { BotonTema } from "@/components/Tema";
 import { NavApp } from "@/components/NavApp";
 import { ContrasenaObligatoria } from "@/components/ContrasenaObligatoria";
+import { Logo } from "@/components/claqueta/Logo";
+import { Captura } from "@/components/claqueta/Captura";
 
 // Cascarón de la zona privada: barra superior, menú por rol y contenido.
 // En celular el menú va abajo (como app); en escritorio, a la izquierda.
@@ -18,10 +20,13 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
     <div className="min-h-screen">
       <header className="sticky top-0 z-30 border-b border-borde bg-fondo/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
-          <Link href="/app" className="font-display text-lg font-bold">{MARCA.nombreCorto}</Link>
+          <Link href="/app" className="flex items-center gap-2.5 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-rojo">
+            <Logo className="h-7 w-7" />
+            <span className="titulo text-xl">{MARCA.nombreCorto}</span>
+          </Link>
           <div className="flex items-center gap-2">
-            <span className="hidden text-sm text-muted sm:inline">
-              {s.nombre || s.email} · {ROLES[s.rol].label}
+            <span className="hidden font-mono text-xs uppercase tracking-wider text-muted sm:inline">
+              {s.nombre || s.email}
             </span>
             <BotonTema />
           </div>
@@ -33,6 +38,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
         <main className="min-w-0">{children}</main>
       </div>
 
+      <Captura />
       {!s.contrasenaPropia && <ContrasenaObligatoria />}
     </div>
   );

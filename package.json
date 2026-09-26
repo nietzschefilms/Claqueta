@@ -1,8 +1,8 @@
 {
-  "name": "nietzsche-base",
+  "name": "claqueta",
   "version": "0.1.0",
   "private": true,
-  "description": "Plantilla base de apps de Nietzsche Studios: cuentas, roles, push, PWA.",
+  "description": "Claqueta: app personal de organización de Jamez (trabajo, escuela, clientes y dinero).",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "vapid": "node scripts/vapid.mjs",
-    "iconos": "python3 scripts/iconos.py"
+    "iconos": "python3 scripts/iconos.py",
+    "semilla": "node --env-file=.env.local scripts/semilla.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

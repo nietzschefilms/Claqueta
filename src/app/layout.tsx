@@ -1,9 +1,15 @@
 import type { Metadata, Viewport } from "next";
+import { Archivo, IBM_Plex_Mono, Public_Sans } from "next/font/google";
 import "./globals.css";
 import { MARCA } from "@/config/marca";
 import { InstalarApp } from "@/components/PWA";
 import { ActualizarApp } from "@/components/ActualizarApp";
 import { scriptTema } from "@/components/Tema";
+
+// Títulos en Archivo condensado, texto en Public Sans, horas y montos en Plex Mono.
+const archivo = Archivo({ subsets: ["latin"], axes: ["wdth"], variable: "--font-archivo", display: "swap" });
+const publicSans = Public_Sans({ subsets: ["latin"], variable: "--font-public", display: "swap" });
+const plex = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-plex", display: "swap" });
 
 export const metadata: Metadata = {
   title: { default: MARCA.nombre, template: `%s · ${MARCA.nombreCorto}` },
@@ -23,7 +29,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang={MARCA.idioma} suppressHydrationWarning>
+    <html lang={MARCA.idioma} suppressHydrationWarning className={`${archivo.variable} ${publicSans.variable} ${plex.variable}`}>
       <head>
         <script dangerouslySetInnerHTML={{ __html: scriptTema }} />
       </head>

@@ -4,16 +4,17 @@ Manual para cualquier sesión de Claude Code en un proyecto del estudio.
 Si este archivo vive en un repo de cliente, la sección **Cliente** de abajo manda sobre todo lo demás.
 
 ## Cliente
-> Llena esta sección al crear el repo desde la plantilla.
-
-- **Cliente:** (nombre, giro, contacto)
-- **Qué es la app:** (una línea)
-- **Roles:** (ej. alumno, coach, admin)
-- **Contrato:** (monto, plazo, fecha de entrega, mantenimiento)
-- **Supabase project id:** `...` (confírmalo antes de cualquier escritura)
-- **Vercel / dominio:** `...`
-- **Diseño:** (paleta, fuentes, referencias; ver src/config/marca.ts y globals.css)
-- **Datos sensibles:** (salud, dinero, menores de edad… qué aplica)
+- **Cliente:** Jamez (Jaime Hernández Alvidrez). App personal y privada, no es de un cliente externo.
+- **Qué es la app:** Claqueta. Organiza trabajo, escuela, clientes y dinero: decide qué hacer cada día y a qué hora, avisa lo urgente y lleva las finanzas.
+- **Roles:** uno solo, `admin` (Jamez, también soporte). Todas las tablas de Claqueta son por `user_id` con RLS `user_id = auth.uid()`.
+- **Frentes:** EK Bars (peso 1.3), Escuela (1.2), Top Mart (1.15), Rompiendo Tabúes (1.0), Nietzsche Studios (0.8), Personal (0.9). Viven en `src/lib/claqueta/frentes.ts`.
+- **Contrato:** no aplica (uso propio).
+- **Supabase project id:** `ouigbpfyggjbaswyudyu` (proyecto "claqueta"). Proyecto de desarrollo, sin datos de terceros.
+- **Vercel / dominio:** pendiente.
+- **Diseño:** estilo Nietzsche Studios. Negro `#0A0A0A`, hueso `#EBE7E0` y un solo rojo `#FF0000` para lo que importa (punto del logo, botón de captura, crítico, hora actual). Títulos en Archivo condensado, texto en Public Sans, horas y montos en IBM Plex Mono. Un color apagado por frente. Tokens en `src/app/globals.css`.
+- **Datos sensibles:** dinero (ingresos, gastos, contrato EK). Cero errores: se verifica contra el dato real antes de escribir.
+- **Ramas:** en las sesiones de Claude Code se trabaja en la rama asignada a la sesión.
+- **Lógica central:** `src/lib/claqueta/` (prioridad, planeador del día, recurrentes, riesgo EK), con pruebas en `claqueta.test.ts`. Semilla: `scripts/semilla.mjs`.
 
 ## Stack
 - Next.js 15 (App Router) + React 19 + TypeScript + Tailwind 3.

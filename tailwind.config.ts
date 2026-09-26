@@ -19,11 +19,21 @@ const config: Config = {
         acento: c("acento"),
         ok: c("ok"),
         aviso: c("aviso"),
-        peligro: c("peligro")
+        peligro: c("peligro"),
+        rojo: c("rojo"),
+        f: {
+          ek: c("f-ek"),
+          escuela: c("f-escuela"),
+          topmart: c("f-topmart"),
+          rt: c("f-rt"),
+          nietzsche: c("f-nietzsche"),
+          personal: c("f-personal")
+        }
       },
       fontFamily: {
         display: ["var(--fuente-display)", "system-ui", "sans-serif"],
-        sans: ["var(--fuente-texto)", "system-ui", "sans-serif"]
+        sans: ["var(--fuente-texto)", "system-ui", "sans-serif"],
+        mono: ["var(--fuente-mono)", "ui-monospace", "monospace"]
       },
       borderRadius: {
         tarjeta: "var(--radio-tarjeta)",

@@ -3,61 +3,83 @@
 @tailwind utilities;
 
 /* ─────────────────────────────────────────────────────────────────────────
-   COLORES DEL CLIENTE
-   Formato: canales R G B separados por espacio (para que Tailwind pueda
-   aplicar transparencia, ej. bg-primario/10).
-   Para un cliente nuevo cambia estos valores y MARCA.colorTema.
+   CLAQUETA · estilo Nietzsche Studios
+   Negro, hueso y un solo rojo. El rojo se reserva para lo que importa:
+   el punto del logo, el botón de captura, lo crítico y la hora actual.
+   Formato: canales R G B separados por espacio (Tailwind aplica /opacidad).
    ───────────────────────────────────────────────────────────────────────── */
 :root {
-  --c-fondo: 244 245 247;
-  --c-superficie: 255 255 255;
-  --c-borde: 222 225 231;
-  --c-tinta: 22 26 34;
-  --c-muted: 102 110 124;
-  --c-primario: 31 42 68;
-  --c-primario-texto: 255 255 255;
-  --c-acento: 214 90 49;
-  --c-ok: 31 138 91;
-  --c-aviso: 194 122 14;
-  --c-peligro: 204 59 43;
+  --c-fondo: 242 239 234;
+  --c-superficie: 250 249 246;
+  --c-borde: 224 219 210;
+  --c-tinta: 10 10 10;
+  --c-muted: 112 106 98;
+  --c-primario: 10 10 10;
+  --c-primario-texto: 242 239 234;
+  --c-acento: 225 0 0;
+  --c-rojo: 255 0 0;
+  --c-ok: 46 125 80;
+  --c-aviso: 176 116 16;
+  --c-peligro: 225 0 0;
 
-  --fuente-display: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --fuente-texto: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --radio-tarjeta: 1.25rem;
-  --radio-control: 0.875rem;
+  /* Un color por frente, apagados para que el rojo siga mandando. */
+  --c-f-ek: 206 88 36;
+  --c-f-escuela: 118 94 180;
+  --c-f-topmart: 170 124 24;
+  --c-f-rt: 52 132 88;
+  --c-f-nietzsche: 72 104 136;
+  --c-f-personal: 118 114 108;
+
+  --fuente-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --fuente-texto: var(--font-public), ui-sans-serif, system-ui, sans-serif;
+  --fuente-mono: var(--font-plex), ui-monospace, "SFMono-Regular", monospace;
+  --radio-tarjeta: 0.25rem;
+  --radio-control: 0.25rem;
 
   color-scheme: light;
 }
 
-/* Tema oscuro: por preferencia del sistema, salvo que la persona elija claro. */
+/* Oscuro: el negro del logo. Por preferencia del sistema, salvo que elijan claro. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-tema="claro"]) {
-    --c-fondo: 14 16 21;
-    --c-superficie: 24 27 34;
-    --c-borde: 44 49 60;
-    --c-tinta: 233 235 240;
-    --c-muted: 150 157 171;
-    --c-primario: 138 160 214;
-    --c-primario-texto: 14 16 21;
-    --c-acento: 240 128 90;
-    --c-ok: 70 196 138;
-    --c-aviso: 229 163 58;
-    --c-peligro: 255 110 94;
+    --c-fondo: 10 10 10;
+    --c-superficie: 19 19 19;
+    --c-borde: 42 40 38;
+    --c-tinta: 235 231 224;
+    --c-muted: 146 141 134;
+    --c-primario: 235 231 224;
+    --c-primario-texto: 10 10 10;
+    --c-acento: 255 26 26;
+    --c-ok: 112 192 142;
+    --c-aviso: 226 172 72;
+    --c-peligro: 255 59 48;
+    --c-f-ek: 240 128 74;
+    --c-f-escuela: 162 144 222;
+    --c-f-topmart: 222 180 90;
+    --c-f-rt: 112 192 142;
+    --c-f-nietzsche: 132 162 192;
+    --c-f-personal: 152 148 142;
     color-scheme: dark;
   }
 }
 :root[data-tema="oscuro"] {
-  --c-fondo: 14 16 21;
-  --c-superficie: 24 27 34;
-  --c-borde: 44 49 60;
-  --c-tinta: 233 235 240;
-  --c-muted: 150 157 171;
-  --c-primario: 138 160 214;
-  --c-primario-texto: 14 16 21;
-  --c-acento: 240 128 90;
-  --c-ok: 70 196 138;
-  --c-aviso: 229 163 58;
-  --c-peligro: 255 110 94;
+  --c-fondo: 10 10 10;
+  --c-superficie: 19 19 19;
+  --c-borde: 42 40 38;
+  --c-tinta: 235 231 224;
+  --c-muted: 146 141 134;
+  --c-primario: 235 231 224;
+  --c-primario-texto: 10 10 10;
+  --c-acento: 255 26 26;
+  --c-ok: 112 192 142;
+  --c-aviso: 226 172 72;
+  --c-peligro: 255 59 48;
+  --c-f-ek: 240 128 74;
+  --c-f-escuela: 162 144 222;
+  --c-f-topmart: 222 180 90;
+  --c-f-rt: 112 192 142;
+  --c-f-nietzsche: 132 162 192;
+  --c-f-personal: 152 148 142;
   color-scheme: dark;
 }
 
@@ -77,7 +99,7 @@ body {
 
 @layer components {
   .tarjeta {
-    @apply rounded-tarjeta border border-borde bg-superficie p-5 shadow-suave;
+    @apply rounded-tarjeta border border-borde bg-superficie p-5;
   }
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-control px-4 py-2.5 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primario disabled:cursor-not-allowed disabled:opacity-60;
@@ -95,8 +117,16 @@ body {
     @apply w-full rounded-control border border-borde bg-superficie px-4 py-3 text-tinta outline-none placeholder:text-muted/70 focus:border-primario;
   }
   .etiqueta {
-    @apply text-xs font-semibold uppercase tracking-[0.12em] text-muted;
+    @apply font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted;
   }
+  /* Títulos: Archivo condensado, en mayúsculas y apretado. */
+  .titulo {
+    @apply font-display font-bold uppercase leading-[0.9] tracking-tight;
+  }
+  .cifra {
+    @apply font-mono tabular-nums;
+  }
+
   .alerta-error {
     @apply rounded-control border border-peligro/40 bg-peligro/10 px-4 py-2 text-sm text-peligro;
   }
@@ -112,4 +142,11 @@ body {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Condensado apretado, pero con aire entre palabras para que no se peguen. */
+.font-display,
+.titulo {
+  font-stretch: 72%;
+  word-spacing: 0.14em;
 }
