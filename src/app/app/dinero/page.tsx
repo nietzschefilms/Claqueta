@@ -6,6 +6,7 @@ import { aCentavos, avanceContrato, esperados, fechasTarjeta, gastoPorCategoria,
 import { ChipFrente, estiloFrente } from "@/components/claqueta/frente-ui";
 import { Encabezado } from "@/components/Encabezado";
 import { estimadoMes } from "@/lib/claqueta/impuestos";
+import { estadoFijo } from "@/lib/claqueta/plan";
 import { BotonAnular, BotonCobro, BotonFijo, FormEntrada, FormGasto, FormMover, type OpcionCuenta } from "./Formularios";
 import Link from "next/link";
 
@@ -210,7 +211,7 @@ export default async function Dinero() {
             ) : (
               <ul className="divide-y divide-borde/60">
                 {fijos.map((f) => {
-                  const cobrado = cobradosFijos.has(`${f.id}:${mes}`);
+                  const e = estadoFijo(f, hoy, f.creado_en ? fechaCDMX(f.creado_en) : hoy, cobradosFijos);
                   return (
                     <li key={f.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
                       <div className="min-w-0">
@@ -218,10 +219,13 @@ export default async function Dinero() {
                         <p className="cifra text-[11px] text-muted">
                           {f.moneda === "USD" ? `US$${Number(f.monto)} ≈ ${pesos(aCentavos(f.monto_mxn) ?? 0)}` : pesos(aCentavos(f.monto_mxn) ?? 0)}
                           {f.dia ? ` · cada día ${f.dia}` : " · mensual"}
+                          {f.cuenta_id && nombreCuenta.get(f.cuenta_id) ? ` · ${nombreCuenta.get(f.cuenta_id)}` : ""}
                         </p>
                       </div>
-                      {cobrado ? (
+                      {e.estado === "cobrado" ? (
                         <span className="rounded-full bg-ok/15 px-3 py-1 text-xs font-semibold text-ok">Cobrado este mes ✓</span>
+                      ) : e.estado === "proximo" ? (
+                        <span className="cifra rounded-full bg-tinta/[0.05] px-3 py-1 text-xs text-muted">Próximo: {fechaCorta(e.fecha)}</span>
                       ) : (
                         <BotonFijo fijoId={f.id} mes={mes} montoMxn={String(Number(f.monto_mxn))} cuentas={paraGastar} cuentaInicial={f.cuenta_id} />
                       )}

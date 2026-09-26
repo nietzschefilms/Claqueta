@@ -14,7 +14,29 @@ export type GastoFijo = {
   monto_mxn: number | string;
   dia: number | null;
   cuenta_id: string | null;
+  creado_en?: string;
 };
+
+function fechaDelMes(anio: number, mes: number, dia: number): string {
+  const ultimo = new Date(Date.UTC(anio, mes, 0)).getUTCDate();
+  return `${anio}-${String(mes).padStart(2, "0")}-${String(Math.min(dia, ultimo)).padStart(2, "0")}`;
+}
+
+// Estado de un cargo fijo hoy:
+//  · "pendiente": ya tocó este mes y no se ha anotado → pedir "Ya se cobró".
+//  · "cobrado": ya está anotado este mes.
+//  · "proximo": todavía no toca (o el de este mes fue antes de empezar a llevar la cuenta).
+// desde = día en que se dio de alta (CDMX); cargos anteriores no se piden.
+export function estadoFijo(f: Pick<GastoFijo, "id" | "dia">, hoy: string, desde: string, cobrados: Set<string | null | undefined>) {
+  const mes = hoy.slice(0, 7);
+  if (cobrados.has(`${f.id}:${mes}`)) return { estado: "cobrado" as const, mes };
+  if (!f.dia) return { estado: "pendiente" as const, mes };
+  const [a, m] = mes.split("-").map(Number);
+  const esteMes = fechaDelMes(a, m, f.dia);
+  if (esteMes <= hoy && esteMes >= desde) return { estado: "pendiente" as const, mes, fecha: esteMes };
+  const siguiente = esteMes > hoy ? esteMes : m === 12 ? fechaDelMes(a + 1, 1, f.dia) : fechaDelMes(a, m + 1, f.dia);
+  return { estado: "proximo" as const, mes, fecha: siguiente };
+}
 
 export const PORCENTAJE_AHORRO = 0.15;
 export const PORCENTAJE_EQUIPO = 0.1;

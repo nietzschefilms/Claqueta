@@ -57,7 +57,7 @@ export async function cargarDinero() {
     supabase.from("contracts").select("id, client, total, start_date, pay_deadline, area").order("start_date"),
     supabase.from("cuentas").select("id, nombre, tipo, saldo_inicial, dia_corte, dia_pago, orden, limite, garantia_id, limite_extra").eq("activo", true).order("orden"),
     supabase.from("transferencias").select("id, desde_id, hacia_id, amount, date, note").is("anulado_at", null).order("date", { ascending: false }).limit(2000),
-    supabase.from("gastos_fijos").select("id, nombre, categoria, moneda, monto, monto_mxn, dia, cuenta_id").eq("activo", true).order("nombre")
+    supabase.from("gastos_fijos").select("id, nombre, categoria, moneda, monto, monto_mxn, dia, cuenta_id, creado_en").eq("activo", true).order("nombre")
   ]);
   const error = reglas.error ?? pagos.error ?? gastos.error ?? contratos.error ?? cuentas.error ?? transferencias.error ?? fijos.error;
   if (error) throw new Error(`No se pudo leer el dinero: ${error.message}`);
