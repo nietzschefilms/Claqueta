@@ -17,6 +17,9 @@ export const metadata: Metadata = {
   applicationName: MARCA.nombre,
   // black-translucent: la app se dibuja detrás de la hora y la Dynamic Island (pantalla completa).
   appleWebApp: { capable: true, title: MARCA.nombreCorto, statusBarStyle: "black-translucent" },
+  // Next solo manda "mobile-web-app-capable"; Safari de iPhone necesita la etiqueta
+  // de Apple para respetar black-translucent (si no, deja la franja arriba).
+  other: { "apple-mobile-web-app-capable": "yes" },
   icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
   // App privada: fuera de buscadores.
   robots: { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } },
