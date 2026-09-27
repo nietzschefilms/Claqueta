@@ -147,13 +147,13 @@ export function consejosFiscales(e: ReturnType<typeof estimadoMes>, datos: { fac
       aplica: datos.facturasEmitidas > 0
     },
     {
-      titulo: "Tu beca de becario va aparte",
-      texto: "Lo que te pagan como becario (Top Mart, clínica) no es un servicio que factures: no lleva IVA y no entra en RESICO. Pide a cada lugar una carta o constancia de tu beca y confírmalo con tu contador: si ellos te lo pagan como sueldo, les toca a ellos retener el ISR.",
+      titulo: "Lo de becario también es ingreso",
+      texto: "Todo depósito por tu trabajo es ingreso. Pregunta a Top Mart y a la clínica cómo te registran: si te dan recibo de nómina (sueldo o asimilado), ellos retienen el ISR y no lleva IVA. Si no te dan nada, lo más seguro es meterlo en tu RESICO con factura global. Mientras lo confirmas con tu contador, la app lo aparta como RESICO para que no te falte.",
       aplica: true
     },
     {
       titulo: "Declara antes del 17, aunque sea en ceros",
-      texto: "Evitas recargos y multas. Ojo: en RESICO, si dejas de declarar 3 meses seguidos te sacan del régimen y pagarías mucho más en otro.",
+      texto: "Evitas recargos y multas. Ojo: en RESICO, si no presentas 3 declaraciones mensuales en el año (seguidas o no) te sacan del régimen y pagarías mucho más en otro.",
       aplica: true
     },
     {
