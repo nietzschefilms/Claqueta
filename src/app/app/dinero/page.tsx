@@ -302,7 +302,7 @@ export default async function Dinero() {
               </li>
             </ul>
             <p className="mt-3 text-xs text-muted">
-              RESICO desde el 24 sep 2026 · servicios profesionales. Lo cobrado antes no entra. Es un cálculo para planear: tu contador confirma la declaración. Lo de tus papás y los regalos no cuenta.
+              RESICO desde el 24 sep 2026 · servicios profesionales. Lo cobrado antes no entra. Es un cálculo para planear: tu contador confirma la declaración. Tus becas de becario, lo de tus papás y los regalos no entran.
             </p>
           </section>
 

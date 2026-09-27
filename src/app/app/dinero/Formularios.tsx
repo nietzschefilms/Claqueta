@@ -203,7 +203,7 @@ export function FormEntrada({
         <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl bg-tinta/[0.04] px-4 py-3 text-sm">
           <span>
             <span className="block font-medium">Es de mi trabajo</span>
-            <span className="text-xs text-muted">Cuenta para impuestos. Lo de tus papás o un regalo, no.</span>
+            <span className="text-xs text-muted">Cuenta para impuestos (RESICO). Tu beca de becario, lo de tus papás o un regalo, no.</span>
           </span>
           <Interruptor
             checked={gravable}
