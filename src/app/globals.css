@@ -312,6 +312,41 @@ body {
   animation: latido-punto 1.15s ease-in-out infinite;
 }
 
+/* Portada de entrada: el punto late esperando el toque; al tocar da el clac
+   y la portada se desvanece. */
+.portada-punto {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: latido-punto 1.6s ease-in-out infinite;
+}
+.portada-toca {
+  animation: aparecer 0.5s 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes portada-sale {
+  to {
+    opacity: 0;
+    transform: scale(1.04);
+  }
+}
+@keyframes portada-clac {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.9);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.portada-sale {
+  animation: portada-sale 0.5s 0.05s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+.portada-sale .portada-punto {
+  animation: portada-clac 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
 /* Carril horizontal sin barra visible (tablero en celular). */
 .sin-barra {
   scrollbar-width: none;

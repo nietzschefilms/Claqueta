@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fechaCDMX, minutosAhoraCDMX } from "@/lib/claqueta/fechas";
 import { desbloquearAudio, sonarClaqueta, sonarEnSilencio, sonarEntrada, sonarPrevio } from "@/lib/sonido";
+import { LogoCargando } from "./Cargando";
 import { confirmarSuscripcion, esAppInstalada, pushSoportado, suscribir } from "@/lib/push/cliente";
 
 export type BloqueHoy = { id: string; inicio: number; fin: number; label: string; lugar: string };
@@ -20,6 +21,19 @@ function yaSono(clave: string) {
   return false;
 }
 
+function yaMarcado(clave: string) {
+  try {
+    return !!sessionStorage.getItem(clave);
+  } catch {
+    return false;
+  }
+}
+
+// iPhone y iPad (los iPad nuevos dicen ser Mac, pero tienen pantalla táctil).
+const esIOS = () => /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+type Portada = "decidiendo" | "tocar" | "saliendo" | null;
+
 // Con la app abierta: al cambiar de bloque suena la claqueta y aparece el aviso
 // arriba; 5 min antes, un aviso suave. Además vigila que las notificaciones de
 // este dispositivo estén activas y, si no, ofrece activarlas.
@@ -29,24 +43,56 @@ export function EnVivo({ hoy, bloques, sonidoAhora, sonidoPrevio, sonidoEntrada,
   const [faltaPush, setFaltaPush] = useState(false);
   const [activando, setActivando] = useState(false);
   const cierre = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Portada de entrada: en iPhone el sonido necesita un toque, así que la app
+  // abre con el logo y "Toca para entrar". En la Mac suena sola al cargar.
+  const [portada, setPortada] = useState<Portada>(sonidoEntrada ? "decidiendo" : null);
+  const portadaActiva = useRef(sonidoEntrada);
 
   useEffect(() => sonarEnSilencio(enSilencio), [enSilencio]);
 
-  // iOS: el audio se habilita con el primer toque. Ese mismo toque, una vez por
-  // sesión, suena la entrada (si está encendida en Ajustes).
+  const quitarPortada = () => {
+    setPortada("saliendo");
+    setTimeout(() => {
+      portadaActiva.current = false;
+      setPortada(null);
+    }, 550);
+  };
+
   useEffect(() => {
-    const t = () => {
-      // La entrada suena dentro del toque; los demás sonidos se "abren" en silencio.
-      const tocaEntrada = sonidoEntrada && !yaSono("envivo:entrada");
-      if (tocaEntrada) sonarEntrada();
-      desbloquearAudio(tocaEntrada ? "entrada" : undefined);
-    };
+    if (!sonidoEntrada || yaMarcado("envivo:entrada")) {
+      portadaActiva.current = false;
+      setPortada(null);
+      return;
+    }
+    if (esIOS()) {
+      setPortada("tocar");
+      return;
+    }
+    // Mac y demás: intenta sonar sola. Si el navegador no deja, no suena (nunca
+    // al tocar un botón).
+    yaSono("envivo:entrada");
+    sonarEntrada();
+    quitarPortada();
+    // Solo al abrir la app.
+  }, []);
+
+  const entrar = () => {
+    if (portada !== "tocar") return;
+    yaSono("envivo:entrada");
+    sonarEntrada();
+    desbloquearAudio("entrada");
+    quitarPortada();
+  };
+
+  // iOS: el audio se habilita con el primer toque. Ese toque "abre" los sonidos
+  // en silencio para que luego suenen solos (cambio de bloque, toma guardada).
+  useEffect(() => {
     // iOS solo habilita el audio al TERMINAR el toque (touchend/click), no al empezarlo.
     let hecho = false;
     const una = () => {
-      if (hecho) return;
+      if (hecho || portadaActiva.current) return;
       hecho = true;
-      t();
+      desbloquearAudio();
     };
     window.addEventListener("touchend", una, { passive: true });
     window.addEventListener("click", una);
@@ -56,7 +102,7 @@ export function EnVivo({ hoy, bloques, sonidoAhora, sonidoPrevio, sonidoEntrada,
       window.removeEventListener("click", una);
       window.removeEventListener("keydown", una);
     };
-  }, [sonidoEntrada]);
+  }, []);
 
   // ¿Este dispositivo recibe avisos? Si la app está instalada y no, se ofrece activarlos.
   useEffect(() => {
@@ -95,6 +141,31 @@ export function EnVivo({ hoy, bloques, sonidoAhora, sonidoPrevio, sonidoEntrada,
 
   return (
     <>
+      {portada && (
+        <button
+          type="button"
+          onClick={entrar}
+          autoFocus
+          aria-label="Entrar a Claqueta"
+          className={`portada fixed inset-0 z-[100] grid place-items-center bg-fondo text-tinta outline-none ${portada === "saliendo" ? "portada-sale" : ""}`}
+        >
+          <span className="flex flex-col items-center gap-5">
+            {portada === "decidiendo" ? (
+              <LogoCargando />
+            ) : (
+              <svg viewBox="0 0 100 100" className="h-16 w-16" aria-hidden="true">
+                <path d="M50 12 A 38 38 0 1 0 81.1 28.2" fill="none" stroke="currentColor" strokeWidth="7" strokeLinecap="round" />
+                <circle className="portada-punto" cx="64.7" cy="19.3" r="7.2" fill="rgb(var(--c-rojo))" />
+              </svg>
+            )}
+            <span className="titulo text-4xl">
+              Claqueta<span className="text-rojo">.</span>
+            </span>
+            <span className={`etiqueta ${portada === "tocar" ? "portada-toca" : "invisible"}`}>Toca para entrar</span>
+          </span>
+        </button>
+      )}
+
       {aviso && (
         <button
           type="button"

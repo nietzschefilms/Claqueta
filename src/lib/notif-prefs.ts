@@ -16,7 +16,7 @@ export type Sonido = "sonido_ahora" | "sonido_previo" | "sonido_entrada" | "soni
 export const SONIDOS: { clave: Sonido; label: string; desc: string; porDefecto: boolean }[] = [
   { clave: "sonido_ahora", label: "Que suene al empezar", desc: "Con la app abierta suena la claqueta; cerrada, el tono del iPhone.", porDefecto: true },
   { clave: "sonido_previo", label: "Que suene el de 5 minutos antes", desc: "Si lo apagas, llega en silencio.", porDefecto: false },
-  { clave: "sonido_entrada", label: "Sonido al entrar a la app", desc: "Suena en tu primer toque al abrirla (el iPhone no deja que suene antes).", porDefecto: true },
+  { clave: "sonido_entrada", label: "Sonido al entrar a la app", desc: "En la Mac suena al cargar. En el iPhone abre con la portada “Toca para entrar” (iOS no deja sonar sin un toque).", porDefecto: true },
   { clave: "sonido_en_silencio", label: "Sonar aunque el iPhone esté en silencio", desc: "Solo los sonidos de Claqueta con la app abierta. Ojo en clase.", porDefecto: false }
 ];
 

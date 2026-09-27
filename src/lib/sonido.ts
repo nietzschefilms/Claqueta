@@ -8,6 +8,8 @@ import { aWav, SONIDOS_WAV, type NombreSonido } from "./sonido-wav";
 
 const reproductores = new Map<NombreSonido, HTMLAudioElement>();
 const abiertos = new Set<NombreSonido>();
+// Sonidos pedidos de verdad: el desbloqueo en mudo no debe pausarlos.
+const pedidos = new Set<NombreSonido>();
 
 function reproductor(nombre: NombreSonido): HTMLAudioElement | null {
   if (typeof window === "undefined" || typeof Audio === "undefined") return null;
@@ -46,16 +48,17 @@ function aplicarSesion() {
 export function desbloquearAudio(excepto?: NombreSonido) {
   aplicarSesion();
   (Object.keys(SONIDOS_WAV) as NombreSonido[]).forEach((nombre) => {
-    if (nombre === excepto || abiertos.has(nombre)) return;
+    if (nombre === excepto || abiertos.has(nombre) || pedidos.has(nombre)) return;
     const a = reproductor(nombre);
-    if (!a) return;
+    if (!a || !a.paused) return;
     a.muted = true;
     a.play()
       .then(() => {
+        abiertos.add(nombre);
+        if (pedidos.has(nombre)) return;
         a.pause();
         a.currentTime = 0;
         a.muted = false;
-        abiertos.add(nombre);
       })
       .catch(() => {
         a.muted = false;
@@ -63,24 +66,31 @@ export function desbloquearAudio(excepto?: NombreSonido) {
   });
 }
 
-function sonar(nombre: NombreSonido) {
+// Devuelve si de verdad sonó (el navegador puede bloquearlo sin un toque).
+function sonar(nombre: NombreSonido): Promise<boolean> {
   const a = reproductor(nombre);
-  if (!a) return;
+  if (!a) return Promise.resolve(false);
   aplicarSesion();
+  pedidos.add(nombre);
   a.muted = false;
   try {
     a.currentTime = 0;
   } catch {
     /* aún sin cargar */
   }
-  a.play()
-    .then(() => abiertos.add(nombre))
-    .catch(() => {});
+  return a
+    .play()
+    .then(() => {
+      abiertos.add(nombre);
+      return true;
+    })
+    .catch(() => false)
+    .finally(() => setTimeout(() => pedidos.delete(nombre), 1500));
 }
 
 // ¡Clac! Al empezar un bloque o al guardar una toma.
 export const sonarClaqueta = () => sonar("claqueta");
 // Aviso suave, 5 minutos antes.
 export const sonarPrevio = () => sonar("previo");
-// Entrada a la app, en el primer toque de la sesión.
+// Entrada a la app (al cargar donde se pueda; en iPhone, al tocar la portada).
 export const sonarEntrada = () => sonar("entrada");
