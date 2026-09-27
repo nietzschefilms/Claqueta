@@ -1,22 +1,30 @@
-// Sonido de Claqueta, sintetizado con Web Audio (sin archivos): el golpe de
-// una claqueta de cine = dos chasquidos secos de madera muy seguidos.
-// iOS solo deja sonar audio después de un toque: desbloquearAudio() se llama
-// en el primer toque de la sesión y a partir de ahí suena solo.
+// Sonidos de Claqueta con el reproductor normal (<audio>) y archivos WAV que la
+// app genera sola (ver sonido-wav.ts). En iPhone instalado Web Audio a veces
+// queda mudo; <audio> sí suena. iOS solo deja tocar audio después de un toque:
+// en el primer toque se "abre" cada sonido (play en mudo y pausa) y a partir
+// de ahí pueden sonar solos (cambio de bloque, toma guardada).
 
-let ctx: AudioContext | null = null;
+import { aWav, SONIDOS_WAV, type NombreSonido } from "./sonido-wav";
 
-function contexto(): AudioContext | null {
-  if (typeof window === "undefined") return null;
-  if (!ctx) {
-    const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AC) return null;
-    ctx = new AC();
+const reproductores = new Map<NombreSonido, HTMLAudioElement>();
+const abiertos = new Set<NombreSonido>();
+
+function reproductor(nombre: NombreSonido): HTMLAudioElement | null {
+  if (typeof window === "undefined" || typeof Audio === "undefined") return null;
+  let a = reproductores.get(nombre);
+  if (!a) {
+    const wav = aWav(SONIDOS_WAV[nombre]());
+    const url = URL.createObjectURL(new Blob([wav.buffer as ArrayBuffer], { type: "audio/wav" }));
+    a = new Audio(url);
+    a.preload = "auto";
+    a.setAttribute("playsinline", "");
+    reproductores.set(nombre, a);
   }
-  return ctx;
+  return a;
 }
 
-// iOS calla el Web Audio cuando el iPhone está en silencio. Con la Audio
-// Session API (Safari 16.4+) se puede pedir que suene igual ("playback").
+// Con la Audio Session API (Safari 16.4+) se pide sonar aunque el iPhone esté
+// en silencio ("playback"). Si no, se deja que el sistema decida ("auto").
 let ignorarSilencio = false;
 export function sonarEnSilencio(si: boolean) {
   ignorarSilencio = si;
@@ -26,112 +34,53 @@ function aplicarSesion() {
   const n = typeof navigator !== "undefined" ? (navigator as unknown as { audioSession?: { type: string } }) : null;
   if (n?.audioSession) {
     try {
-      n.audioSession.type = ignorarSilencio ? "playback" : "ambient";
+      n.audioSession.type = ignorarSilencio ? "playback" : "auto";
     } catch {
-      /* navegador sin soporte: sigue el modo silencio */
+      /* navegador sin soporte */
     }
   }
 }
 
-let desbloqueado = false;
-export function desbloquearAudio() {
+// Se llama dentro de un toque. `excepto`: el sonido que ya se está tocando en
+// ese mismo toque (no se abre en mudo para no cortarlo).
+export function desbloquearAudio(excepto?: NombreSonido) {
   aplicarSesion();
-  const c = contexto();
-  if (!c) return;
-  if (c.state !== "running") c.resume().catch(() => {});
-  // Truco de iOS: tocar un sonido vacío dentro del gesto deja el audio abierto.
-  if (!desbloqueado) {
-    try {
-      const b = c.createBuffer(1, 1, 22050);
-      const src = c.createBufferSource();
-      src.buffer = b;
-      src.connect(c.destination);
-      src.start(0);
-      desbloqueado = true;
-    } catch {
-      /* sin audio */
-    }
-  }
+  (Object.keys(SONIDOS_WAV) as NombreSonido[]).forEach((nombre) => {
+    if (nombre === excepto || abiertos.has(nombre)) return;
+    const a = reproductor(nombre);
+    if (!a) return;
+    a.muted = true;
+    a.play()
+      .then(() => {
+        a.pause();
+        a.currentTime = 0;
+        a.muted = false;
+        abiertos.add(nombre);
+      })
+      .catch(() => {
+        a.muted = false;
+      });
+  });
 }
 
-// Espera a que el audio esté corriendo antes de programar el sonido.
-function cuandoListo(c: AudioContext, tocar: (t: number) => void) {
-  if (c.state === "running") return tocar(c.currentTime + 0.02);
-  c.resume()
-    .then(() => tocar(c.currentTime + 0.02))
+function sonar(nombre: NombreSonido) {
+  const a = reproductor(nombre);
+  if (!a) return;
+  aplicarSesion();
+  a.muted = false;
+  try {
+    a.currentTime = 0;
+  } catch {
+    /* aún sin cargar */
+  }
+  a.play()
+    .then(() => abiertos.add(nombre))
     .catch(() => {});
 }
 
-// Un chasquido: ruido filtrado con caída rapidísima + un "tok" grave de madera.
-function chasquido(c: AudioContext, t: number, volumen: number) {
-  const dur = 0.09;
-  const buffer = c.createBuffer(1, Math.floor(c.sampleRate * dur), c.sampleRate);
-  const datos = buffer.getChannelData(0);
-  for (let i = 0; i < datos.length; i++) datos[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / datos.length, 4);
-  const ruido = c.createBufferSource();
-  ruido.buffer = buffer;
-  const banda = c.createBiquadFilter();
-  banda.type = "bandpass";
-  banda.frequency.value = 2200;
-  banda.Q.value = 0.9;
-  const g = c.createGain();
-  g.gain.setValueAtTime(volumen, t);
-  g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  ruido.connect(banda).connect(g).connect(c.destination);
-  ruido.start(t);
-
-  const tok = c.createOscillator();
-  tok.type = "triangle";
-  tok.frequency.setValueAtTime(420, t);
-  tok.frequency.exponentialRampToValueAtTime(160, t + 0.06);
-  const gt = c.createGain();
-  gt.gain.setValueAtTime(volumen * 0.6, t);
-  gt.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
-  tok.connect(gt).connect(c.destination);
-  tok.start(t);
-  tok.stop(t + 0.08);
-}
-
-// ¡Clac! Al empezar un bloque.
-export function sonarClaqueta() {
-  const c = contexto();
-  if (!c) return;
-  desbloquearAudio();
-  cuandoListo(c, (t) => {
-    chasquido(c, t, 0.9);
-    chasquido(c, t + 0.045, 0.6);
-  });
-}
-
-// Aviso suave: un solo chasquido bajito (5 minutos antes).
-export function sonarPrevio() {
-  const c = contexto();
-  if (!c) return;
-  desbloquearAudio();
-  cuandoListo(c, (t) => chasquido(c, t, 0.35));
-}
-
-// Entrada a la app: dos notas cálidas que suben, seguidas del chasquido del
-// logo (el punto rojo). Suena una vez por sesión, en el primer toque.
-export function sonarEntrada() {
-  const c = contexto();
-  if (!c) return;
-  desbloquearAudio();
-  const nota = (frec: number, inicio: number, dur: number, vol: number) => {
-    const o = c.createOscillator();
-    o.type = "sine";
-    o.frequency.setValueAtTime(frec, inicio);
-    const g = c.createGain();
-    g.gain.setValueAtTime(0.0001, inicio);
-    g.gain.exponentialRampToValueAtTime(vol, inicio + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, inicio + dur);
-    o.connect(g).connect(c.destination);
-    o.start(inicio);
-    o.stop(inicio + dur + 0.02);
-  };
-  cuandoListo(c, (t) => {
-    nota(523.25, t, 0.35, 0.18); // Do
-    nota(783.99, t + 0.11, 0.5, 0.16); // Sol
-    chasquido(c, t + 0.26, 0.4);
-  });
-}
+// ¡Clac! Al empezar un bloque o al guardar una toma.
+export const sonarClaqueta = () => sonar("claqueta");
+// Aviso suave, 5 minutos antes.
+export const sonarPrevio = () => sonar("previo");
+// Entrada a la app, en el primer toque de la sesión.
+export const sonarEntrada = () => sonar("entrada");

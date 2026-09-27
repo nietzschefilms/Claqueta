@@ -36,8 +36,10 @@ export function EnVivo({ hoy, bloques, sonidoAhora, sonidoPrevio, sonidoEntrada,
   // sesión, suena la entrada (si está encendida en Ajustes).
   useEffect(() => {
     const t = () => {
-      desbloquearAudio();
-      if (sonidoEntrada && !yaSono("envivo:entrada")) sonarEntrada();
+      // La entrada suena dentro del toque; los demás sonidos se "abren" en silencio.
+      const tocaEntrada = sonidoEntrada && !yaSono("envivo:entrada");
+      if (tocaEntrada) sonarEntrada();
+      desbloquearAudio(tocaEntrada ? "entrada" : undefined);
     };
     // iOS solo habilita el audio al TERMINAR el toque (touchend/click), no al empezarlo.
     let hecho = false;
