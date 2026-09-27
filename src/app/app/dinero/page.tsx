@@ -5,7 +5,7 @@ import { fechaCDMX, fechaCorta, fechaRelativa } from "@/lib/claqueta/fechas";
 import { aCentavos, avanceContrato, esperados, fechasTarjeta, gastoPorCategoria, NOMBRE_TIPO, pesos, resumen, saldosCuentas, type Esperado } from "@/lib/claqueta/dinero";
 import { ChipFrente, estiloFrente } from "@/components/claqueta/frente-ui";
 import { Encabezado } from "@/components/Encabezado";
-import { estimadoMes } from "@/lib/claqueta/impuestos";
+import { estimadoMes, obligacionesSAT } from "@/lib/claqueta/impuestos";
 import { estadoFijo } from "@/lib/claqueta/plan";
 import { BotonAnular, BotonCobro, BotonFijo, FormEntrada, FormGasto, FormMover, type OpcionCuenta } from "./Formularios";
 import Link from "next/link";
@@ -34,6 +34,7 @@ export default async function Dinero() {
   const maxCategoria = Math.max(1, ...porCategoria.map((c) => c.centavos));
   const clinica = reglas.find((x) => x.area === "rt");
   const fiscal = estimadoMes(pagos, mes);
+  const sat = obligacionesSAT(hoy);
   const pct = (t: number) => `${(t * 100).toLocaleString("es-MX", { maximumFractionDigits: 2 })}%`;
 
   const movimientos = [
@@ -259,9 +260,9 @@ export default async function Dinero() {
               <h2 id="impuestos" className="titulo text-2xl">Impuestos</h2>
               <span className="etiqueta">RESICO · estimado</span>
             </div>
-            <p className="cifra mt-3 text-3xl font-semibold">{pesos(fiscal.total)}</p>
+            <p className="cifra mt-3 text-3xl font-semibold">{pesos(fiscal.apartar)}</p>
             <p className="text-sm text-muted">
-              De {MESES[Number(mes.slice(5)) - 1]}. Declara y paga antes del <span className="font-semibold text-tinta">{fechaCorta(fiscal.limite)}</span>.
+              Aparta esto de {MESES[Number(mes.slice(5)) - 1]}. Declara y paga antes del <span className="font-semibold text-tinta">{fechaCorta(fiscal.limite)}</span>.
             </p>
             <dl className="cifra mt-4 space-y-1.5 border-t border-borde/60 pt-3 text-sm">
               <div className="flex justify-between gap-2">
@@ -279,12 +280,35 @@ export default async function Dinero() {
                 </div>
               )}
               <div className="flex justify-between gap-2">
-                <dt className="text-muted">IVA cobrado{fiscal.retIva > 0 ? " − retenido" : ""}</dt>
+                <dt className="text-muted">IVA facturado{fiscal.retIva > 0 ? " − retenido" : ""}</dt>
                 <dd>{pesos(fiscal.ivaPagar)}</dd>
               </div>
+              {fiscal.ivaPorAclarar > 0 && (
+                <div className="flex justify-between gap-2">
+                  <dt className="text-muted">IVA por aclarar · {pesos(fiscal.sinFactura)} sin factura</dt>
+                  <dd>{pesos(fiscal.ivaPorAclarar)}</dd>
+                </div>
+              )}
             </dl>
+            {fiscal.ivaPorAclarar > 0 && (
+              <p className="mt-3 rounded-2xl bg-aviso/10 p-3 text-xs leading-relaxed">
+                Tus servicios llevan IVA de 16%. Estos cobros no tienen factura ni IVA aparte, así que el SAT puede tomar que el IVA ya venía incluido. Apártalo por si acaso hasta facturarlos. Si el cliente te paga el IVA encima, ya no sale de tu bolsa.
+              </p>
+            )}
+            <ul className="mt-4 space-y-1.5 border-t border-borde/60 pt-3 text-xs">
+              <li className="flex justify-between gap-2">
+                <span className="text-muted">
+                  {sat.mensual.primera ? "Primera declaración" : "Declaración mensual"} · ISR e IVA de {MESES[Number(sat.mensual.mes.slice(5)) - 1]}
+                </span>
+                <span className="cifra shrink-0 font-semibold">{fechaCorta(sat.mensual.limite)}</span>
+              </li>
+              <li className="flex justify-between gap-2">
+                <span className="text-muted">Anual {sat.anual.ejercicio}</span>
+                <span className="cifra shrink-0">{fechaCorta(sat.anual.limite)}</span>
+              </li>
+            </ul>
             <p className="mt-3 text-xs text-muted">
-              Aparta este dinero para no gastarlo. Es un cálculo para planear: tu contador confirma la declaración. Lo de tus papás y los regalos no cuenta.
+              RESICO desde el 24 sep 2026 · servicios profesionales. Lo cobrado antes no entra. Es un cálculo para planear: tu contador confirma la declaración. Lo de tus papás y los regalos no cuenta.
             </p>
           </section>
 

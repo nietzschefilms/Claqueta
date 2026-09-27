@@ -9,6 +9,13 @@ import type { Pago } from "./dinero";
 import { aCentavos } from "./dinero";
 
 export const IVA = 0.16;
+
+// Tu alta en RESICO según la Constancia de Situación Fiscal (24 sep 2026):
+// actividad "Otros servicios profesionales, científicos y técnicos" (100%).
+// Obligaciones: ISR provisional y IVA definitivo cada mes (día 17 del mes
+// siguiente) y la anual a más tardar el 30 de abril. Lo cobrado antes de esa
+// fecha no entra en las declaraciones de RESICO.
+export const INICIO_RESICO = "2026-09-24";
 export const RET_ISR_MORAL = 0.0125;
 
 // Tabla mensual del RESICO (límite superior en centavos, tasa).
@@ -58,7 +65,7 @@ export function limiteDeclaracion(mes: string): string {
 
 // Estimado del mes: ISR sobre todo lo cobrado de la actividad, IVA de lo facturado.
 export function estimadoMes(pagos: PagoFiscal[], mes: string) {
-  const delMes = pagos.filter((p) => p.date.startsWith(mes) && p.gravable !== false);
+  const delMes = pagos.filter((p) => p.date.startsWith(mes) && p.date >= INICIO_RESICO && p.gravable !== false);
   // Base del ISR: el subtotal si hubo factura; si no, lo que entró.
   const base = delMes.reduce((a, p) => a + (p.factura ? c(p.subtotal) : c(p.amount)), 0);
   const facturado = delMes.filter((p) => p.factura).reduce((a, p) => a + c(p.subtotal), 0);
@@ -69,7 +76,35 @@ export function estimadoMes(pagos: PagoFiscal[], mes: string) {
   const retIva = delMes.reduce((a, p) => a + c(p.ret_iva), 0);
   const isrPagar = Math.max(0, isr - retIsr);
   const ivaPagar = Math.max(0, ivaCobrado - retIva);
-  return { base, facturado, tasa, isr, retIsr, isrPagar, ivaCobrado, retIva, ivaPagar, total: isrPagar + ivaPagar, limite: limiteDeclaracion(mes) };
+  // Cobros de tu trabajo sin factura: tus servicios llevan IVA. Si el precio no
+  // lo sumó aparte, el SAT puede considerar que ya venía incluido (16/116 de lo
+  // cobrado). Se aparta "por si acaso" hasta que se facture y se aclare.
+  const sinFactura = delMes.filter((p) => !p.factura).reduce((a, p) => a + c(p.amount), 0);
+  const ivaPorAclarar = Math.round((sinFactura * IVA) / (1 + IVA));
+  const total = isrPagar + ivaPagar;
+  return { base, facturado, tasa, isr, retIsr, isrPagar, ivaCobrado, retIva, ivaPagar, sinFactura, ivaPorAclarar, total, apartar: total + ivaPorAclarar, limite: limiteDeclaracion(mes) };
+}
+
+// Próximas fechas con el SAT a partir de hoy.
+export function obligacionesSAT(hoy: string) {
+  const mes = hoy.slice(0, 7);
+  const mesAnterior = (() => {
+    let [a, m] = mes.split("-").map(Number);
+    m -= 1;
+    if (m < 1) {
+      m = 12;
+      a -= 1;
+    }
+    return `${a}-${String(m).padStart(2, "0")}`;
+  })();
+  // Si aún no pasa el 17, lo pendiente es el mes anterior (si ya estabas en RESICO).
+  const pendiente = hoy <= limiteDeclaracion(mesAnterior) && mesAnterior >= INICIO_RESICO.slice(0, 7) ? mesAnterior : mes;
+  const anio = Number(hoy.slice(0, 4));
+  const anual = hoy <= `${anio}-04-30` && anio - 1 >= Number(INICIO_RESICO.slice(0, 4)) ? anio - 1 : anio;
+  return {
+    mensual: { mes: pendiente, limite: limiteDeclaracion(pendiente), primera: pendiente === INICIO_RESICO.slice(0, 7) },
+    anual: { ejercicio: anual, limite: `${anual + 1}-04-30` }
+  };
 }
 
 // ─── Contador: formas legales de pagar menos o no pagar de más ───────────
@@ -101,6 +136,11 @@ export function consejosFiscales(e: ReturnType<typeof estimadoMes>, datos: { fac
       titulo: "Compra equipo el mes que factures con IVA",
       texto: "Si compras una cámara de $20,000 + IVA el mismo mes que cobras IVA, sus $3,200 de IVA bajan lo que pagas ese mes. Hazlo con factura y pagando con tarjeta o transferencia (no efectivo arriba de $2,000).",
       aplica: true
+    },
+    {
+      titulo: "Factura todo lo que cobras",
+      texto: "En RESICO cada cobro necesita CFDI. Si el cliente quiere factura, se la haces a su RFC. Si no la pide, al final del mes haces una factura global a \"público en general\". Así el IVA queda claro y no se te junta.",
+      aplica: e.sinFactura > 0
     },
     {
       titulo: "Factura a empresas: la retención ya es pago",

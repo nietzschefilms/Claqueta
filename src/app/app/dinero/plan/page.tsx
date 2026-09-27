@@ -169,7 +169,7 @@ export default async function Plan() {
           <span className="etiqueta">Pagar menos, 100% legal</span>
         </div>
         <p className="mt-1 text-sm text-muted">
-          Este mes llevas {pesos(fiscal.base)} de tu trabajo: te tocan {pesos(fiscal.total)} de impuestos, antes del {fechaCorta(fiscal.limite)}.
+          Este mes llevas {pesos(fiscal.base)} de tu trabajo: aparta {pesos(fiscal.apartar)} de impuestos{fiscal.ivaPorAclarar > 0 ? ` (${pesos(fiscal.ivaPorAclarar)} son IVA por aclarar de cobros sin factura)` : ""}, antes del {fechaCorta(fiscal.limite)}.
         </p>
         <ul className="mt-4 grid gap-3 md:grid-cols-2">
           {tips

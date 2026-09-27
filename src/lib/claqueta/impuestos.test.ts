@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { desgloseFactura, estimadoMes, limiteDeclaracion, tasaResico } from "./impuestos";
+import { desgloseFactura, estimadoMes, limiteDeclaracion, obligacionesSAT, tasaResico } from "./impuestos";
 
 describe("RESICO", () => {
   it("tasa por tramo mensual", () => {
@@ -27,6 +27,21 @@ describe("RESICO", () => {
       "2026-09"
     );
     expect(e).toMatchObject({ base: 650_000, tasa: 0.01, isr: 6_500, isrPagar: 6_500, ivaPagar: 0, total: 6_500, limite: "2026-10-17" });
+    // Sin factura: IVA por aclarar = 16/116 de $6,500 = $896.55
+    expect(e).toMatchObject({ sinFactura: 650_000, ivaPorAclarar: 89_655, apartar: 96_155 });
+  });
+
+  it("lo cobrado antes del alta en RESICO (24 sep 2026) no cuenta", () => {
+    const e = estimadoMes([{ amount: 4000, date: "2026-09-20" }, { amount: 1000, date: "2026-09-24" }], "2026-09");
+    expect(e.base).toBe(100_000);
+  });
+
+  it("próximas fechas con el SAT", () => {
+    expect(obligacionesSAT("2026-09-27")).toEqual({ mensual: { mes: "2026-09", limite: "2026-10-17", primera: true }, anual: { ejercicio: 2026, limite: "2027-04-30" } });
+    expect(obligacionesSAT("2026-10-10").mensual).toEqual({ mes: "2026-09", limite: "2026-10-17", primera: true });
+    expect(obligacionesSAT("2026-10-18").mensual).toEqual({ mes: "2026-10", limite: "2026-11-17", primera: false });
+    expect(obligacionesSAT("2027-03-01").anual).toEqual({ ejercicio: 2026, limite: "2027-04-30" });
+    expect(obligacionesSAT("2027-05-01").anual).toEqual({ ejercicio: 2027, limite: "2028-04-30" });
   });
 
   it("estimado con factura a empresa: resta lo retenido", () => {
