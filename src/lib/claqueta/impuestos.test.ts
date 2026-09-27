@@ -16,7 +16,7 @@ describe("RESICO", () => {
     expect(desgloseFactura(1_000_000, "fisica")).toEqual({ subtotal: 1_000_000, iva: 160_000, retIsr: 0, retIva: 0, deposito: 1_160_000 });
   });
 
-  it("estimado del mes: sin facturas, 1% de lo cobrado; lo de los papás no cuenta", () => {
+  it("estimado del mes sin facturas: el IVA venía incluido; lo de los papás no cuenta", () => {
     const e = estimadoMes(
       [
         { amount: 5000, date: "2026-09-25" },
@@ -26,14 +26,13 @@ describe("RESICO", () => {
       ],
       "2026-09"
     );
-    expect(e).toMatchObject({ base: 650_000, tasa: 0.01, isr: 6_500, isrPagar: 6_500, ivaPagar: 0, total: 6_500, limite: "2026-10-17" });
-    // Sin factura: IVA por aclarar = 16/116 de $6,500 = $896.55
-    expect(e).toMatchObject({ sinFactura: 650_000, ivaPorAclarar: 89_655, apartar: 96_155 });
+    // $6,500 con IVA incluido: IVA 16/116 = $896.55, base $5,603.45, ISR 1% = $56.03
+    expect(e).toMatchObject({ sinFactura: 650_000, ivaIncluido: 89_655, base: 560_345, tasa: 0.01, isr: 5_603, ivaPagar: 89_655, total: 95_258, limite: "2026-10-17" });
   });
 
   it("lo cobrado antes del alta en RESICO (24 sep 2026) no cuenta", () => {
     const e = estimadoMes([{ amount: 4000, date: "2026-09-20" }, { amount: 1000, date: "2026-09-24" }], "2026-09");
-    expect(e.base).toBe(100_000);
+    expect(e.sinFactura).toBe(100_000);
   });
 
   it("próximas fechas con el SAT", () => {

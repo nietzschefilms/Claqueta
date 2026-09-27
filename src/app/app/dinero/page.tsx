@@ -260,13 +260,13 @@ export default async function Dinero() {
               <h2 id="impuestos" className="titulo text-2xl">Impuestos</h2>
               <span className="etiqueta">RESICO · estimado</span>
             </div>
-            <p className="cifra mt-3 text-3xl font-semibold">{pesos(fiscal.apartar)}</p>
+            <p className="cifra mt-3 text-3xl font-semibold">{pesos(fiscal.total)}</p>
             <p className="text-sm text-muted">
               Aparta esto de {MESES[Number(mes.slice(5)) - 1]}. Declara y paga antes del <span className="font-semibold text-tinta">{fechaCorta(fiscal.limite)}</span>.
             </p>
             <dl className="cifra mt-4 space-y-1.5 border-t border-borde/60 pt-3 text-sm">
               <div className="flex justify-between gap-2">
-                <dt className="text-muted">Ingresos de tu trabajo</dt>
+                <dt className="text-muted">Ingresos de tu trabajo{fiscal.ivaIncluido > 0 ? " sin IVA" : ""}</dt>
                 <dd>{pesos(fiscal.base)}</dd>
               </div>
               <div className="flex justify-between gap-2">
@@ -280,19 +280,13 @@ export default async function Dinero() {
                 </div>
               )}
               <div className="flex justify-between gap-2">
-                <dt className="text-muted">IVA facturado{fiscal.retIva > 0 ? " − retenido" : ""}</dt>
+                <dt className="text-muted">IVA{fiscal.ivaIncluido > 0 ? " (incluido en lo cobrado)" : ""}{fiscal.retIva > 0 ? " − retenido" : ""}</dt>
                 <dd>{pesos(fiscal.ivaPagar)}</dd>
               </div>
-              {fiscal.ivaPorAclarar > 0 && (
-                <div className="flex justify-between gap-2">
-                  <dt className="text-muted">IVA por aclarar · {pesos(fiscal.sinFactura)} sin factura</dt>
-                  <dd>{pesos(fiscal.ivaPorAclarar)}</dd>
-                </div>
-              )}
             </dl>
-            {fiscal.ivaPorAclarar > 0 && (
+            {fiscal.ivaIncluido > 0 && (
               <p className="mt-3 rounded-2xl bg-aviso/10 p-3 text-xs leading-relaxed">
-                Tus servicios llevan IVA de 16%. Estos cobros no tienen factura ni IVA aparte, así que el SAT puede tomar que el IVA ya venía incluido. Apártalo por si acaso hasta facturarlos. Si el cliente te paga el IVA encima, ya no sale de tu bolsa.
+                {pesos(fiscal.sinFactura)} los cobraste sin IVA aparte, así que el IVA sale de ahí ({pesos(fiscal.ivaIncluido)}). Van en una factura global a público en general. Desde ahora cobra precio + IVA y registra el cobro con “Con factura e IVA”.
               </p>
             )}
             <ul className="mt-4 space-y-1.5 border-t border-borde/60 pt-3 text-xs">

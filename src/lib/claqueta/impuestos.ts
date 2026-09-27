@@ -63,26 +63,25 @@ export function limiteDeclaracion(mes: string): string {
   return `${a}-${String(m).padStart(2, "0")}-17`;
 }
 
-// Estimado del mes: ISR sobre todo lo cobrado de la actividad, IVA de lo facturado.
+// Estimado del mes.
+// · Con factura: ISR sobre el subtotal; IVA el trasladado menos lo retenido.
+// · Sin IVA aparte (cobros sin factura): tus servicios llevan IVA, así que se
+//   toma que el IVA venía incluido en lo cobrado (como en la factura global a
+//   público en general): IVA = 16/116 del cobro e ISR sobre el resto.
 export function estimadoMes(pagos: PagoFiscal[], mes: string) {
   const delMes = pagos.filter((p) => p.date.startsWith(mes) && p.date >= INICIO_RESICO && p.gravable !== false);
-  // Base del ISR: el subtotal si hubo factura; si no, lo que entró.
-  const base = delMes.reduce((a, p) => a + (p.factura ? c(p.subtotal) : c(p.amount)), 0);
+  const sinFactura = delMes.filter((p) => !p.factura).reduce((a, p) => a + c(p.amount), 0);
+  const ivaIncluido = Math.round((sinFactura * IVA) / (1 + IVA));
   const facturado = delMes.filter((p) => p.factura).reduce((a, p) => a + c(p.subtotal), 0);
+  const base = facturado + sinFactura - ivaIncluido;
   const tasa = tasaResico(base);
   const isr = Math.round(base * tasa);
   const retIsr = delMes.reduce((a, p) => a + c(p.ret_isr), 0);
-  const ivaCobrado = delMes.reduce((a, p) => a + c(p.iva), 0);
+  const ivaCobrado = delMes.reduce((a, p) => a + c(p.iva), 0) + ivaIncluido;
   const retIva = delMes.reduce((a, p) => a + c(p.ret_iva), 0);
   const isrPagar = Math.max(0, isr - retIsr);
   const ivaPagar = Math.max(0, ivaCobrado - retIva);
-  // Cobros de tu trabajo sin factura: tus servicios llevan IVA. Si el precio no
-  // lo sumó aparte, el SAT puede considerar que ya venía incluido (16/116 de lo
-  // cobrado). Se aparta "por si acaso" hasta que se facture y se aclare.
-  const sinFactura = delMes.filter((p) => !p.factura).reduce((a, p) => a + c(p.amount), 0);
-  const ivaPorAclarar = Math.round((sinFactura * IVA) / (1 + IVA));
-  const total = isrPagar + ivaPagar;
-  return { base, facturado, tasa, isr, retIsr, isrPagar, ivaCobrado, retIva, ivaPagar, sinFactura, ivaPorAclarar, total, apartar: total + ivaPorAclarar, limite: limiteDeclaracion(mes) };
+  return { base, facturado, sinFactura, ivaIncluido, tasa, isr, retIsr, isrPagar, ivaCobrado, retIva, ivaPagar, total: isrPagar + ivaPagar, limite: limiteDeclaracion(mes) };
 }
 
 // Próximas fechas con el SAT a partir de hoy.
@@ -139,7 +138,7 @@ export function consejosFiscales(e: ReturnType<typeof estimadoMes>, datos: { fac
     },
     {
       titulo: "Factura todo lo que cobras",
-      texto: "En RESICO cada cobro necesita CFDI. Si el cliente quiere factura, se la haces a su RFC. Si no la pide, al final del mes haces una factura global a \"público en general\". Así el IVA queda claro y no se te junta.",
+      texto: "En RESICO cada cobro necesita CFDI. Los cobros sin IVA aparte van en una factura global a \"público en general\" con el IVA incluido (sale de lo que cobraste). De ahora en adelante cobra el precio + IVA y factura al RFC del cliente: así el IVA lo pone él, no tu bolsa.",
       aplica: e.sinFactura > 0
     },
     {
