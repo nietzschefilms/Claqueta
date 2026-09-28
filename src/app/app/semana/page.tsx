@@ -145,7 +145,10 @@ export default async function Semana({ searchParams }: { searchParams: Promise<{
                             <span className="cifra w-10 shrink-0 text-muted">{minutosAHora(horaAMinutos(b.start_time))}</span>
                             <span className="min-w-0 truncate font-semibold">{b.label}</span>
                           </div>
-                          <p className="truncate pl-12 text-[10px] text-f-escuela">{lugarClase(b)}</p>
+                          <p className="truncate pl-12 text-[10px] text-muted">
+                            <span className="cifra">sale {minutosAHora(horaAMinutos(b.end_time))}</span>
+                            <span className="text-f-escuela"> · {lugarClase(b)}</span>
+                          </p>
                         </li>
                       ) : (
                         <li
