@@ -5,6 +5,7 @@ import { notificar } from "@/lib/notificaciones";
 import { diaSemana, fechaCDMX, minutosAhoraCDMX, sumarDias } from "@/lib/claqueta/fechas";
 import { planearDia } from "@/lib/claqueta/planeador";
 import { avisosRutina } from "@/lib/claqueta/avisos";
+import { eventoABloque } from "@/lib/claqueta/estudio";
 import type { Bloque, Tarea } from "@/lib/claqueta/tipos";
 import { estadoFijo, type GastoFijo } from "@/lib/claqueta/plan";
 import { prefsDe } from "@/lib/notif-prefs";
@@ -45,7 +46,7 @@ export async function GET(req: Request) {
       }
     }
 
-    const [{ data: bloques }, { data: tareas }] = await Promise.all([
+    const [{ data: rutina }, { data: tareas }, { data: citas }] = await Promise.all([
       admin.from("routine_blocks").select("id, weekday, start_time, end_time, label, kind, areas, salon, piso, profesor, clave").eq("user_id", id).eq("weekday", diaSemana(hoy)),
       admin
         .from("tasks")
@@ -53,9 +54,21 @@ export async function GET(req: Request) {
         .eq("user_id", id)
         .is("archived_at", null)
         .or(`status.neq.hecho,done_at.gte.${sumarDias(hoy, -1)}T00:00:00Z`)
-        .limit(500)
+        .limit(500),
+      // Citas del equipo de hoy a las que va (vacío = todo el equipo).
+      admin.from("equipo_miembros").select("equipo_id").eq("user_id", id).then(async ({ data: eqs }) => {
+        const ids = (eqs ?? []).map((e) => e.equipo_id as string);
+        if (!ids.length) return { data: [] };
+        return admin.from("eventos").select("id, fecha, inicio, fin, titulo, tipo, lugar, participantes").in("equipo_id", ids).eq("fecha", hoy).is("cancelado_at", null);
+      })
     ]);
-    if (!bloques?.length) continue;
+    const bloques = [
+      ...((rutina ?? []) as Bloque[]),
+      ...((citas ?? []) as { id: string; fecha: string; inicio: string; fin: string; titulo: string; tipo: string; lugar: string | null; participantes: string[] }[])
+        .filter((e) => !e.participantes?.length || e.participantes.includes(id))
+        .map(eventoABloque)
+    ];
+    if (!bloques.length) continue;
 
     const plan = planearDia(bloques as Bloque[], (tareas ?? []) as Tarea[], hoy);
     for (const a of avisosRutina(plan.bloques, ahora, hoy)) {

@@ -36,12 +36,15 @@ export type Bloque = {
   piso?: string | null;
   profesor?: string | null;
   clave?: string | null;
+  // Cita del equipo (agenda del Estudio) convertida en bloque fijo del día.
+  evento?: { tipo: string; lugar: string | null } | null;
 };
 
 export const esClase = (b: Pick<Bloque, "salon">) => !!b.salon;
 
 // "Sala de cine, piso 2" (sin piso si no se ha puesto).
-export function lugarClase(b: Pick<Bloque, "salon" | "piso">): string {
+export function lugarClase(b: Pick<Bloque, "salon" | "piso"> & { evento?: Bloque["evento"] }): string {
+  if (b.evento) return b.evento.lugar ?? "";
   return [b.salon, b.piso ? `piso ${b.piso}` : null].filter(Boolean).join(", ");
 }
 

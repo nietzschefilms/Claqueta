@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { requerirSesion } from "@/lib/sesion";
 import { cargarDinero, cargarHitos, cargarRutina, cargarTareas, cargarPerfil } from "@/lib/claqueta/datos";
+import { cargarEventos, vaYo } from "@/lib/claqueta/datos-estudio";
+import { eventoABloque } from "@/lib/claqueta/estudio";
 import { esperados, pesos } from "@/lib/claqueta/dinero";
 import Link from "next/link";
 import { diaSemana, fechaCDMX, fechaRelativa, minutosAHora, minutosAhoraCDMX } from "@/lib/claqueta/fechas";
@@ -33,7 +35,9 @@ export default async function Hoy() {
   const s = await requerirSesion();
   const hoy = fechaCDMX();
   const ahora = minutosAhoraCDMX();
-  const [tareas, rutina, hitos, dinero, perfil] = await Promise.all([cargarTareas(hoy, s.userId), cargarRutina(), cargarHitos("ek"), cargarDinero(), cargarPerfil(s.userId)]);
+  const [tareas, rutinaBase, hitos, dinero, perfil, citas] = await Promise.all([cargarTareas(hoy, s.userId), cargarRutina(), cargarHitos("ek"), cargarDinero(), cargarPerfil(s.userId), cargarEventos(hoy, hoy)]);
+  // Las citas del equipo de hoy entran como bloques fijos (el plan no las pisa).
+  const rutina = [...rutinaBase, ...citas.filter((e) => vaYo(e, s.userId)).map(eventoABloque)];
   const conEK = perfil.frentes.includes("ek");
   const cobros = esperados(dinero.reglas, dinero.pagos, hoy);
   const cobroHoy = [...cobros.atrasados, ...cobros.hoy];
@@ -310,6 +314,17 @@ function Bloque({ bp, ahora, hoy }: { bp: BloquePlaneado; ahora: number; hoy: st
           <p className="cifra mt-0.5 text-[11px] text-muted">
             {minutosAHora(bp.inicio)}–{minutosAHora(bp.fin)} · <span className="font-semibold text-f-escuela">{lugarClase(bp.bloque)}</span>
             {bp.bloque.profesor ? ` · ${bp.bloque.profesor}` : ""}
+          </p>
+        </div>
+      ) : fijo && bp.bloque.evento ? (
+        <div className={`ml-2 rounded-2xl border border-f-nietzsche/30 bg-f-nietzsche/[0.09] px-3.5 py-2.5 ${enCurso ? "border-rojo/40" : ""} ${pasado && !enCurso ? "opacity-50" : ""}`}>
+          <p className="text-sm font-semibold">
+            {bp.bloque.label}
+            {enCurso && <AhoraPill />}
+          </p>
+          <p className="cifra mt-0.5 text-[11px] text-muted">
+            {minutosAHora(bp.inicio)}–{minutosAHora(bp.fin)} · <span className="font-semibold text-f-nietzsche">Estudio · {bp.bloque.evento.tipo}</span>
+            {bp.bloque.evento.lugar ? ` · ${bp.bloque.evento.lugar}` : ""}
           </p>
         </div>
       ) : fijo ? (

@@ -384,3 +384,30 @@ dialog.hoja::backdrop {
   font-stretch: 72%;
   word-spacing: 0.14em;
 }
+
+/* Imprimir: solo la hoja (guion u hoja de llamado), sin menú ni botones. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .imprimible,
+  .imprimible *,
+  .hoja-guion,
+  .hoja-guion * {
+    visibility: visible;
+  }
+  .imprimible,
+  .hoja-guion {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    max-width: none;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .hoja-guion textarea::placeholder {
+    color: transparent;
+  }
+}

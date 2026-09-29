@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { requerirSesion } from "@/lib/sesion";
 import { cargarRutina, cargarTareas } from "@/lib/claqueta/datos";
+import { cargarEventos, vaYo } from "@/lib/claqueta/datos-estudio";
+import { eventoABloque } from "@/lib/claqueta/estudio";
 import { diaSemana, esFechaISO, fechaCDMX, horaAMinutos, lunesDe, minutosAHora, sumarDias } from "@/lib/claqueta/fechas";
 import { ordenarPorPuntaje } from "@/lib/claqueta/prioridad";
 import { ChipFrente, estiloFrente } from "@/components/claqueta/frente-ui";
@@ -28,7 +30,8 @@ export default async function Semana({ searchParams }: { searchParams: Promise<{
   const { s } = await searchParams;
   const lunes = lunesDe(esFechaISO(s) ? s : hoy);
   const dias = Array.from({ length: 7 }, (_, i) => sumarDias(lunes, i));
-  const [tareas, rutina] = await Promise.all([cargarTareas(hoy, sesion.userId), cargarRutina()]);
+  const [tareas, rutina, citas] = await Promise.all([cargarTareas(hoy, sesion.userId), cargarRutina(), cargarEventos(lunes, sumarDias(lunes, 6))]);
+  const misCitas = citas.filter((e) => vaYo(e, sesion.userId));
 
   const abiertas = tareas.filter((t) => t.status !== "hecho");
   const vencidas = ordenarPorPuntaje(abiertas.filter((t) => t.due_date && t.due_date < hoy), hoy);
@@ -39,10 +42,11 @@ export default async function Semana({ searchParams }: { searchParams: Promise<{
       .filter((b) => b.weekday === diaSemana(d))
       .sort((a, b) => horaAMinutos(a.start_time) - horaAMinutos(b.start_time));
     const focus = bloques.filter((b) => b.kind === "focus");
+    const delDia = misCitas.filter((e) => e.fecha === d).map(eventoABloque);
     return {
       d,
       focus,
-      agenda: bloques.filter((b) => b.kind === "focus" || esClase(b)),
+      agenda: [...bloques.filter((b) => b.kind === "focus" || esClase(b)), ...delDia].sort((a, b) => horaAMinutos(a.start_time) - horaAMinutos(b.start_time)),
       minutosFoco: focus.reduce((a, b) => a + horaAMinutos(b.end_time) - horaAMinutos(b.start_time), 0),
       vencen: ordenarPorPuntaje(abiertas.filter((t) => t.due_date === d), hoy)
     };
@@ -59,6 +63,7 @@ export default async function Semana({ searchParams }: { searchParams: Promise<{
           <h1 className="titulo mt-1 text-6xl md:text-7xl">Semana</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+        <Link href="/app/escuela" className="btn-secundario md:hidden">Escuela</Link>
         <Link href="/app/rutina" className="btn-secundario">Editar rutina</Link>
         <nav aria-label="Cambiar semana" className="vidrio flex items-center gap-1 rounded-full p-1">
           <Link href={`/app/semana?s=${sumarDias(lunes, -7)}`} aria-label="Semana anterior" className="enlace-mono grid h-9 w-9 place-items-center p-0">←</Link>
@@ -160,7 +165,8 @@ export default async function Semana({ searchParams }: { searchParams: Promise<{
                           <span className="cifra w-10 shrink-0 text-muted">{minutosAHora(horaAMinutos(b.start_time))}</span>
                           <span className="min-w-0 truncate font-medium">
                             {b.label}
-                            {b.areas.length === 0 && <span className="font-normal text-muted"> · libre</span>}
+                            {b.evento && <span className="font-normal text-muted"> · {b.evento.tipo}</span>}
+                            {!b.evento && b.areas.length === 0 && <span className="font-normal text-muted"> · libre</span>}
                           </span>
                         </li>
                       )

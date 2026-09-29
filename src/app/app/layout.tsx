@@ -11,6 +11,8 @@ import { Captura } from "@/components/claqueta/Captura";
 import { IconoAjustes, IconoAvisos } from "@/components/Iconos";
 import { EnVivo, type BloqueHoy } from "@/components/claqueta/EnVivo";
 import { cargarPerfil, cargarRutina } from "@/lib/claqueta/datos";
+import { cargarEventos, vaYo } from "@/lib/claqueta/datos-estudio";
+import { eventoABloque } from "@/lib/claqueta/estudio";
 import { ProveedorEquipo } from "@/components/claqueta/ContextoEquipo";
 import { Bienvenida } from "@/components/claqueta/Bienvenida";
 import { diaSemana, fechaCDMX, horaAMinutos } from "@/lib/claqueta/fechas";
@@ -25,12 +27,14 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
   const s = await requerirSesion();
   const menu = menuPara(s.rol, s.esSoporte);
   const hoy = fechaCDMX();
-  const [noLeidas, rutina, { data: perfil }, yo] = await Promise.all([
+  const [noLeidas, rutinaBase, { data: perfil }, yo, citas] = await Promise.all([
     contarNoLeidas(s.userId),
     cargarRutina(),
     (await createClient()).from("perfiles").select("notif_prefs").eq("id", s.userId).maybeSingle(),
-    cargarPerfil(s.userId)
+    cargarPerfil(s.userId),
+    cargarEventos(hoy, hoy)
   ]);
+  const rutina = [...rutinaBase, ...citas.filter((e) => vaYo(e, s.userId)).map(eventoABloque)];
   const prefs = prefsDe(perfil?.notif_prefs);
   const bloquesHoy: BloqueHoy[] = rutina
     .filter((b) => b.weekday === diaSemana(hoy))

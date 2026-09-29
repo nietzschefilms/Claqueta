@@ -91,6 +91,17 @@ export function IconoEscuela({ activo, className }: P) {
   );
 }
 
+// Claqueta de cine: el estudio del equipo.
+export function IconoEstudio({ activo, className }: P) {
+  return (
+    <svg {...base(className)}>
+      <rect x="3.5" y="9.5" width="17" height="11" rx="2.5" fill={activo ? "currentColor" : "none"} fillOpacity={0.12} />
+      <path d="M3.8 9.3 19 5.2l.8 3-15.2 4.1z" />
+      <path d="m8 8.2 1.6 2.4M12.4 7l1.6 2.4" />
+    </svg>
+  );
+}
+
 export function IconoMas({ className = "h-6 w-6" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" aria-hidden="true">
@@ -102,6 +113,7 @@ export function IconoMas({ className = "h-6 w-6" }: { className?: string }) {
 export const ICONO_MENU: Record<string, (p: P) => React.ReactElement> = {
   "/app": IconoHoy,
   "/app/semana": IconoSemana,
+  "/app/estudio": IconoEstudio,
   "/app/escuela": IconoEscuela,
   "/app/tablero": IconoTablero,
   "/app/dinero": IconoDinero,
