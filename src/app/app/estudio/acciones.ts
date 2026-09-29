@@ -338,3 +338,297 @@ export async function renumerarGuion(proyectoId: string): Promise<Resultado> {
   }
   return { ok: true };
 }
+
+// ─── Producción: presupuesto, planos, gente y locaciones ────────────────
+const UNIDADES = ["día", "semana", "hora", "pieza", "fijo", "km", "persona"];
+const TAMANOS = ["GPG", "PG", "PC", "PA", "PM", "PMC", "PP", "PPP", "PD", "INSERT", "OTRO"];
+const numero = (v: unknown, max: number, decimales = 2) => {
+  const t = String(v ?? "").replace(/[$,\s]/g, "");
+  if (t === "") return 0;
+  if (!new RegExp(`^\\d+(\\.\\d{1,${decimales}})?$`).test(t)) return null;
+  const n = Number(t);
+  return n <= max ? n : null;
+};
+const texto = (v: unknown, max: number) => {
+  const t = String(v ?? "").trim();
+  return t.length <= max ? t : null;
+};
+const tocarProyecto = (id: string) => revalidatePath(`/app/estudio/proyectos/${id}`);
+
+type CamposLinea = { cuenta?: string; descripcion?: string; cantidad?: string | number; unidad?: string; veces?: string | number; tarifa?: string | number; real?: string | number | null; nota?: string };
+
+function validarLinea(c: CamposLinea, nueva: boolean): { ok: true; datos: Record<string, unknown> } | { ok: false; error: string } {
+  const d: Record<string, unknown> = {};
+  if (c.cuenta !== undefined || nueva) {
+    if (!/^\d{3,4}$/.test(String(c.cuenta ?? ""))) return { ok: false, error: "Elige la cuenta." };
+    d.cuenta = c.cuenta;
+  }
+  if (c.descripcion !== undefined || nueva) {
+    const t = texto(c.descripcion, 120);
+    if (!t) return { ok: false, error: "Escribe qué es (máx. 120 letras)." };
+    d.descripcion = t;
+  }
+  for (const [k, max] of [["cantidad", 100000], ["veces", 10000], ["tarifa", 10_000_000]] as const) {
+    if (c[k] === undefined) continue;
+    const n = numero(c[k], max);
+    if (n === null) return { ok: false, error: `${k === "tarifa" ? "La tarifa" : k === "cantidad" ? "La cantidad" : "Las veces"} no es válida. Escribe solo el número, con máximo dos decimales.` };
+    d[k] = n;
+  }
+  if (c.unidad !== undefined) {
+    if (!UNIDADES.includes(c.unidad)) return { ok: false, error: "Unidad no válida." };
+    d.unidad = c.unidad;
+  }
+  if (c.real !== undefined) {
+    if (c.real === null || c.real === "") d.real = null;
+    else {
+      const n = numero(c.real, 10_000_000);
+      if (n === null) return { ok: false, error: "Lo gastado no es válido. Escribe solo el número." };
+      d.real = n;
+    }
+  }
+  if (c.nota !== undefined) {
+    const t = texto(c.nota, 300);
+    if (t === null) return { ok: false, error: "La nota es muy larga." };
+    d.nota = t || null;
+  }
+  return { ok: true, datos: d };
+}
+
+export async function agregarLineaPresupuesto(proyectoId: string, c: CamposLinea): Promise<Resultado> {
+  await requerirSesion();
+  if (!UUID.test(proyectoId)) return { ok: false, error: "Proyecto no válido." };
+  const v = validarLinea(c, true);
+  if (!v.ok) return v;
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("presupuesto_lineas").insert({ proyecto_id: proyectoId, unidad: "día", ...v.datos }).select("id").single();
+  if (error) return { ok: false, error: "No se guardó la línea." };
+  tocarProyecto(proyectoId);
+  return { ok: true, id: data.id as string };
+}
+
+export async function editarLineaPresupuesto(proyectoId: string, id: string, c: CamposLinea): Promise<Resultado> {
+  await requerirSesion();
+  if (!UUID.test(proyectoId) || !UUID.test(id)) return { ok: false, error: "Línea no válida." };
+  const v = validarLinea(c, false);
+  if (!v.ok) return v;
+  const supabase = await createClient();
+  const { error } = await supabase.from("presupuesto_lineas").update(v.datos).eq("id", id).eq("proyecto_id", proyectoId);
+  if (error) return { ok: false, error: "No se guardó el cambio." };
+  tocarProyecto(proyectoId);
+  return { ok: true };
+}
+
+export async function archivarLineaPresupuesto(proyectoId: string, id: string): Promise<Resultado> {
+  await requerirSesion();
+  if (!UUID.test(proyectoId) || !UUID.test(id)) return { ok: false, error: "Línea no válida." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("presupuesto_lineas").update({ archivado_at: new Date().toISOString() }).eq("id", id).eq("proyecto_id", proyectoId);
+  if (error) return { ok: false, error: "No se pudo quitar." };
+  tocarProyecto(proyectoId);
+  return { ok: true };
+}
+
+// Carga las líneas típicas de un spot (sin montos). Solo si el presupuesto está vacío.
+export async function cargarPlantillaPresupuesto(proyectoId: string): Promise<Resultado> {
+  await requerirSesion();
+  if (!UUID.test(proyectoId)) return { ok: false, error: "Proyecto no válido." };
+  const { PLANTILLA_SPOT } = await import("@/lib/claqueta/produccion");
+  const supabase = await createClient();
+  const { count } = await supabase.from("presupuesto_lineas").select("id", { count: "exact", head: true }).eq("proyecto_id", proyectoId).is("archivado_at", null);
+  if (count) return { ok: false, error: "El presupuesto ya tiene líneas." };
+  const { error } = await supabase.from("presupuesto_lineas").insert(PLANTILLA_SPOT.map((l, i) => ({ proyecto_id: proyectoId, ...l, veces: 1, tarifa: 0, orden: i })));
+  if (error) return { ok: false, error: "No se cargó la plantilla." };
+  tocarProyecto(proyectoId);
+  return { ok: true, mensaje: "Listo: llena la tarifa de cada línea con la cotización real." };
+}
+
+export async function editarTopsheet(proyectoId: string, c: { imprevistos_pct?: string; utilidad_pct?: string; con_iva?: boolean; precio_cliente?: string | null }): Promise<Resultado> {
+  await requerirSesion();
+  if (!UUID.test(proyectoId)) return { ok: false, error: "Proyecto no válido." };
+  const d: Record<string, unknown> = {};
+  if (c.imprevistos_pct !== undefined) {
+    const n = numero(c.imprevistos_pct, 100);
+    if (n === null) return { ok: false, error: "Imprevistos va de 0 a 100%." };
+    d.imprevistos_pct = n;
+  }
+  if (c.utilidad_pct !== undefined) {
+    const n = numero(c.utilidad_pct, 300);
+    if (n === null) return { ok: false, error: "La utilidad va de 0 a 300%." };
+    d.utilidad_pct = n;
+  }
+  if (c.con_iva !== undefined) d.con_iva = !!c.con_iva;
+  if (c.precio_cliente !== undefined) {
+    if (c.precio_cliente === null || c.precio_cliente === "") d.precio_cliente = null;
+    else {
+      const n = numero(c.precio_cliente, 100_000_000);
+      if (n === null) return { ok: false, error: "El precio no es válido. Escribe solo el número, ej. 14000." };
+      d.precio_cliente = n;
+    }
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.from("proyectos").update(d).eq("id", proyectoId);
+  if (error) return { ok: false, error: "No se guardó." };
+  tocarProyecto(proyectoId);
+  return { ok: true };
+}
+
+type CamposPlano = { tamano?: string | null; angulo?: string; movimiento?: string; lente?: string; descripcion?: string; minutos?: number; filmado?: boolean; numero?: number };
+
+function validarPlano(c: CamposPlano): { ok: true; datos: Record<string, unknown> } | { ok: false; error: string } {
+  const d: Record<string, unknown> = {};
+  if (c.tamano !== undefined) {
+    if (c.tamano && !TAMANOS.includes(c.tamano)) return { ok: false, error: "Tamaño de plano no válido." };
+    d.tamano = c.tamano || null;
+  }
+  for (const [k, max] of [["angulo", 40], ["movimiento", 40], ["lente", 20]] as const) {
+    if (c[k] === undefined) continue;
+    const t = texto(c[k], max);
+    if (t === null) return { ok: false, error: "Texto muy largo." };
+    d[k] = t || null;
+  }
+  if (c.descripcion !== undefined) {
+    const t = texto(c.descripcion, 400);
+    if (t === null) return { ok: false, error: "La descripción es muy larga (máx. 400)." };
+    d.descripcion = t;
+  }
+  if (c.minutos !== undefined) {
+    if (!Number.isInteger(c.minutos) || c.minutos < 1 || c.minutos > 600) return { ok: false, error: "Los minutos van de 1 a 600." };
+    d.minutos = c.minutos;
+  }
+  if (c.numero !== undefined) {
+    if (!Number.isInteger(c.numero) || c.numero < 1 || c.numero > 999) return { ok: false, error: "Número de plano no válido." };
+    d.numero = c.numero;
+  }
+  if (c.filmado !== undefined) d.filmado = !!c.filmado;
+  return { ok: true, datos: d };
+}
+
+export async function agregarPlano(proyectoId: string, escenaId: string, c: CamposPlano): Promise<Resultado> {
+  await requerirSesion();
+  if (!UUID.test(proyectoId) || !UUID.test(escenaId)) return { ok: false, error: "Escena no válida." };
+  const v = validarPlano(c);
+  if (!v.ok) return v;
+  const supabase = await createClient();
+  const { count } = await supabase.from("planos").select("id", { count: "exact", head: true }).eq("escena_id", escenaId).is("archivado_at", null);
+  const { error } = await supabase.from("planos").insert({ proyecto_id: proyectoId, escena_id: escenaId, numero: (count ?? 0) + 1, orden: (count ?? 0) + 1, ...v.datos });
+  if (error) return { ok: false, error: "No se guardó el plano." };
+  tocarProyecto(proyectoId);
+  return { ok: true };
+}
+
+export async function editarPlano(proyectoId: string, id: string, c: CamposPlano): Promise<Resultado> {
+  await requerirSesion();
+  if (!UUID.test(proyectoId) || !UUID.test(id)) return { ok: false, error: "Plano no válido." };
+  const v = validarPlano(c);
+  if (!v.ok) return v;
+  const supabase = await createClient();
+  const { error } = await supabase.from("planos").update(v.datos).eq("id", id).eq("proyecto_id", proyectoId);
+  if (error) return { ok: false, error: "No se guardó." };
+  tocarProyecto(proyectoId);
+  return { ok: true };
+}
+
+export async function archivarPlano(proyectoId: string, id: string): Promise<Resultado> {
+  await requerirSesion();
+  if (!UUID.test(proyectoId) || !UUID.test(id)) return { ok: false, error: "Plano no válido." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("planos").update({ archivado_at: new Date().toISOString() }).eq("id", id).eq("proyecto_id", proyectoId);
+  if (error) return { ok: false, error: "No se pudo quitar." };
+  tocarProyecto(proyectoId);
+  return { ok: true };
+}
+
+type CamposPersona = { tipo?: "reparto" | "crew"; nombre?: string; rol?: string; telefono?: string; correo?: string; llamado?: string | null; nota?: string };
+
+export async function guardarPersona(proyectoId: string, id: string | null, c: CamposPersona): Promise<Resultado> {
+  await requerirSesion();
+  if (!UUID.test(proyectoId) || (id && !UUID.test(id))) return { ok: false, error: "Persona no válida." };
+  const d: Record<string, unknown> = {};
+  if (c.tipo !== undefined || !id) {
+    if (c.tipo !== "reparto" && c.tipo !== "crew") return { ok: false, error: "¿Reparto o crew?" };
+    d.tipo = c.tipo;
+  }
+  if (c.nombre !== undefined || !id) {
+    const t = texto(c.nombre, 80);
+    if (!t) return { ok: false, error: "Escribe el nombre." };
+    d.nombre = t;
+  }
+  if (c.rol !== undefined || !id) {
+    const t = texto(c.rol, 80);
+    if (!t) return { ok: false, error: c.tipo === "reparto" ? "¿Qué personaje hace?" : "¿Qué puesto tiene? Ej. Fotógrafo, Sonidista." };
+    d.rol = c.tipo === "reparto" ? t.toUpperCase() : t;
+  }
+  if (c.telefono !== undefined) {
+    const t = texto(c.telefono, 40);
+    if (t === null || (t && !/^[+\d\s()-]{7,40}$/.test(t))) return { ok: false, error: "El teléfono no es válido." };
+    d.telefono = t || null;
+  }
+  if (c.correo !== undefined) {
+    const t = texto(c.correo, 120);
+    if (t === null || (t && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t))) return { ok: false, error: "El correo no es válido." };
+    d.correo = t || null;
+  }
+  if (c.llamado !== undefined) {
+    if (c.llamado && !HORA.test(c.llamado)) return { ok: false, error: "Hora de llamado no válida." };
+    d.llamado = c.llamado || null;
+  }
+  if (c.nota !== undefined) {
+    const t = texto(c.nota, 300);
+    if (t === null) return { ok: false, error: "La nota es muy larga." };
+    d.nota = t || null;
+  }
+  const supabase = await createClient();
+  const { error } = id
+    ? await supabase.from("personas_proyecto").update(d).eq("id", id).eq("proyecto_id", proyectoId)
+    : await supabase.from("personas_proyecto").insert({ proyecto_id: proyectoId, ...d });
+  if (error) return { ok: false, error: "No se guardó." };
+  tocarProyecto(proyectoId);
+  return { ok: true };
+}
+
+export async function archivarPersona(proyectoId: string, id: string): Promise<Resultado> {
+  await requerirSesion();
+  if (!UUID.test(proyectoId) || !UUID.test(id)) return { ok: false, error: "Persona no válida." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("personas_proyecto").update({ archivado_at: new Date().toISOString() }).eq("id", id).eq("proyecto_id", proyectoId);
+  if (error) return { ok: false, error: "No se pudo quitar." };
+  tocarProyecto(proyectoId);
+  return { ok: true };
+}
+
+type CamposLocacion = { direccion?: string; contacto?: string; telefono?: string; permiso?: string; estacionamiento?: string; hospital?: string; notas?: string };
+
+export async function guardarLocacion(proyectoId: string, lugar: string, c: CamposLocacion): Promise<Resultado> {
+  await requerirSesion();
+  const l = texto(lugar, 120);
+  if (!UUID.test(proyectoId) || !l) return { ok: false, error: "Locación no válida." };
+  const d: Record<string, unknown> = {};
+  for (const [k, max] of [["direccion", 200], ["contacto", 80], ["telefono", 40], ["estacionamiento", 200], ["hospital", 200], ["notas", 600]] as const) {
+    if (c[k] === undefined) continue;
+    const t = texto(c[k], max);
+    if (t === null) return { ok: false, error: "Texto muy largo." };
+    d[k] = t || null;
+  }
+  if (c.permiso !== undefined) {
+    if (!["pendiente", "solicitado", "aprobado", "no_necesita"].includes(c.permiso)) return { ok: false, error: "Estado de permiso no válido." };
+    d.permiso = c.permiso;
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.from("locaciones").upsert({ proyecto_id: proyectoId, lugar: l.toUpperCase(), ...d }, { onConflict: "proyecto_id,lugar" });
+  if (error) return { ok: false, error: "No se guardó la locación." };
+  tocarProyecto(proyectoId);
+  return { ok: true };
+}
+
+// Orden de las escenas dentro de un día de rodaje (el stripboard).
+export async function ordenarDia(proyectoId: string, escenas: string[]): Promise<Resultado> {
+  await requerirSesion();
+  if (!UUID.test(proyectoId) || escenas.length > 300 || !escenas.every((x) => UUID.test(x))) return { ok: false, error: "Orden no válido." };
+  const supabase = await createClient();
+  for (let i = 0; i < escenas.length; i++) {
+    const { error } = await supabase.from("rodaje_escenas").update({ orden: i }).eq("proyecto_id", proyectoId).eq("escena_id", escenas[i]);
+    if (error) return { ok: false, error: "No se guardó el orden." };
+  }
+  tocarProyecto(proyectoId);
+  return { ok: true };
+}

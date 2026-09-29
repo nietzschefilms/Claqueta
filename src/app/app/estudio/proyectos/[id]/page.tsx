@@ -8,13 +8,19 @@ import { escenasDe, esNoche, paginas } from "@/lib/claqueta/estudio";
 import { fechaCDMX, sumarDias } from "@/lib/claqueta/fechas";
 import { Guion } from "./Guion";
 import { BotonImprimir, DesgloseEscenas, EstadoProyecto, Logline, PlanRodaje, nombreCategoria } from "./Produccion";
+import { Presupuesto } from "./Presupuesto";
+import { Gente, ListaPlanos } from "./Rodaje";
+import { idsReparto } from "@/lib/claqueta/produccion";
 
 export const metadata: Metadata = { title: "Proyecto" };
 
 const VISTAS = [
   { v: "guion", t: "Guion" },
   { v: "desglose", t: "Desglose" },
+  { v: "planos", t: "Planos" },
+  { v: "gente", t: "Reparto y locaciones" },
   { v: "plan", t: "Plan de rodaje" },
+  { v: "presupuesto", t: "Presupuesto" },
   { v: "llamado", t: "Hoja de llamado" }
 ] as const;
 type Vista = (typeof VISTAS)[number]["v"];
@@ -29,7 +35,7 @@ export default async function PaginaProyecto({ params, searchParams }: { params:
   if (!UUID.test(id)) notFound();
   const [datos, perfil] = await Promise.all([cargarProyecto(id), cargarPerfil(s.userId)]);
   if (!datos) notFound();
-  const { proyecto, lineas, rodaje, desglose } = datos;
+  const { proyecto, lineas, rodaje, desglose, planos, personas, locaciones, presupuesto } = datos;
   const vista: Vista = VISTAS.some((x) => x.v === v) ? (v as Vista) : "guion";
   const hoy = fechaCDMX();
   const miembros = [{ id: s.userId, nombre: perfil.nombre || s.nombre || "Yo" }, ...perfil.companeros.filter((c) => c.equipo_id === proyecto.equipo_id)];
@@ -65,7 +71,18 @@ export default async function PaginaProyecto({ params, searchParams }: { params:
 
       {vista === "guion" && <Guion proyectoId={proyecto.id} nombreProyecto={proyecto.nombre} inicial={lineas} yo={s.userId} miembros={miembros} />}
       {vista === "desglose" && <DesgloseEscenas proyectoId={proyecto.id} lineas={lineas} desglose={desglose} />}
-      {vista === "plan" && <PlanRodaje proyectoId={proyecto.id} lineas={lineas} rodaje={rodaje} hoy={hoy} />}
+      {vista === "planos" && <ListaPlanos proyectoId={proyecto.id} lineas={lineas} planos={planos} />}
+      {vista === "gente" && <Gente proyectoId={proyecto.id} lineas={lineas} personas={personas} locaciones={locaciones} />}
+      {vista === "plan" && <PlanRodaje proyectoId={proyecto.id} lineas={lineas} rodaje={rodaje} planos={planos} hoy={hoy} />}
+      {vista === "presupuesto" && (
+        <Presupuesto
+          proyectoId={proyecto.id}
+          nombre={proyecto.nombre}
+          cliente={proyecto.cliente}
+          inicial={presupuesto}
+          ajustesIniciales={{ imprevistos_pct: proyecto.imprevistos_pct ?? "10", utilidad_pct: proyecto.utilidad_pct ?? "20", con_iva: proyecto.con_iva !== false, precio_cliente: proyecto.precio_cliente ?? null }}
+        />
+      )}
       {vista === "llamado" && <HojasDeLlamado proyectoId={proyecto.id} nombre={proyecto.nombre} cliente={proyecto.cliente} datos={datos} miembros={miembros} hoy={hoy} />}
     </div>
   );
@@ -97,6 +114,12 @@ async function HojasDeLlamado({ proyectoId, nombre, cliente, datos, miembros, ho
           const items = datos.desglose.filter((x) => es.some((e) => e.id === x.escena_id));
           const cats = [...new Set(items.map((x) => x.categoria))];
           const lugares = [...new Set(es.map((e) => e.slug.lugar))];
+          const locs = datos.locaciones.filter((x) => lugares.includes(x.lugar));
+          const ids = idsReparto(escenas);
+          const actores = datos.personas.filter((p) => p.tipo === "reparto" && reparto.includes(p.rol));
+          const crew = datos.personas.filter((p) => p.tipo === "crew");
+          const planosDia = datos.planos.filter((p) => es.some((e) => e.id === p.escena_id));
+          const minutos = planosDia.reduce((a, p) => a + p.minutos, 0);
           return (
             <article key={d} className="tarjeta break-after-page space-y-5 bg-superficie p-6 text-tinta md:p-8">
               <header className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-tinta pb-4">
@@ -111,9 +134,25 @@ async function HojasDeLlamado({ proyectoId, nombre, cliente, datos, miembros, ho
                   <p className="etiqueta">Llamado general</p>
                 </div>
               </header>
-              <section>
-                <h4 className="etiqueta">Locación</h4>
-                <p className="mt-1 font-semibold">{lugares.join(" · ")}</p>
+              <section className="grid gap-4 md:grid-cols-2">
+                {lugares.map((l) => {
+                  const loc = locs.find((x) => x.lugar === l);
+                  return (
+                    <div key={l}>
+                      <h4 className="etiqueta">Locación</h4>
+                      <p className="mt-1 font-semibold">{l}</p>
+                      {loc?.direccion && (
+                        <a href={`https://maps.google.com/?q=${encodeURIComponent(loc.direccion)}`} className="block text-sm underline decoration-tinta/30 underline-offset-2">
+                          {loc.direccion}
+                        </a>
+                      )}
+                      {loc?.contacto && <p className="text-sm text-muted">Contacto: {loc.contacto}{loc.telefono ? ` · ${loc.telefono}` : ""}</p>}
+                      {loc?.estacionamiento && <p className="text-sm text-muted">Estacionamiento: {loc.estacionamiento}</p>}
+                      {loc?.hospital && <p className="text-sm text-muted">Hospital: {loc.hospital}</p>}
+                      {loc && loc.permiso !== "aprobado" && loc.permiso !== "no_necesita" && <p className="text-xs font-semibold text-acento">Permiso {loc.permiso}</p>}
+                    </div>
+                  );
+                })}
                 {ev?.lugar && <p className="text-sm text-muted">{ev.lugar}</p>}
               </section>
               <section>
@@ -145,13 +184,63 @@ async function HojasDeLlamado({ proyectoId, nombre, cliente, datos, miembros, ho
               <div className="grid gap-5 md:grid-cols-2">
                 <section>
                   <h4 className="etiqueta">Reparto</h4>
-                  <p className="mt-1 text-sm">{reparto.length ? reparto.join(" · ") : "Sin personajes con diálogo"}</p>
+                  {reparto.length === 0 ? (
+                    <p className="mt-1 text-sm">Sin personajes con diálogo</p>
+                  ) : (
+                    <table className="mt-1 w-full text-sm">
+                      <tbody>
+                        {reparto.map((r) => {
+                          const a = actores.find((x) => x.rol === r);
+                          return (
+                            <tr key={r}>
+                              <td className="cifra w-6 py-0.5 text-muted">{ids.get(r)}</td>
+                              <td className="py-0.5">{r}{a ? ` · ${a.nombre}` : ""}</td>
+                              <td className="cifra py-0.5 text-right">{a?.llamado?.slice(0, 5) ?? ""}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
                 </section>
                 <section>
-                  <h4 className="etiqueta">Equipo</h4>
-                  <p className="mt-1 text-sm">{miembros.map((m) => m.nombre).join(" · ")} · Nietzsche Studios</p>
+                  <h4 className="etiqueta">Crew</h4>
+                  {crew.length === 0 ? (
+                    <p className="mt-1 text-sm">{miembros.map((m) => m.nombre).join(" · ")} · Nietzsche Studios</p>
+                  ) : (
+                    <table className="mt-1 w-full text-sm">
+                      <tbody>
+                        {crew.map((c) => (
+                          <tr key={c.id}>
+                            <td className="py-0.5">{c.rol}</td>
+                            <td className="py-0.5">{c.nombre}{c.telefono ? ` · ${c.telefono}` : ""}</td>
+                            <td className="cifra py-0.5 text-right">{c.llamado?.slice(0, 5) ?? ""}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                 </section>
               </div>
+              {planosDia.length > 0 && (
+                <section>
+                  <h4 className="etiqueta">Planos del día · ≈ {Math.floor(minutos / 60)} h {minutos % 60} min</h4>
+                  <ol className="mt-1 grid gap-x-6 text-sm md:grid-cols-2">
+                    {es.flatMap((e) =>
+                      datos.planos
+                        .filter((p) => p.escena_id === e.id)
+                        .sort((a, b) => a.orden - b.orden)
+                        .map((p) => (
+                          <li key={p.id} className="flex gap-2 py-0.5">
+                            <span className="cifra w-10 shrink-0 font-semibold">{e.numero}{String.fromCharCode(64 + Math.min(p.numero, 26))}</span>
+                            <span className="cifra w-12 shrink-0 text-muted">{p.tamano ?? ""}</span>
+                            <span className="min-w-0 flex-1">{p.descripcion}{p.movimiento ? ` · ${p.movimiento}` : ""}</span>
+                          </li>
+                        ))
+                    )}
+                  </ol>
+                </section>
+              )}
               {cats.length > 0 && (
                 <section>
                   <h4 className="etiqueta">Lo que tiene que estar en set</h4>

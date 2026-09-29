@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { agendarRodaje, agregarDesglose, asignarDia, editarProyecto, planearRodaje, quitarDesglose } from "../../acciones";
+import { agendarRodaje, agregarDesglose, asignarDia, editarProyecto, ordenarDia, planearRodaje, quitarDesglose } from "../../acciones";
 import { escenasDe, esNoche, paginas, type Escena, type Linea } from "@/lib/claqueta/estudio";
-import type { Desglose, RodajeEscena } from "@/lib/claqueta/datos-estudio";
+import { dayOutOfDays } from "@/lib/claqueta/produccion";
+import type { Desglose, Plano, RodajeEscena } from "@/lib/claqueta/datos-estudio";
 
 export const CATEGORIAS: { v: string; t: string }[] = [
   { v: "reparto", t: "Reparto" },
@@ -188,7 +189,10 @@ function AgregarElemento({ onAgregar }: { onAgregar: (categoria: string, texto: 
 }
 
 // ─── Plan de rodaje (stripboard) ─────────────────────────────────────────
-export function PlanRodaje({ proyectoId, lineas, rodaje, hoy }: { proyectoId: string; lineas: Linea[]; rodaje: RodajeEscena[]; hoy: string }) {
+const hm = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60}` : ""}`);
+const COLOR_DOOD: Record<string, string> = { SW: "bg-ok/25", W: "bg-ok/15", WF: "bg-ok/25", SWF: "bg-ok/35", H: "bg-aviso/20", "": "" };
+
+export function PlanRodaje({ proyectoId, lineas, rodaje, planos, hoy }: { proyectoId: string; lineas: Linea[]; rodaje: RodajeEscena[]; planos: Plano[]; hoy: string }) {
   const escenas = useMemo(() => escenasDe(lineas), [lineas]);
   const [inicio, setInicio] = useState(hoy);
   const [porDia, setPorDia] = useState(4);
@@ -197,6 +201,9 @@ export function PlanRodaje({ proyectoId, lineas, rodaje, hoy }: { proyectoId: st
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
   const [pendiente, iniciar] = useTransition();
   const dia = new Map(rodaje.map((r) => [r.escena_id, r.dia]));
+  const ordenDe = new Map(rodaje.map((r) => [r.escena_id, r.orden]));
+  const minutosDe = (id: string) => planos.filter((p) => p.escena_id === id).reduce((a, p) => a + p.minutos, 0);
+  const dood = dayOutOfDays(escenas, dia);
 
   if (!escenas.length) return <p className="tarjeta text-sm text-muted">El plan sale del guion: escribe escenas (INT. / EXT.) y aquí se arma el stripboard.</p>;
 
@@ -205,7 +212,15 @@ export function PlanRodaje({ proyectoId, lineas, rodaje, hoy }: { proyectoId: st
     const k = dia.get(e.id) ?? "";
     grupos.set(k, [...(grupos.get(k) ?? []), e]);
   }
+  for (const [k, es] of grupos) grupos.set(k, es.sort((a, b) => (ordenDe.get(a.id) ?? a.numero) - (ordenDe.get(b.id) ?? b.numero) || a.numero - b.numero));
   const dias = [...grupos.keys()].filter(Boolean).sort();
+  const mover = (d: string, i: number, delta: number) => {
+    const es = [...(grupos.get(d) ?? [])];
+    const j = i + delta;
+    if (j < 0 || j >= es.length) return;
+    [es[i], es[j]] = [es[j], es[i]];
+    iniciar(async () => void (await ordenarDia(proyectoId, es.map((e) => e.id))));
+  };
   const sinDia = grupos.get("") ?? [];
   const correr = (f: () => Promise<{ ok: boolean; error?: string; mensaje?: string }>) =>
     iniciar(async () => {
@@ -263,14 +278,21 @@ export function PlanRodaje({ proyectoId, lineas, rodaje, hoy }: { proyectoId: st
       {[...dias, ...(sinDia.length ? [""] : [])].map((d, n) => {
         const es = grupos.get(d) ?? [];
         const oct = es.reduce((a, e) => a + e.octavos, 0);
+        const min = es.reduce((a, e) => a + minutosDe(e.id), 0);
         return (
           <section key={d || "sin"} className="space-y-1.5">
             <h3 className="flex items-baseline justify-between gap-2">
               <span className="titulo text-xl">{d ? `Día ${n + 1} · ${new Date(`${d}T12:00:00Z`).toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "short", timeZone: "UTC" })}` : "Sin día"}</span>
-              <span className="cifra text-xs text-muted">{paginas(oct)} pág. · {es.length} esc.</span>
+              <span className="cifra text-xs text-muted">{paginas(oct)} pág. · {es.length} esc.{min ? ` · ≈ ${hm(min)} de planos` : ""}</span>
             </h3>
-            {es.map((e) => (
+            {es.map((e, i) => (
               <div key={e.id} className={`flex flex-wrap items-center gap-3 rounded-xl border px-3 py-2 ${colorTira(e)}`}>
+                {d && (
+                  <span className="flex flex-col">
+                    <button type="button" aria-label="Subir" disabled={i === 0 || pendiente} onClick={() => mover(d, i, -1)} className="text-[10px] leading-none text-muted hover:text-tinta disabled:opacity-20">▲</button>
+                    <button type="button" aria-label="Bajar" disabled={i === es.length - 1 || pendiente} onClick={() => mover(d, i, 1)} className="text-[10px] leading-none text-muted hover:text-tinta disabled:opacity-20">▼</button>
+                  </span>
+                )}
                 <span className="cifra w-6 text-sm font-semibold">{e.numero}</span>
                 <span className="min-w-0 flex-1 font-mono text-xs font-bold uppercase">{e.slug.intExt ?? ""} {e.slug.lugar}</span>
                 <span className="cifra text-[11px] text-muted">{e.slug.momento ?? ""}</span>
@@ -288,6 +310,49 @@ export function PlanRodaje({ proyectoId, lineas, rodaje, hoy }: { proyectoId: st
           </section>
         );
       })}
+
+      {dood.dias.length > 0 && dood.filas.length > 0 && (
+        <section className="tarjeta p-0">
+          <header className="px-5 pb-2 pt-5">
+            <h3 className="titulo text-2xl">Day Out of Days</h3>
+            <p className="text-sm text-muted">Qué días trabaja cada quien. SW empieza · W trabaja · WF termina · SWF un solo día · H espera (se paga aunque no filme).</p>
+          </header>
+          <div className="overflow-x-auto pb-4">
+            <table className="w-full min-w-[480px] text-sm">
+              <thead className="text-[10px] uppercase tracking-wide text-muted">
+                <tr>
+                  <th className="px-5 py-1 text-left font-medium">Reparto</th>
+                  {dood.dias.map((d, i) => (
+                    <th key={d} className="px-1 py-1 text-center font-medium">
+                      D{i + 1}
+                      <span className="block normal-case tracking-normal">{d.slice(8)}/{d.slice(5, 7)}</span>
+                    </th>
+                  ))}
+                  <th className="px-2 py-1 text-right font-medium">Trabaja</th>
+                  <th className="px-5 py-1 text-right font-medium">Espera</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dood.filas.map((f) => (
+                  <tr key={f.nombre} className="border-t border-borde/50">
+                    <td className="px-5 py-1.5">
+                      <span className="cifra mr-2 text-muted">{f.id}.</span>
+                      {f.nombre}
+                    </td>
+                    {f.dias.map((x, i) => (
+                      <td key={i} className="px-1 py-1.5 text-center">
+                        {x && <span className={`cifra inline-block min-w-9 rounded-md px-1 py-0.5 text-[11px] font-semibold ${COLOR_DOOD[x]}`}>{x}</span>}
+                      </td>
+                    ))}
+                    <td className="cifra px-2 text-right">{f.trabaja}</td>
+                    <td className={`cifra px-5 text-right ${f.espera ? "font-semibold text-aviso" : ""}`}>{f.espera}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

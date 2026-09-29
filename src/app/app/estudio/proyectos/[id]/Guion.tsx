@@ -80,7 +80,10 @@ export function Guion({ proyectoId, nombreProyecto, inicial, yo, miembros }: { p
     };
   }, [supabase, proyectoId, yo, miNombre, aplicarRemota]);
 
-  const anunciar = (linea: string | null, escribiendo: boolean) => canal.current?.track({ user: yo, nombre: miNombre, linea, escribiendo }).catch(() => {});
+  const anunciar = (linea: string | null, escribiendo: boolean) => {
+    const ch = canal.current;
+    if (ch?.state === "joined") ch.track({ user: yo, nombre: miNombre, linea, escribiendo }).catch(() => {});
+  };
 
   // ─── Guardado ────────────────────────────────────────────────────────
   // Cambios pendientes por línea: se juntan (tipo + texto) y se mandan juntos.
@@ -106,7 +109,12 @@ export function Guion({ proyectoId, nombreProyecto, inicial, yo, miembros }: { p
     );
   };
 
-  const emitir = (l: Partial<Linea> & { id: string; borrado?: boolean }) => canal.current?.send({ type: "broadcast", event: "linea", payload: l });
+  // Solo por el socket en vivo. Si no hay conexión en vivo no se manda nada
+  // (sin respaldo por REST, que llenaría la red): el guardado ya lo sincroniza.
+  const emitir = (l: Partial<Linea> & { id: string; borrado?: boolean }) => {
+    const ch = canal.current;
+    if (ch?.state === "joined") ch.send({ type: "broadcast", event: "linea", payload: l }).catch(() => {});
+  };
 
   const cambiarTexto = (l: Linea, texto: string) => {
     let tipo = l.tipo;
