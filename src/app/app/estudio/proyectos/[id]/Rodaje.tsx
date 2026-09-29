@@ -94,6 +94,27 @@ export function ListaPlanos({ proyectoId, lineas, planos }: { proyectoId: string
                     {p.filmado && "✓"}
                   </button>
                   <span className="cifra w-10 shrink-0 font-semibold">{e.numero}{String.fromCharCode(64 + Math.min(p.numero, 26))}</span>
+                  {enSet && (
+                    <span className="flex items-center gap-1.5 rounded-full bg-fondo/70 px-2 py-1">
+                      <span className="cifra text-xs">T{p.tomas}</span>
+                      <button type="button" aria-label="Sumar una toma" onClick={() => correr(() => editarPlano(proyectoId, p.id, { tomas: p.tomas + 1 }))} className="grid h-8 w-8 place-items-center rounded-full bg-tinta text-lg font-semibold text-fondo active:scale-90">
+                        +
+                      </button>
+                      <select
+                        value={p.toma_buena ?? ""}
+                        onChange={(ev) => correr(() => editarPlano(proyectoId, p.id, { toma_buena: ev.target.value ? Number(ev.target.value) : null }))}
+                        aria-label="Toma buena"
+                        className="rounded-full bg-transparent px-1 text-xs"
+                      >
+                        <option value="">Buena</option>
+                        {Array.from({ length: Math.max(p.tomas, 1) }, (_, i) => (
+                          <option key={i + 1} value={i + 1}>
+                            T{i + 1} ✓
+                          </option>
+                        ))}
+                      </select>
+                    </span>
+                  )}
                   <select defaultValue={p.tamano ?? ""} onChange={(ev) => correr(() => editarPlano(proyectoId, p.id, { tamano: ev.target.value || null }))} aria-label="Tamaño" className="rounded-full bg-fondo/60 px-2 py-1 text-xs">
                     <option value="">Tamaño</option>
                     {TAMANOS.map((t) => (

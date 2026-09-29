@@ -472,7 +472,7 @@ export async function editarTopsheet(proyectoId: string, c: { imprevistos_pct?: 
   return { ok: true };
 }
 
-type CamposPlano = { tamano?: string | null; angulo?: string; movimiento?: string; lente?: string; descripcion?: string; minutos?: number; filmado?: boolean; numero?: number };
+type CamposPlano = { tamano?: string | null; angulo?: string; movimiento?: string; lente?: string; descripcion?: string; minutos?: number; filmado?: boolean; numero?: number; tomas?: number; toma_buena?: number | null };
 
 function validarPlano(c: CamposPlano): { ok: true; datos: Record<string, unknown> } | { ok: false; error: string } {
   const d: Record<string, unknown> = {};
@@ -499,8 +499,58 @@ function validarPlano(c: CamposPlano): { ok: true; datos: Record<string, unknown
     if (!Number.isInteger(c.numero) || c.numero < 1 || c.numero > 999) return { ok: false, error: "Número de plano no válido." };
     d.numero = c.numero;
   }
-  if (c.filmado !== undefined) d.filmado = !!c.filmado;
+  if (c.filmado !== undefined) {
+    d.filmado = !!c.filmado;
+    // El día en que se filmó (para el reporte diario).
+    d.filmado_en = c.filmado ? fechaCDMX() : null;
+  }
+  if (c.tomas !== undefined) {
+    if (!Number.isInteger(c.tomas) || c.tomas < 0 || c.tomas > 999) return { ok: false, error: "Número de tomas no válido." };
+    d.tomas = c.tomas;
+  }
+  if (c.toma_buena !== undefined) {
+    if (c.toma_buena !== null && (!Number.isInteger(c.toma_buena) || c.toma_buena < 1 || c.toma_buena > 999)) return { ok: false, error: "Toma buena no válida." };
+    d.toma_buena = c.toma_buena;
+  }
   return { ok: true, datos: d };
+}
+
+// El cuadro del storyboard ya subido al bucket: se guarda su ruta en el plano.
+// La ruta debe ser de ese proyecto y de ese plano (no se aceptan rutas ajenas).
+export async function ponerImagenPlano(proyectoId: string, id: string, ruta: string | null): Promise<Resultado> {
+  await requerirSesion();
+  if (!UUID.test(proyectoId) || !UUID.test(id)) return { ok: false, error: "Plano no válido." };
+  if (ruta !== null && !new RegExp(`^${proyectoId}/${id}-\\d{1,16}\\.jpg$`).test(ruta)) return { ok: false, error: "Imagen no válida." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("planos").update({ imagen: ruta }).eq("id", id).eq("proyecto_id", proyectoId);
+  if (error) return { ok: false, error: "No se guardó la imagen." };
+  tocarProyecto(proyectoId);
+  return { ok: true };
+}
+
+type CamposReporte = { llamado?: string | null; primera_toma?: string | null; comida_inicio?: string | null; comida_fin?: string | null; fin?: string | null; clima?: string; incidentes?: string; notas?: string };
+
+// Reporte diario: horas reales del día de rodaje, clima, incidentes y notas.
+export async function guardarReporte(proyectoId: string, fecha: string, c: CamposReporte): Promise<Resultado> {
+  await requerirSesion();
+  if (!UUID.test(proyectoId) || !esFechaISO(fecha)) return { ok: false, error: "Día no válido." };
+  const d: Record<string, unknown> = {};
+  for (const k of ["llamado", "primera_toma", "comida_inicio", "comida_fin", "fin"] as const) {
+    if (c[k] === undefined) continue;
+    if (c[k] && !HORA.test(c[k]!)) return { ok: false, error: "Escribe la hora con el reloj, ej. 08:30." };
+    d[k] = c[k] || null;
+  }
+  for (const [k, max] of [["clima", 80], ["incidentes", 2000], ["notas", 2000]] as const) {
+    if (c[k] === undefined) continue;
+    const t = texto(c[k], max);
+    if (t === null) return { ok: false, error: "El texto es muy largo." };
+    d[k] = t || null;
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.from("reportes_rodaje").upsert({ proyecto_id: proyectoId, fecha, ...d, actualizado_en: new Date().toISOString() }, { onConflict: "proyecto_id,fecha" });
+  if (error) return { ok: false, error: "No se guardó el reporte." };
+  tocarProyecto(proyectoId);
+  return { ok: true };
 }
 
 export async function agregarPlano(proyectoId: string, escenaId: string, c: CamposPlano): Promise<Resultado> {

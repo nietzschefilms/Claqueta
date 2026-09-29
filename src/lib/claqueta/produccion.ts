@@ -142,6 +142,70 @@ export const PLANTILLA_SPOT: { cuenta: string; descripcion: string; cantidad: nu
   { cuenta: "5200", descripcion: "Discos y respaldo", cantidad: 1, unidad: "pieza" }
 ];
 
+// ─── Reporte diario de rodaje ────────────────────────────────────────────
+const aMin = (h: string | null | undefined) => {
+  if (!h) return null;
+  const [a, b] = h.split(":").map(Number);
+  return a * 60 + b;
+};
+
+export type ResumenDia = {
+  escenasProgramadas: number;
+  escenasCompletas: number;
+  planosProgramados: number;
+  planosFilmados: number;
+  planosExtra: number; // filmados ese día que estaban programados para otro
+  tomas: number;
+  minutosEstimados: number;
+  jornada: number | null; // llamado → fin, en minutos
+  comida: number | null;
+  arranque: number | null; // llamado → primera toma
+  extra: number | null; // minutos después del fin programado (negativo = terminaron antes)
+  pendientes: { escena: string; plano: string }[];
+};
+
+export function resumenDia(
+  fecha: string,
+  escenas: { id: string; numero: number }[],
+  diaDe: Map<string, string | null>,
+  planos: { escena_id: string; numero: number; minutos: number; filmado: boolean; filmado_en: string | null; tomas: number }[],
+  reporte: { llamado: string | null; primera_toma: string | null; comida_inicio: string | null; comida_fin: string | null; fin: string | null } | null,
+  finProgramado: string | null
+): ResumenDia {
+  const programadas = escenas.filter((e) => diaDe.get(e.id) === fecha);
+  const ids = new Set(programadas.map((e) => e.id));
+  const delDia = planos.filter((p) => ids.has(p.escena_id));
+  const filmadosHoy = planos.filter((p) => p.filmado_en === fecha);
+  const letra = (n: number) => String.fromCharCode(64 + Math.min(Math.max(n, 1), 26));
+  const llamado = aMin(reporte?.llamado);
+  const fin = aMin(reporte?.fin);
+  const ci = aMin(reporte?.comida_inicio);
+  const cf = aMin(reporte?.comida_fin);
+  const pt = aMin(reporte?.primera_toma);
+  const fp = aMin(finProgramado);
+  return {
+    escenasProgramadas: programadas.length,
+    escenasCompletas: programadas.filter((e) => {
+      const ps = planos.filter((p) => p.escena_id === e.id);
+      return ps.length > 0 && ps.every((p) => p.filmado);
+    }).length,
+    planosProgramados: delDia.length,
+    planosFilmados: delDia.filter((p) => p.filmado).length,
+    planosExtra: filmadosHoy.filter((p) => !ids.has(p.escena_id)).length,
+    tomas: filmadosHoy.reduce((a, p) => a + p.tomas, 0),
+    minutosEstimados: delDia.reduce((a, p) => a + p.minutos, 0),
+    jornada: llamado !== null && fin !== null && fin > llamado ? fin - llamado : null,
+    comida: ci !== null && cf !== null && cf > ci ? cf - ci : null,
+    arranque: llamado !== null && pt !== null && pt >= llamado ? pt - llamado : null,
+    extra: fin !== null && fp !== null ? fin - fp : null,
+    pendientes: programadas.flatMap((e) =>
+      planos
+        .filter((p) => p.escena_id === e.id && !p.filmado)
+        .map((p) => ({ escena: String(e.numero), plano: `${e.numero}${letra(p.numero)}` }))
+    )
+  };
+}
+
 // ─── Reparto: IDs y Day Out of Days ──────────────────────────────────────
 // ID 1 = quien sale en más escenas (como en Movie Magic). Empate: quien aparece primero.
 export function idsReparto(escenas: Escena[]): Map<string, number> {

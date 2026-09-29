@@ -10,6 +10,8 @@ import { Guion } from "./Guion";
 import { BotonImprimir, DesgloseEscenas, EstadoProyecto, Logline, PlanRodaje, nombreCategoria } from "./Produccion";
 import { Presupuesto } from "./Presupuesto";
 import { Gente, ListaPlanos } from "./Rodaje";
+import { Storyboard } from "./Storyboard";
+import { Reporte } from "./Reporte";
 import { idsReparto } from "@/lib/claqueta/produccion";
 
 export const metadata: Metadata = { title: "Proyecto" };
@@ -18,10 +20,12 @@ const VISTAS = [
   { v: "guion", t: "Guion" },
   { v: "desglose", t: "Desglose" },
   { v: "planos", t: "Planos" },
+  { v: "storyboard", t: "Storyboard" },
   { v: "gente", t: "Reparto y locaciones" },
   { v: "plan", t: "Plan de rodaje" },
   { v: "presupuesto", t: "Presupuesto" },
-  { v: "llamado", t: "Hoja de llamado" }
+  { v: "llamado", t: "Hoja de llamado" },
+  { v: "reporte", t: "Reporte diario" }
 ] as const;
 type Vista = (typeof VISTAS)[number]["v"];
 
@@ -84,7 +88,27 @@ export default async function PaginaProyecto({ params, searchParams }: { params:
         />
       )}
       {vista === "llamado" && <HojasDeLlamado proyectoId={proyecto.id} nombre={proyecto.nombre} cliente={proyecto.cliente} datos={datos} miembros={miembros} hoy={hoy} />}
+      {vista === "storyboard" && <Storyboard proyectoId={proyecto.id} nombre={proyecto.nombre} lineas={lineas} planos={planos} />}
+      {vista === "reporte" && <VistaReporte datos={datos} hoy={hoy} />}
     </div>
+  );
+}
+
+// El reporte compara contra lo agendado (hora de fin de cada día de rodaje).
+async function VistaReporte({ datos, hoy }: { datos: NonNullable<Awaited<ReturnType<typeof cargarProyecto>>>; hoy: string }) {
+  const dias = [...datos.rodaje.map((r) => r.dia), ...datos.reportes.map((r) => r.fecha), hoy].filter((d): d is string => !!d).sort();
+  const eventos = (await cargarEventos(dias[0], dias[dias.length - 1])).filter((e) => e.proyecto_id === datos.proyecto.id && e.tipo === "rodaje");
+  return (
+    <Reporte
+      proyectoId={datos.proyecto.id}
+      nombre={datos.proyecto.nombre}
+      lineas={datos.lineas}
+      rodaje={datos.rodaje}
+      planos={datos.planos}
+      reportes={datos.reportes}
+      rodajesAgenda={eventos.map((e) => ({ fecha: e.fecha, inicio: e.inicio, fin: e.fin }))}
+      hoy={hoy}
+    />
   );
 }
 

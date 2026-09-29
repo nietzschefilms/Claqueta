@@ -1,5 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { dayOutOfDays, grupoDe, idsReparto, topsheet, totalLinea } from "./produccion";
+import { dayOutOfDays, grupoDe, idsReparto, resumenDia, topsheet, totalLinea } from "./produccion";
+
+describe("reporte diario", () => {
+  it("programado contra filmado, horas reales y pendientes", () => {
+    const escenas = [{ id: "e1", numero: 1 }, { id: "e2", numero: 2 }, { id: "e3", numero: 3 }];
+    const dia = new Map<string, string | null>([["e1", "2026-10-10"], ["e2", "2026-10-10"], ["e3", "2026-10-11"]]);
+    const planos = [
+      { escena_id: "e1", numero: 1, minutos: 20, filmado: true, filmado_en: "2026-10-10", tomas: 4 },
+      { escena_id: "e1", numero: 2, minutos: 30, filmado: true, filmado_en: "2026-10-10", tomas: 2 },
+      { escena_id: "e2", numero: 1, minutos: 40, filmado: false, filmado_en: null, tomas: 0 },
+      { escena_id: "e3", numero: 1, minutos: 15, filmado: true, filmado_en: "2026-10-10", tomas: 3 }
+    ];
+    const r = resumenDia("2026-10-10", escenas, dia, planos, { llamado: "08:00", primera_toma: "09:15", comida_inicio: "14:00", comida_fin: "14:45", fin: "19:30" }, "18:00");
+    expect(r).toEqual({
+      escenasProgramadas: 2,
+      escenasCompletas: 1,
+      planosProgramados: 3,
+      planosFilmados: 2,
+      planosExtra: 1,
+      tomas: 9,
+      minutosEstimados: 90,
+      jornada: 690,
+      comida: 45,
+      arranque: 75,
+      extra: 90,
+      pendientes: [{ escena: "2", plano: "2A" }]
+    });
+    expect(resumenDia("2026-10-12", escenas, dia, planos, null, null).jornada).toBeNull();
+  });
+});
 import { escenasDe, type Linea } from "./estudio";
 
 describe("presupuesto", () => {
