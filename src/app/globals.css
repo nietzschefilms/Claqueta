@@ -30,6 +30,7 @@
   --c-f-rt: 52 132 88;
   --c-f-nietzsche: 72 104 136;
   --c-f-personal: 118 114 108;
+  --c-f-justsend: 168 76 116;
 
   /* Vidrio: qué tan opaco, su filo claro, su brillo de arriba y su sombra. */
   --vidrio-alfa: 0.58;
@@ -72,6 +73,8 @@
     --c-f-rt: 112 192 142;
     --c-f-nietzsche: 132 162 192;
     --c-f-personal: 152 148 142;
+  --c-f-justsend: 222 128 168;
+    --c-f-justsend: 222 128 168;
     --vidrio-alfa: 0.5;
     --vidrio-alfa-fuerte: 0.68;
     --vidrio-filo-alfa: 0.09;
@@ -101,6 +104,7 @@
   --c-f-rt: 112 192 142;
   --c-f-nietzsche: 132 162 192;
   --c-f-personal: 152 148 142;
+  --c-f-justsend: 222 128 168;
   --vidrio-alfa: 0.5;
   --vidrio-alfa-fuerte: 0.68;
   --vidrio-filo-alfa: 0.09;

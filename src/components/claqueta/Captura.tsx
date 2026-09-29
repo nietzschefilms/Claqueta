@@ -2,7 +2,8 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { crearTarea, type Resultado } from "@/app/app/tareas/acciones";
-import { LISTA_FRENTES, type FrenteId } from "@/lib/claqueta/frentes";
+import type { FrenteId } from "@/lib/claqueta/frentes";
+import { ParaQuien, useEquipoDe, useFrentes, type Para } from "./ContextoEquipo";
 import { fechaCDMX, sumarDias } from "@/lib/claqueta/fechas";
 import { estiloFrente } from "./frente-ui";
 import { sonarClaqueta } from "@/lib/sonido";
@@ -22,7 +23,10 @@ export function Captura() {
   const dialogo = useRef<HTMLDialogElement>(null);
   const formulario = useRef<HTMLFormElement>(null);
   const [estado, enviar, enviando] = useActionState<Resultado | null, FormData>(crearTarea, null);
-  const [area, setArea] = useState<FrenteId>("ek");
+  const frentes = useFrentes();
+  const [area, setArea] = useState<FrenteId>(frentes[0].id);
+  const [para, setPara] = useState<Para>("yo");
+  const { equipo } = useEquipoDe(area);
   const [fecha, setFecha] = useState("");
   const [minutos, setMinutos] = useState(30);
   const [impacto, setImpacto] = useState(2);
@@ -114,7 +118,7 @@ export function Captura() {
           <legend className="etiqueta">Frente</legend>
           <input type="hidden" name="area" value={area} />
           <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-6 md:grid-cols-3">
-            {LISTA_FRENTES.map((f) => {
+            {frentes.map((f) => {
               const on = area === f.id;
               return (
                 <button
@@ -134,6 +138,14 @@ export function Captura() {
             })}
           </div>
         </fieldset>
+
+        {equipo && (
+          <>
+            <input type="hidden" name="para" value={para} />
+            <input type="hidden" name="equipo_id" value={equipo.id} />
+            <ParaQuien area={area} valor={para} onCambio={setPara} />
+          </>
+        )}
 
         <fieldset>
           <legend className="etiqueta">Para cuándo</legend>

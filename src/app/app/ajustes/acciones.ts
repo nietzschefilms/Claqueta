@@ -33,3 +33,12 @@ export async function enviarPushPrueba() {
   const r = await enviarPush(s.userId, { titulo: MARCA.nombreCorto, cuerpo: "Así se ven tus avisos.", url: "/app/ajustes", tag: "prueba" }, { urgente: true, ttlSegundos: 600 });
   return { enviadas: r.enviadas };
 }
+
+// La bienvenida se ve una vez: al terminarla se marca en el perfil.
+export async function marcarBienvenida() {
+  const s = await requerirSesion();
+  const supabase = await createClient();
+  const { error } = await supabase.from("perfiles").update({ bienvenida_vista: true }).eq("id", s.userId);
+  revalidatePath("/app", "layout");
+  return error ? { ok: false } : { ok: true };
+}

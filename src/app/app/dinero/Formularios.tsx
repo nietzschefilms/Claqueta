@@ -4,7 +4,8 @@ import { useActionState, useEffect, useRef, useState, useTransition } from "reac
 import { aCentavos, pesos } from "@/lib/claqueta/dinero";
 import { desgloseFactura, type ClienteTipo } from "@/lib/claqueta/impuestos";
 import { Interruptor } from "@/components/Interruptor";
-import { anularMovimiento, confirmarCobro, confirmarFijo, registrarEntrada, registrarGasto, registrarTransferencia, type Resultado } from "./acciones";
+import { anularMovimiento, confirmarCobro, confirmarFijo, crearCobroFijo, crearCuenta, registrarEntrada, registrarGasto, registrarTransferencia, type Resultado } from "./acciones";
+import { useFrentes } from "@/components/claqueta/ContextoEquipo";
 
 export type OpcionCuenta = { id: string; nombre: string; tipo: "debito" | "efectivo" | "credito" | "garantia" };
 
@@ -391,5 +392,122 @@ export function BotonFijo({ fijoId, mes, montoMxn, cuentas, cuentaInicial }: { f
       </div>
       {error && <p className="text-[11px] text-acento" role="alert">{error}</p>}
     </div>
+  );
+}
+
+// Nueva cuenta. En crédito pide corte, pago y límite (vienen en el estado de cuenta).
+export function FormCuenta() {
+  const [estado, enviar, enviando] = useActionState<Resultado | null, FormData>(crearCuenta, null);
+  const [tipo, setTipo] = useState<"debito" | "efectivo" | "credito">("debito");
+  const form = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (estado?.ok) form.current?.reset();
+  }, [estado]);
+
+  return (
+    <form ref={form} action={enviar} className="space-y-3">
+      <input type="hidden" name="tipo" value={tipo} />
+      <div className="flex flex-wrap gap-1.5">
+        {([
+          ["debito", "Débito"],
+          ["efectivo", "Efectivo"],
+          ["credito", "Tarjeta de crédito"]
+        ] as const).map(([v, t]) => (
+          <button key={v} type="button" aria-pressed={tipo === v} onClick={() => setTipo(v)} className={chip(tipo === v)}>
+            {t}
+          </button>
+        ))}
+      </div>
+      <input name="nombre" required maxLength={40} autoComplete="off" placeholder={tipo === "efectivo" ? "Efectivo" : tipo === "credito" ? "Nombre de la tarjeta, ej. Nu" : "Nombre del banco, ej. BBVA"} aria-label="Nombre de la cuenta" className="campo rounded-full py-2.5 text-sm" />
+      <label className="block">
+        <span className="etiqueta">{tipo === "credito" ? "Cuánto debes hoy (0 si nada)" : "Cuánto tienes hoy"}</span>
+        <span className="relative mt-1.5 block">
+          <span className="cifra pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted">$</span>
+          <input name="saldo" inputMode="decimal" autoComplete="off" placeholder="0" className="campo cifra rounded-full py-2.5 pl-8 text-sm" />
+        </span>
+      </label>
+      {tipo === "credito" && (
+        <div className="grid grid-cols-3 gap-2">
+          <label className="block">
+            <span className="etiqueta">Día de corte</span>
+            <input name="dia_corte" inputMode="numeric" required placeholder="25" className="campo cifra mt-1.5 rounded-full py-2.5 text-sm" />
+          </label>
+          <label className="block">
+            <span className="etiqueta">Día de pago</span>
+            <input name="dia_pago" inputMode="numeric" required placeholder="5" className="campo cifra mt-1.5 rounded-full py-2.5 text-sm" />
+          </label>
+          <label className="block">
+            <span className="etiqueta">Límite</span>
+            <input name="limite" inputMode="decimal" placeholder="5000" className="campo cifra mt-1.5 rounded-full py-2.5 text-sm" />
+          </label>
+        </div>
+      )}
+      <Mensajes estado={estado} />
+      <button type="submit" disabled={enviando} className="btn-primario w-full py-3">
+        {enviando ? "Guardando…" : "Agregar cuenta"}
+      </button>
+    </form>
+  );
+}
+
+// Cobro que se repite: beca, sueldo o cliente fijo.
+export function FormCobroFijo() {
+  const [estado, enviar, enviando] = useActionState<Resultado | null, FormData>(crearCobroFijo, null);
+  const frentes = useFrentes();
+  const [regla, setRegla] = useState("biweekly_15_30");
+  const [area, setArea] = useState("");
+  const [gravable, setGravable] = useState(true);
+  const form = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (estado?.ok) form.current?.reset();
+  }, [estado]);
+
+  return (
+    <form ref={form} action={enviar} className="space-y-3">
+      <input type="hidden" name="regla" value={regla} />
+      <input type="hidden" name="area" value={area} />
+      <input type="hidden" name="gravable" value={gravable ? "si" : "no"} />
+      <input name="fuente" required maxLength={80} autoComplete="off" placeholder="Quién te paga, ej. Beca, Just Send, un cliente" aria-label="Quién te paga" className="campo rounded-full py-2.5 text-sm" />
+      <Monto id="fijo-monto" etiqueta="Cuánto te pagan" />
+      <fieldset>
+        <legend className="etiqueta">Cada cuánto</legend>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {([
+            ["biweekly_15_30", "Quincenal (15 y 30)"],
+            ["weekly_friday", "Cada viernes"],
+            ["one_off", "Una vez"]
+          ] as const).map(([v, t]) => (
+            <button key={v} type="button" aria-pressed={regla === v} onClick={() => setRegla(v)} className={chip(regla === v)}>
+              {t}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+      {regla === "one_off" && <input type="date" name="fecha" required aria-label="Fecha del pago" className="campo rounded-full py-2.5 font-mono text-sm" />}
+      <fieldset>
+        <legend className="etiqueta">De qué frente (opcional)</legend>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          <button type="button" aria-pressed={area === ""} onClick={() => setArea("")} className={chip(area === "")}>Ninguno</button>
+          {frentes.map((f) => (
+            <button key={f.id} type="button" aria-pressed={area === f.id} onClick={() => setArea(f.id)} className={chip(area === f.id)}>
+              {f.corto}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+      <label className="flex items-center justify-between gap-3 rounded-2xl bg-tinta/[0.04] px-4 py-3">
+        <span>
+          <span className="block text-sm font-medium">Es pago por tu trabajo</span>
+          <span className="text-xs text-muted">Apágalo si es una beca de escuela, un regalo o dinero de tu familia.</span>
+        </span>
+        <Interruptor checked={gravable} onChange={(e) => setGravable(e.target.checked)} aria-label="Es pago por tu trabajo" />
+      </label>
+      <Mensajes estado={estado} />
+      <button type="submit" disabled={enviando} className="btn-secundario w-full">
+        {enviando ? "Guardando…" : "Guardar cobro fijo"}
+      </button>
+    </form>
   );
 }

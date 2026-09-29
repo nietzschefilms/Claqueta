@@ -1,5 +1,7 @@
 import "server-only";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { esFrente, type FrenteId } from "./frentes";
 import { sumarDias } from "./fechas";
 import type { Bloque, Hito, Tarea } from "./tipos";
 import type { Contrato, Cuenta, Gasto, Pago, ReglaIngreso, Transferencia } from "./dinero";
@@ -7,10 +9,51 @@ import type { GastoFijo } from "./plan";
 
 // Lecturas con el cliente de sesión: RLS deja ver solo lo propio.
 
-const CAMPOS_TAREA = "id, title, area, due_date, est_minutes, impact, status, done_at, repeat, notes, milestone_id, created_at, materia, dificultad";
+const CAMPOS_TAREA = "id, user_id, title, area, due_date, est_minutes, impact, status, done_at, repeat, notes, milestone_id, created_at, materia, dificultad, equipo_id, asignada_a";
+
+// ─── Perfil: frentes, régimen, equipo y compañeros ────────────────────────
+export type Companero = { id: string; nombre: string; equipo_id: string };
+export type Equipo = { id: string; nombre: string; frente: FrenteId };
+export type PerfilClaqueta = {
+  id: string;
+  nombre: string;
+  frentes: FrenteId[];
+  resicoDesde: string | null;
+  bienvenidaVista: boolean;
+  equipos: Equipo[];
+  companeros: Companero[];
+};
+
+export const cargarPerfil = cache(async (userId: string): Promise<PerfilClaqueta> => {
+  const supabase = await createClient();
+  const [p, e, c] = await Promise.all([
+    supabase.from("perfiles").select("nombre, frentes, resico_desde, bienvenida_vista").eq("id", userId).maybeSingle(),
+    supabase.from("equipos").select("id, nombre, frente").order("creado_en"),
+    supabase.rpc("companeros")
+  ]);
+  const frentes = ((p.data?.frentes as string[] | null) ?? []).filter(esFrente);
+  return {
+    id: userId,
+    nombre: (p.data?.nombre as string) || "",
+    frentes: frentes.length ? frentes : ["escuela", "nietzsche", "personal"],
+    resicoDesde: (p.data?.resico_desde as string | null) ?? null,
+    bienvenidaVista: p.data?.bienvenida_vista !== false,
+    equipos: ((e.data ?? []) as Equipo[]).filter((x) => esFrente(x.frente)),
+    companeros: ((c.data ?? []) as Companero[]).filter((x) => x.id !== userId)
+  };
+});
+
+// ¿Me toca a mí? Si está asignada, a quien la tiene. Si es de equipo sin
+// asignar ("de los dos"), a todos. Si es privada, a quien la creó.
+export function esMia(t: Pick<Tarea, "user_id" | "asignada_a" | "equipo_id">, userId: string) {
+  if (t.asignada_a) return t.asignada_a === userId;
+  if (t.equipo_id) return true;
+  return t.user_id === userId;
+}
 
 // Pendientes y en curso, más lo hecho en los últimos días (para verlo tachado).
-export async function cargarTareas(hoy: string): Promise<Tarea[]> {
+// Con `mias` deja solo las que le tocan a esa persona (las del equipo asignadas a otro, no).
+export async function cargarTareas(hoy: string, mias?: string): Promise<Tarea[]> {
   const supabase = await createClient();
   const desde = `${sumarDias(hoy, -2)}T00:00:00Z`;
   const { data, error } = await supabase
@@ -21,7 +64,8 @@ export async function cargarTareas(hoy: string): Promise<Tarea[]> {
     .order("due_date", { ascending: true, nullsFirst: false })
     .limit(500);
   if (error) throw new Error(`No se pudieron leer las tareas: ${error.message}`);
-  return (data ?? []) as Tarea[];
+  const tareas = (data ?? []) as Tarea[];
+  return mias ? tareas.filter((t) => esMia(t, mias)) : tareas;
 }
 
 export async function cargarRutina(): Promise<Bloque[]> {

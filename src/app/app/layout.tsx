@@ -10,7 +10,9 @@ import { Logo } from "@/components/claqueta/Logo";
 import { Captura } from "@/components/claqueta/Captura";
 import { IconoAjustes, IconoAvisos } from "@/components/Iconos";
 import { EnVivo, type BloqueHoy } from "@/components/claqueta/EnVivo";
-import { cargarRutina } from "@/lib/claqueta/datos";
+import { cargarPerfil, cargarRutina } from "@/lib/claqueta/datos";
+import { ProveedorEquipo } from "@/components/claqueta/ContextoEquipo";
+import { Bienvenida } from "@/components/claqueta/Bienvenida";
 import { diaSemana, fechaCDMX, horaAMinutos } from "@/lib/claqueta/fechas";
 import { lugarClase } from "@/lib/claqueta/tipos";
 import { prefsDe } from "@/lib/notif-prefs";
@@ -23,10 +25,11 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
   const s = await requerirSesion();
   const menu = menuPara(s.rol, s.esSoporte);
   const hoy = fechaCDMX();
-  const [noLeidas, rutina, { data: perfil }] = await Promise.all([
+  const [noLeidas, rutina, { data: perfil }, yo] = await Promise.all([
     contarNoLeidas(s.userId),
     cargarRutina(),
-    (await createClient()).from("perfiles").select("notif_prefs").eq("id", s.userId).maybeSingle()
+    (await createClient()).from("perfiles").select("notif_prefs").eq("id", s.userId).maybeSingle(),
+    cargarPerfil(s.userId)
   ]);
   const prefs = prefsDe(perfil?.notif_prefs);
   const bloquesHoy: BloqueHoy[] = rutina
@@ -34,6 +37,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
     .map((b) => ({ id: b.id, inicio: horaAMinutos(b.start_time), fin: horaAMinutos(b.end_time), label: b.label, lugar: lugarClase(b) }));
 
   return (
+    <ProveedorEquipo valor={{ yo: s.userId, frentes: yo.frentes, equipos: yo.equipos, companeros: yo.companeros }}>
     <div className="min-h-screen">
       <header className="vidrio-fuerte zona-arriba sticky top-0 z-30 rounded-none border-x-0 border-t-0 md:hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-2.5">
@@ -63,7 +67,8 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
       </div>
 
       <Captura />
-      {!s.contrasenaPropia && <ContrasenaObligatoria />}
+      {!s.contrasenaPropia ? <ContrasenaObligatoria /> : !yo.bienvenidaVista && <Bienvenida nombre={yo.nombre || s.nombre} companeros={yo.companeros.map((c) => c.nombre)} frentes={yo.frentes} />}
     </div>
+    </ProveedorEquipo>
   );
 }

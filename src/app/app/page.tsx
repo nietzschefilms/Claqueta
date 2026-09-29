@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requerirSesion } from "@/lib/sesion";
-import { cargarDinero, cargarHitos, cargarRutina, cargarTareas } from "@/lib/claqueta/datos";
+import { cargarDinero, cargarHitos, cargarRutina, cargarTareas, cargarPerfil } from "@/lib/claqueta/datos";
 import { esperados, pesos } from "@/lib/claqueta/dinero";
 import Link from "next/link";
 import { diaSemana, fechaCDMX, fechaRelativa, minutosAHora, minutosAhoraCDMX } from "@/lib/claqueta/fechas";
@@ -30,10 +30,11 @@ const SEMAFORO = { "en-tiempo": "bg-ok", "atras-1": "bg-aviso", "atras-2": "bg-r
 
 // HOY · la hoja de llamado del día.
 export default async function Hoy() {
-  await requerirSesion();
+  const s = await requerirSesion();
   const hoy = fechaCDMX();
   const ahora = minutosAhoraCDMX();
-  const [tareas, rutina, hitos, dinero] = await Promise.all([cargarTareas(hoy), cargarRutina(), cargarHitos("ek"), cargarDinero()]);
+  const [tareas, rutina, hitos, dinero, perfil] = await Promise.all([cargarTareas(hoy, s.userId), cargarRutina(), cargarHitos("ek"), cargarDinero(), cargarPerfil(s.userId)]);
+  const conEK = perfil.frentes.includes("ek");
   const cobros = esperados(dinero.reglas, dinero.pagos, hoy);
   const cobroHoy = [...cobros.atrasados, ...cobros.hoy];
   const proximoCobro = cobros.proximos[0];
@@ -67,10 +68,12 @@ export default async function Hoy() {
             </span>
           </h1>
           <div className="flex flex-wrap gap-2 pb-1">
-            <span className="pastilla">
-              <span className={`h-2 w-2 rounded-full ${SEMAFORO[ek.semaforo]}`} aria-hidden="true" />
-              EK · Sem {Math.min(ek.semana, EK_SEMANAS)}/{EK_SEMANAS} · {ek.texto}
-            </span>
+            {conEK && (
+              <span className="pastilla">
+                <span className={`h-2 w-2 rounded-full ${SEMAFORO[ek.semaforo]}`} aria-hidden="true" />
+                EK · Sem {Math.min(ek.semana, EK_SEMANAS)}/{EK_SEMANAS} · {ek.texto}
+              </span>
+            )}
             <Link href="/app/dinero" className="pastilla transition hover:bg-superficie focus-visible:outline focus-visible:outline-2 focus-visible:outline-rojo">
               {cobroHoy.length > 0 ? (
                 <>

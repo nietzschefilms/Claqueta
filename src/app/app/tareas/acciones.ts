@@ -7,6 +7,7 @@ import { esFrente } from "@/lib/claqueta/frentes";
 import { esFechaISO, fechaCDMX, sumarDias } from "@/lib/claqueta/fechas";
 import { siguienteRepeticion } from "@/lib/claqueta/recurrentes";
 import type { Estado, Tarea } from "@/lib/claqueta/tipos";
+import { notificar } from "@/lib/notificaciones";
 
 // Todo con el cliente de sesión: RLS garantiza que solo se toca lo propio.
 
@@ -17,6 +18,25 @@ const ESTADOS: Estado[] = ["pendiente", "haciendo", "hecho"];
 
 function refrescar() {
   revalidatePath("/app", "layout");
+}
+
+// Tarea de equipo: "yo", "dos" (sin asignar), "privada" o el id de un compañero.
+// RLS revisa que el equipo sea mío y que el compañero sea del equipo.
+function leerPara(form: FormData, userId: string): { equipo_id: string | null; asignada_a: string | null } | null {
+  const equipo = String(form.get("equipo_id") ?? "");
+  const para = String(form.get("para") ?? "");
+  if (!equipo || !para || para === "privada") return { equipo_id: null, asignada_a: null };
+  if (!UUID.test(equipo)) return null;
+  if (para === "yo") return { equipo_id: equipo, asignada_a: userId };
+  if (para === "dos") return { equipo_id: equipo, asignada_a: null };
+  if (UUID.test(para)) return { equipo_id: equipo, asignada_a: para };
+  return null;
+}
+
+// Si le pasas una tarea a tu compañero, le llega el aviso.
+async function avisarAsignada(de: string, a: string | null, yo: string, titulo: string) {
+  if (!a || a === yo) return;
+  await notificar(a, { titulo: `${de.split(" ")[0] || "Tu equipo"} te pasó una tarea`, cuerpo: titulo, href: "/app/tablero", categoria: "operativo" }).catch(() => {});
 }
 
 export async function crearTarea(_prev: Resultado | null, form: FormData): Promise<Resultado> {
@@ -40,10 +60,13 @@ export async function crearTarea(_prev: Resultado | null, form: FormData): Promi
   if (![1, 2, 3].includes(impact)) return { ok: false, error: "El impacto va de 1 a 3." };
   if (materia.length > 60) return { ok: false, error: "El nombre de la materia es muy largo." };
   if (dificultad && ![1, 2, 3].includes(dificultad)) return { ok: false, error: "La dificultad va de fácil a difícil." };
+  const equipo = leerPara(form, s.userId);
+  if (!equipo) return { ok: false, error: "No entendí para quién es. Elige una opción de nuevo." };
 
   const supabase = await createClient();
   const { error } = await supabase.from("tasks").insert({
     user_id: s.userId,
+    ...equipo,
     title,
     area,
     due_date: due || null,
@@ -54,6 +77,7 @@ export async function crearTarea(_prev: Resultado | null, form: FormData): Promi
     dificultad: dificultad || null
   });
   if (error) return { ok: false, error: "No se guardó. Revisa tu conexión e inténtalo de nuevo." };
+  await avisarAsignada(s.nombre, equipo.asignada_a, s.userId, title);
   refrescar();
   return { ok: true };
 }
@@ -66,7 +90,7 @@ async function aplicarEstado(id: string, estado: Estado): Promise<Resultado> {
 
   const { data: t } = await supabase
     .from("tasks")
-    .select("id, title, area, due_date, est_minutes, impact, status, done_at, repeat, notes, milestone_id")
+    .select("id, title, area, due_date, est_minutes, impact, status, done_at, repeat, notes, milestone_id, equipo_id, asignada_a")
     .eq("id", id)
     .maybeSingle<Tarea>();
   if (!t) return { ok: false, error: "No encontré esa tarea." };
@@ -89,7 +113,7 @@ async function aplicarEstado(id: string, estado: Estado): Promise<Resultado> {
         .eq("area", sig.area)
         .eq("due_date", sig.due_date)
         .is("archived_at", null);
-      if (!count) await supabase.from("tasks").insert({ user_id: s.userId, ...sig });
+      if (!count) await supabase.from("tasks").insert({ user_id: s.userId, ...sig, equipo_id: t.equipo_id ?? null, asignada_a: t.asignada_a ?? null });
     }
   }
   refrescar();
@@ -127,7 +151,7 @@ export async function quitarTarea(id: string): Promise<Resultado> {
 
 // Editar una tarea: nombre, frente, fecha, tiempo, impacto y si se repite.
 export async function editarTarea(_prev: Resultado | null, form: FormData): Promise<Resultado> {
-  await requerirSesion();
+  const s = await requerirSesion();
   const id = String(form.get("id") ?? "");
   const title = String(form.get("title") ?? "").trim();
   const area = String(form.get("area") ?? "");
@@ -145,13 +169,17 @@ export async function editarTarea(_prev: Resultado | null, form: FormData): Prom
   if (repeticion !== "none" && !due) return { ok: false, error: "Una tarea que se repite necesita fecha para saber desde cuándo." };
   if (!Number.isInteger(est) || est < 5 || est > 720) return { ok: false, error: "El tiempo debe estar entre 5 minutos y 12 horas." };
   if (![1, 2, 3].includes(impact)) return { ok: false, error: "El impacto va de 1 a 3." };
+  const equipo = leerPara(form, s.userId);
+  if (!equipo) return { ok: false, error: "No entendí para quién es. Elige una opción de nuevo." };
 
   const supabase = await createClient();
+  const { data: antes } = await supabase.from("tasks").select("asignada_a").eq("id", id).maybeSingle();
   const { error } = await supabase
     .from("tasks")
-    .update({ title, area, due_date: due || null, est_minutes: est, impact, repeat: repeticion })
+    .update({ title, area, due_date: due || null, est_minutes: est, impact, repeat: repeticion, ...equipo })
     .eq("id", id);
   if (error) return { ok: false, error: "No se guardó. Revisa tu conexión e inténtalo de nuevo." };
+  if (antes && antes.asignada_a !== equipo.asignada_a) await avisarAsignada(s.nombre, equipo.asignada_a, s.userId, title);
   refrescar();
   return { ok: true };
 }

@@ -2,20 +2,25 @@
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { editarTarea, quitarTarea, type Resultado } from "@/app/app/tareas/acciones";
-import { LISTA_FRENTES, type FrenteId } from "@/lib/claqueta/frentes";
+import type { FrenteId } from "@/lib/claqueta/frentes";
+import { ParaQuien, paraDe, useEquipo, useEquipoDe, useFrentes, type Para } from "./ContextoEquipo";
 import type { Tarea } from "@/lib/claqueta/tipos";
 import { estiloFrente } from "./frente-ui";
 
 const MINUTOS = [10, 15, 30, 45, 60, 90, 120, 180, 240];
 const etiquetaMin = (m: number) => (m < 60 ? `${m} min` : m % 60 ? `${Math.floor(m / 60)} h 30` : `${m / 60} h`);
 
-type Editable = Pick<Tarea, "id" | "title" | "area" | "due_date" | "est_minutes" | "impact" | "repeat">;
+type Editable = Pick<Tarea, "id" | "title" | "area" | "due_date" | "est_minutes" | "impact" | "repeat" | "equipo_id" | "asignada_a">;
 
 // El nombre de la tarea es un botón: abre la hoja para editarla o quitarla.
 export function TituloEditable({ t, className = "" }: { t: Editable; className?: string }) {
   const dialogo = useRef<HTMLDialogElement>(null);
   const [estado, enviar, enviando] = useActionState<Resultado | null, FormData>(editarTarea, null);
   const [area, setArea] = useState<FrenteId>(t.area);
+  const frentes = useFrentes(t.area);
+  const { yo } = useEquipo();
+  const [para, setPara] = useState<Para>(paraDe(t, yo));
+  const { equipo } = useEquipoDe(area);
   const [minutos, setMinutos] = useState(t.est_minutes);
   const [impacto, setImpacto] = useState<number>(t.impact);
   const [repeticion, setRepeticion] = useState<string>(t.repeat);
@@ -28,6 +33,7 @@ export function TituloEditable({ t, className = "" }: { t: Editable; className?:
 
   const abrir = () => {
     setArea(t.area);
+    setPara(paraDe(t, yo));
     setMinutos(t.est_minutes);
     setImpacto(t.impact);
     setRepeticion(t.repeat);
@@ -83,7 +89,7 @@ export function TituloEditable({ t, className = "" }: { t: Editable; className?:
           <fieldset>
             <legend className="etiqueta">Frente</legend>
             <div className="mt-2 grid grid-cols-3 gap-2">
-              {LISTA_FRENTES.map((f) => (
+              {frentes.map((f) => (
                 <button
                   key={f.id}
                   type="button"
@@ -100,6 +106,14 @@ export function TituloEditable({ t, className = "" }: { t: Editable; className?:
               ))}
             </div>
           </fieldset>
+
+          {equipo && (
+            <>
+              <input type="hidden" name="para" value={para} />
+              <input type="hidden" name="equipo_id" value={equipo.id} />
+              <ParaQuien area={area} valor={para} onCambio={setPara} />
+            </>
+          )}
 
           <label className="block">
             <span className="etiqueta">Para cuándo</span>

@@ -17,6 +17,10 @@ export type Tarea = {
   created_at?: string;
   materia?: string | null;
   dificultad?: 1 | 2 | 3 | null;
+  // Tareas de equipo (Nietzsche): quién la creó, de qué equipo y a quién le toca.
+  user_id?: string;
+  equipo_id?: string | null;
+  asignada_a?: string | null;
 };
 
 export type Bloque = {

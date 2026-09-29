@@ -191,3 +191,78 @@ export async function confirmarFijo(fijoId: string, mes: string, montoTexto: str
   refrescar();
   return { ok: true };
 }
+
+// Nueva cuenta: débito, efectivo o tarjeta de crédito, con el saldo de hoy.
+// En crédito el saldo es lo que debes hoy (0 si está al corriente).
+export async function crearCuenta(_prev: Resultado | null, form: FormData): Promise<Resultado> {
+  const s = await requerirSesion();
+  const nombre = String(form.get("nombre") ?? "").trim();
+  const tipo = String(form.get("tipo") ?? "");
+  const saldoTexto = String(form.get("saldo") ?? "").trim();
+  const saldo = saldoTexto === "" || /^0+([.,]0+)?$/.test(saldoTexto) ? 0 : aCentavos(saldoTexto);
+  if (!nombre || nombre.length > 40) return { ok: false, error: "Ponle un nombre corto a la cuenta. Ej. BBVA, Nu, Efectivo." };
+  if (!["debito", "efectivo", "credito"].includes(tipo)) return { ok: false, error: "Elige si es débito, efectivo o tarjeta de crédito." };
+  if (saldo === null) return { ok: false, error: "El saldo no es válido. Escribe solo el número, ej. 1250.50 (o 0)." };
+
+  let corte: number | null = null;
+  let pago: number | null = null;
+  let limite: number | null = null;
+  if (tipo === "credito") {
+    corte = Number(form.get("dia_corte"));
+    pago = Number(form.get("dia_pago"));
+    if (!Number.isInteger(corte) || corte < 1 || corte > 31) return { ok: false, error: "Escribe el día de corte de la tarjeta (1 a 31). Viene en tu estado de cuenta." };
+    if (!Number.isInteger(pago) || pago < 1 || pago > 31) return { ok: false, error: "Escribe el día límite de pago (1 a 31). Viene en tu estado de cuenta." };
+    const limiteTexto = String(form.get("limite") ?? "").trim();
+    if (limiteTexto) {
+      limite = aCentavos(limiteTexto);
+      if (!limite) return { ok: false, error: "El límite no es válido. Escribe solo el número, ej. 5000." };
+    }
+  }
+
+  const supabase = await createClient();
+  const { data: ultima } = await supabase.from("cuentas").select("orden").order("orden", { ascending: false }).limit(1).maybeSingle();
+  const { error } = await supabase.from("cuentas").insert({
+    user_id: s.userId,
+    nombre,
+    tipo,
+    saldo_inicial: pesosDe(saldo),
+    dia_corte: corte,
+    dia_pago: pago,
+    limite: limite === null ? null : pesosDe(limite),
+    orden: ((ultima?.orden as number | undefined) ?? 0) + 1
+  });
+  if (error) return { ok: false, error: "No se guardó la cuenta. Inténtalo de nuevo." };
+  refrescar();
+  return { ok: true, mensaje: `Listo: ${nombre} ya está en tus cuentas.` };
+}
+
+// Cobro que se repite (beca, sueldo, cliente fijo): aparece como esperado y con
+// "Ya llegó" se registra en un toque.
+export async function crearCobroFijo(_prev: Resultado | null, form: FormData): Promise<Resultado> {
+  const s = await requerirSesion();
+  const source = String(form.get("fuente") ?? "").trim();
+  const regla = String(form.get("regla") ?? "");
+  const fecha = String(form.get("fecha") ?? "").trim();
+  const area = String(form.get("area") ?? "");
+  const centavos = aCentavos(String(form.get("monto") ?? ""));
+  if (!source || source.length > 80) return { ok: false, error: "¿Quién te paga? Escribe un nombre corto." };
+  if (!centavos) return { ok: false, error: "Escribe cuánto te pagan, ej. 3800." };
+  if (!["weekly_friday", "biweekly_15_30", "one_off"].includes(regla)) return { ok: false, error: "Elige cada cuánto te pagan." };
+  if (regla === "one_off" && !esFechaISO(fecha)) return { ok: false, error: "Elige la fecha en que te van a pagar." };
+  if (area && !esFrente(area)) return { ok: false, error: "Ese frente no existe." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("income_rules").insert({
+    user_id: s.userId,
+    source,
+    amount: pesosDe(centavos),
+    rule: regla,
+    date: regla === "one_off" ? fecha : null,
+    area: area || null,
+    gravable: form.get("gravable") !== "no",
+    desde: fechaCDMX()
+  });
+  if (error) return { ok: false, error: "No se guardó el cobro. Inténtalo de nuevo." };
+  refrescar();
+  return { ok: true, mensaje: "Guardado. Te aparecerá cuando toque cobrarlo." };
+}

@@ -1,8 +1,8 @@
-// Los seis frentes de Claqueta. El peso multiplica el puntaje de prioridad:
+// Los frentes de Claqueta (cada persona usa los suyos: perfiles.frentes). El peso multiplica el puntaje de prioridad:
 // EK Bars manda porque es el único con riesgo real de quedar mal.
 // Los ids coinciden con los checks de la migración 0002.
 
-export const FRENTE_IDS = ["ek", "escuela", "topmart", "rt", "nietzsche", "personal"] as const;
+export const FRENTE_IDS = ["ek", "escuela", "topmart", "rt", "nietzsche", "personal", "justsend"] as const;
 export type FrenteId = (typeof FRENTE_IDS)[number];
 
 export type Frente = {
@@ -20,7 +20,8 @@ export const FRENTES: Record<FrenteId, Frente> = {
   topmart: { id: "topmart", nombre: "Top Mart", corto: "Top Mart", peso: 1.15, claves: ["top mart", "topmart", "reel", "reels"] },
   rt: { id: "rt", nombre: "Rompiendo Tabúes", corto: "RT", peso: 1.0, claves: ["rt", "rompiendo", "tabúes", "tabues", "instagram"] },
   nietzsche: { id: "nietzsche", nombre: "Nietzsche Studios", corto: "Nietzsche", peso: 0.8, claves: ["nietzsche", "erik", "spot", "grabar", "rodaje"] },
-  personal: { id: "personal", nombre: "Personal", corto: "Personal", peso: 0.9, claves: ["trámite", "tramite", "banco", "doctor", "casa", "gastos"] }
+  personal: { id: "personal", nombre: "Personal", corto: "Personal", peso: 0.9, claves: ["trámite", "tramite", "banco", "doctor", "casa", "gastos"] },
+  justsend: { id: "justsend", nombre: "Just Send", corto: "Just Send", peso: 1.0, claves: ["just send", "banda", "ensayo", "toquín", "toquin", "rola", "canción", "cancion"] }
 };
 
 export const LISTA_FRENTES: Frente[] = FRENTE_IDS.map((id) => FRENTES[id]);
@@ -32,4 +33,10 @@ export function esFrente(v: unknown): v is FrenteId {
 // Variable CSS con el color del frente (definido en globals.css).
 export function colorFrente(id: FrenteId): string {
   return `var(--c-f-${id})`;
+}
+
+// Los frentes de una persona, en su orden. Si no hay lista válida, todos.
+export function frentesDe(ids: readonly string[] | null | undefined): Frente[] {
+  const validos = (ids ?? []).filter(esFrente);
+  return (validos.length ? validos : FRENTE_IDS).map((id) => FRENTES[id]);
 }

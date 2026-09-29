@@ -23,12 +23,12 @@ const horas = (min: number) => Math.round(min / 6) / 10;
 
 // SEMANA · plan de rodaje: 7 días con bloques y vencimientos.
 export default async function Semana({ searchParams }: { searchParams: Promise<{ s?: string }> }) {
-  await requerirSesion();
+  const sesion = await requerirSesion();
   const hoy = fechaCDMX();
   const { s } = await searchParams;
   const lunes = lunesDe(esFechaISO(s) ? s : hoy);
   const dias = Array.from({ length: 7 }, (_, i) => sumarDias(lunes, i));
-  const [tareas, rutina] = await Promise.all([cargarTareas(hoy), cargarRutina()]);
+  const [tareas, rutina] = await Promise.all([cargarTareas(hoy, sesion.userId), cargarRutina()]);
 
   const abiertas = tareas.filter((t) => t.status !== "hecho");
   const vencidas = ordenarPorPuntaje(abiertas.filter((t) => t.due_date && t.due_date < hoy), hoy);

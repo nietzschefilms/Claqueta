@@ -20,9 +20,9 @@ const horas = (min: number) => (min < 60 ? `${min} min` : `${Math.round(min / 6)
 
 // ESCUELA · tareas de clase con materia, dificultad y fecha. El orden lo decide Claqueta.
 export default async function Escuela() {
-  await requerirSesion();
+  const s = await requerirSesion();
   const hoy = fechaCDMX();
-  const [tareas, rutina] = await Promise.all([cargarTareas(hoy), cargarRutina()]);
+  const [tareas, rutina] = await Promise.all([cargarTareas(hoy, s.userId), cargarRutina()]);
 
   // Materias: salen del horario (bloques de clase).
   const clases = rutina.filter(esClase).sort((a, b) => a.weekday - b.weekday || horaAMinutos(a.start_time) - horaAMinutos(b.start_time));

@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { requerirSesion } from "@/lib/sesion";
-import { cargarDinero } from "@/lib/claqueta/datos";
+import { cargarDinero, cargarPerfil } from "@/lib/claqueta/datos";
 import { fechaCDMX, fechaCorta, fechaRelativa } from "@/lib/claqueta/fechas";
 import { aCentavos, avanceContrato, esperados, fechasTarjeta, gastoPorCategoria, NOMBRE_TIPO, pesos, resumen, saldosCuentas, type Esperado } from "@/lib/claqueta/dinero";
 import { ChipFrente, estiloFrente } from "@/components/claqueta/frente-ui";
 import { Encabezado } from "@/components/Encabezado";
 import { estimadoMes, obligacionesSAT } from "@/lib/claqueta/impuestos";
 import { estadoFijo } from "@/lib/claqueta/plan";
-import { BotonAnular, BotonCobro, BotonFijo, FormEntrada, FormGasto, FormMover, type OpcionCuenta } from "./Formularios";
+import { BotonAnular, BotonCobro, BotonFijo, FormEntrada, FormGasto, FormMover, type OpcionCuenta, FormCobroFijo, FormCuenta } from "./Formularios";
 import Link from "next/link";
 
 export const metadata: Metadata = { title: "Dinero" };
@@ -16,7 +16,8 @@ const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "
 
 // DINERO · cuánto entra, cuánto sale y cuánto falta del contrato de EK.
 export default async function Dinero() {
-  await requerirSesion();
+  const s = await requerirSesion();
+  const perfil = await cargarPerfil(s.userId);
   const hoy = fechaCDMX();
   const mes = hoy.slice(0, 7);
   const { reglas, pagos, gastos, contratos, cuentas, transferencias, fijos } = await cargarDinero();
@@ -33,8 +34,9 @@ export default async function Dinero() {
   const porCategoria = gastoPorCategoria(gastos, mes);
   const maxCategoria = Math.max(1, ...porCategoria.map((c) => c.centavos));
   const clinica = reglas.find((x) => x.area === "rt");
-  const fiscal = estimadoMes(pagos, mes);
-  const sat = obligacionesSAT(hoy);
+  const resico = perfil.resicoDesde;
+  const fiscal = estimadoMes(pagos, mes, resico ?? undefined);
+  const sat = obligacionesSAT(hoy, resico ?? undefined);
   const pct = (t: number) => `${(t * 100).toLocaleString("es-MX", { maximumFractionDigits: 2 })}%`;
 
   const movimientos = [
@@ -52,6 +54,29 @@ export default async function Dinero() {
           Plan y contador <span aria-hidden="true">→</span>
         </Link>
       </Encabezado>
+
+      {cuentas.length === 0 && (
+        <section aria-labelledby="arranque" className="tarjeta aparecer relative overflow-hidden">
+          <span className="absolute inset-y-0 left-0 w-1 bg-rojo" aria-hidden="true" />
+          <h2 id="arranque" className="titulo text-2xl">Arranca tu dinero en 3 pasos</h2>
+          <ol className="mt-4 grid gap-3 md:grid-cols-3">
+            {[
+              { t: "Agrega tus cuentas", d: "Tu banco (débito), tu efectivo y tus tarjetas de crédito, con lo que tienes hoy. En crédito, lo que debes y tus días de corte y pago.", href: "#cuentas" },
+              { t: "Pon tus cobros fijos", d: "Lo que te pagan seguido (quincena, cada viernes). Te aparece cuando toca y lo confirmas con un toque.", href: "#cobros" },
+              { t: "Anota cada gasto", d: "Monto, categoría y con qué pagaste. Diez segundos. Así sabes en qué se va y cuánto te queda.", href: "#gasto" }
+            ].map((p, i) => (
+              <li key={p.t}>
+                <a href={p.href} className="block h-full rounded-2xl bg-tinta/[0.04] p-4 transition hover:bg-tinta/[0.07] focus-visible:outline focus-visible:outline-2 focus-visible:outline-rojo">
+                  <span className="cifra text-xs text-acento">0{i + 1}</span>
+                  <p className="mt-1 font-semibold">{p.t}</p>
+                  <p className="mt-1 text-sm text-muted">{p.d}</p>
+                </a>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-3 text-xs text-muted">Tu dinero es solo tuyo: nadie más en Claqueta lo ve.</p>
+        </section>
+      )}
 
       {/* ── Saldo ── */}
       <section aria-label="Saldo" className="vidrio aparecer relative overflow-hidden rounded-tarjeta p-5 md:p-7">
@@ -190,6 +215,17 @@ export default async function Dinero() {
                 );
               })}
             </ul>
+            {cuentas.length === 0 && <p className="px-5 pb-3 text-sm text-muted">Aún no tienes cuentas. Agrega la primera aquí abajo.</p>}
+            <details className="group border-t border-borde/60" open={cuentas.length === 0}>
+              <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-3.5 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-rojo">
+                Agregar cuenta
+                <span className="text-xs font-normal text-muted">débito, efectivo o crédito <span className="inline-block transition group-open:rotate-90">›</span></span>
+              </summary>
+              <div className="px-5 pb-5">
+                <FormCuenta />
+              </div>
+            </details>
+            {cuentas.length > 1 && (
             <details className="group border-t border-borde/60">
               <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-3.5 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-rojo">
                 Mover dinero
@@ -199,6 +235,7 @@ export default async function Dinero() {
                 <FormMover hoy={hoy} cuentas={opciones} />
               </div>
             </details>
+            )}
           </section>
 
           {/* ── Suscripciones ── */}
@@ -252,8 +289,19 @@ export default async function Dinero() {
                 ))}
               </ul>
             )}
+            <details className="group border-t border-borde/60">
+              <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-3.5 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-rojo">
+                Agregar cobro fijo
+                <span className="text-xs font-normal text-muted">quincena, beca, cliente <span className="inline-block transition group-open:rotate-90">›</span></span>
+              </summary>
+              <div className="px-5 pb-5">
+                <FormCobroFijo />
+              </div>
+            </details>
           </section>
 
+          {resico ? (
+            <>
           {/* ── Impuestos (RESICO) ── */}
           <section aria-labelledby="impuestos" className="tarjeta aparecer">
             <div className="flex items-baseline justify-between gap-2">
@@ -305,6 +353,16 @@ export default async function Dinero() {
               RESICO desde el 24 sep 2026 · servicios profesionales. Lo cobrado antes no entra. Es un cálculo para planear: tu contador confirma la declaración. Lo de tus papás y los regalos no cuenta.
             </p>
           </section>
+
+            </>
+          ) : (
+            <section aria-labelledby="impuestos" className="tarjeta aparecer">
+              <h2 id="impuestos" className="titulo text-2xl">Impuestos</h2>
+              <p className="mt-2 text-sm text-muted">
+                Aún no tienes régimen fiscal en Claqueta. Cuando empieces a cobrar por proyectos (Nietzsche, Just Send, clientes), date de alta en el SAT: para lo que hacemos casi siempre conviene RESICO (1% a 2.5% de ISR). Con tu constancia, se activa aquí el cálculo de cuánto apartar cada mes.
+              </p>
+            </section>
+          )}
 
           {/* ── Contratos (EK Bars) ── */}
           {contratos.map((c) => {

@@ -27,7 +27,8 @@ const config: Config = {
           topmart: c("f-topmart"),
           rt: c("f-rt"),
           nietzsche: c("f-nietzsche"),
-          personal: c("f-personal")
+          personal: c("f-personal"),
+          justsend: c("f-justsend")
         }
       },
       fontFamily: {

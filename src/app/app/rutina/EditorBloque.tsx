@@ -2,7 +2,8 @@
 
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { guardarBloque, quitarBloque, type Resultado } from "./acciones";
-import { LISTA_FRENTES, type FrenteId } from "@/lib/claqueta/frentes";
+import { FRENTES, type FrenteId } from "@/lib/claqueta/frentes";
+import { useFrentes } from "@/components/claqueta/ContextoEquipo";
 import { estiloFrente } from "@/components/claqueta/frente-ui";
 
 type Datos = { id?: string; weekday: number; inicio: string; fin: string; label: string; kind: "focus" | "fixed"; areas: FrenteId[]; salon?: string | null };
@@ -19,6 +20,7 @@ export function EditorBloque({ b, nuevo = false }: { b: Datos; nuevo?: boolean }
   const [kind, setKind] = useState(b.kind);
   const [areas, setAreas] = useState<FrenteId[]>(b.areas);
   const [seguro, setSeguro] = useState(false);
+  const frentes = useFrentes();
   const [quitando, iniciar] = useTransition();
 
   useEffect(() => {
@@ -45,7 +47,7 @@ export function EditorBloque({ b, nuevo = false }: { b: Datos; nuevo?: boolean }
         <span className="min-w-0 flex-1">
           <span className={`block truncate text-sm ${b.kind === "focus" ? "font-semibold" : "text-muted"}`}>{b.label}</span>
           <span className="block truncate font-mono text-[10px] uppercase tracking-wider text-muted">
-            {b.kind === "fixed" ? (b.salon ? `Clase · ${b.salon}` : "Fijo") : b.areas.length ? b.areas.map((a) => LISTA_FRENTES.find((f) => f.id === a)?.corto).join(" + ") : "Libre"}
+            {b.kind === "fixed" ? (b.salon ? `Clase · ${b.salon}` : "Fijo") : b.areas.length ? b.areas.map((a) => FRENTES[a]?.corto).join(" + ") : "Libre"}
           </span>
         </span>
         <span className="text-xs text-muted" aria-hidden="true">Editar</span>
@@ -84,7 +86,7 @@ export function EditorBloque({ b, nuevo = false }: { b: Datos; nuevo?: boolean }
         <fieldset>
           <legend className="etiqueta">Para qué frente</legend>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {LISTA_FRENTES.map((f) => (
+            {frentes.map((f) => (
               <button key={f.id} type="button" aria-pressed={areas.includes(f.id)} onClick={() => alternar(f.id)} style={estiloFrente(f.id)} className={`flex items-center gap-1.5 ${chip(areas.includes(f.id))}`}>
                 <span className="h-2 w-2 rounded-full bg-[rgb(var(--fc))]" aria-hidden="true" />
                 {f.corto}

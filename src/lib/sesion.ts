@@ -37,9 +37,9 @@ export async function requerirSesion(): Promise<Sesion> {
   const rolInfo = (p?.roles ?? null) as { es_admin?: boolean } | { es_admin?: boolean }[] | null;
   const esAdmin = Array.isArray(rolInfo) ? !!rolInfo[0]?.es_admin : !!rolInfo?.es_admin;
 
-  // Claqueta es privada: solo entra el admin (Jamez). Cualquier otra cuenta
-  // que llegara a existir se queda fuera aunque tenga sesión.
-  if (!esAdmin) redirect("/entrar?estado=privada");
+  // Claqueta es privada: el registro público está cerrado y las cuentas solo
+  // las crea soporte. Sin perfil (cuenta rara) no se entra.
+  if (!p) redirect("/entrar?estado=privada");
 
   return {
     userId: user.id,

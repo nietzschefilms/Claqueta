@@ -10,7 +10,8 @@ import { aCentavos } from "./dinero";
 
 export const IVA = 0.16;
 
-// Tu alta en RESICO según la Constancia de Situación Fiscal (24 sep 2026):
+// Alta de Jamez en RESICO según su Constancia de Situación Fiscal (24 sep 2026);
+// cada persona tiene la suya en perfiles.resico_desde (esto es el valor por defecto):
 // actividad "Otros servicios profesionales, científicos y técnicos" (100%).
 // Obligaciones: ISR provisional y IVA definitivo cada mes (día 17 del mes
 // siguiente) y la anual a más tardar el 30 de abril. Lo cobrado antes de esa
@@ -68,8 +69,8 @@ export function limiteDeclaracion(mes: string): string {
 // · Sin IVA aparte (cobros sin factura): tus servicios llevan IVA, así que se
 //   toma que el IVA venía incluido en lo cobrado (como en la factura global a
 //   público en general): IVA = 16/116 del cobro e ISR sobre el resto.
-export function estimadoMes(pagos: PagoFiscal[], mes: string) {
-  const delMes = pagos.filter((p) => p.date.startsWith(mes) && p.date >= INICIO_RESICO && p.gravable !== false);
+export function estimadoMes(pagos: PagoFiscal[], mes: string, inicio: string = INICIO_RESICO) {
+  const delMes = pagos.filter((p) => p.date.startsWith(mes) && p.date >= inicio && p.gravable !== false);
   const sinFactura = delMes.filter((p) => !p.factura).reduce((a, p) => a + c(p.amount), 0);
   const ivaIncluido = Math.round((sinFactura * IVA) / (1 + IVA));
   const facturado = delMes.filter((p) => p.factura).reduce((a, p) => a + c(p.subtotal), 0);
@@ -85,7 +86,7 @@ export function estimadoMes(pagos: PagoFiscal[], mes: string) {
 }
 
 // Próximas fechas con el SAT a partir de hoy.
-export function obligacionesSAT(hoy: string) {
+export function obligacionesSAT(hoy: string, inicio: string = INICIO_RESICO) {
   const mes = hoy.slice(0, 7);
   const mesAnterior = (() => {
     let [a, m] = mes.split("-").map(Number);
@@ -97,11 +98,11 @@ export function obligacionesSAT(hoy: string) {
     return `${a}-${String(m).padStart(2, "0")}`;
   })();
   // Si aún no pasa el 17, lo pendiente es el mes anterior (si ya estabas en RESICO).
-  const pendiente = hoy <= limiteDeclaracion(mesAnterior) && mesAnterior >= INICIO_RESICO.slice(0, 7) ? mesAnterior : mes;
+  const pendiente = hoy <= limiteDeclaracion(mesAnterior) && mesAnterior >= inicio.slice(0, 7) ? mesAnterior : mes;
   const anio = Number(hoy.slice(0, 4));
-  const anual = hoy <= `${anio}-04-30` && anio - 1 >= Number(INICIO_RESICO.slice(0, 4)) ? anio - 1 : anio;
+  const anual = hoy <= `${anio}-04-30` && anio - 1 >= Number(inicio.slice(0, 4)) ? anio - 1 : anio;
   return {
-    mensual: { mes: pendiente, limite: limiteDeclaracion(pendiente), primera: pendiente === INICIO_RESICO.slice(0, 7) },
+    mensual: { mes: pendiente, limite: limiteDeclaracion(pendiente), primera: pendiente === inicio.slice(0, 7) },
     anual: { ejercicio: anual, limite: `${anual + 1}-04-30` }
   };
 }

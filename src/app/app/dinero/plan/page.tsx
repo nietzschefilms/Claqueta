@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { requerirSesion } from "@/lib/sesion";
-import { cargarDinero } from "@/lib/claqueta/datos";
+import { cargarDinero, cargarPerfil } from "@/lib/claqueta/datos";
 import { fechaCDMX, fechaCorta } from "@/lib/claqueta/fechas";
 import { fechasTarjeta, pesos, saldosCuentas } from "@/lib/claqueta/dinero";
 import { consejosFiscales, estimadoMes } from "@/lib/claqueta/impuestos";
@@ -18,7 +18,8 @@ const NIVEL = {
 
 // PLAN Y CONTADOR · cómo repartir lo que entra, cómo crecer tu crédito y cómo pagar menos impuestos (legal).
 export default async function Plan() {
-  await requerirSesion();
+  const s = await requerirSesion();
+  const perfil = await cargarPerfil(s.userId);
   const hoy = fechaCDMX();
   const mes = hoy.slice(0, 7);
   const { reglas, pagos, gastos, cuentas, transferencias, fijos } = await cargarDinero();
@@ -34,7 +35,8 @@ export default async function Plan() {
   const ingreso = ingresoFijoMensual(reglas);
   const r = repartoMensual(ingreso, fijos, limiteTotal);
   const consejos = consejosDinero({ usoCredito, disponible: saldos.disponible, deuda: saldos.deuda, ingresoFijo: ingreso, ahorrado: saldos.apartado });
-  const fiscal = estimadoMes(pagos, mes);
+  const fiscal = estimadoMes(pagos, mes, perfil.resicoDesde ?? undefined);
+  const conNu = cuentas.some((c) => /\bnu\b/i.test(c.nombre));
   const tips = consejosFiscales(fiscal, { facturasEmitidas: pagos.filter((p) => p.factura).length });
 
   const filas = [
@@ -147,22 +149,27 @@ export default async function Plan() {
             })}
           </ul>
 
-          <h3 className="titulo mt-6 text-xl">Camino para crecer tu historial con Nu</h3>
-          <ol className="mt-3 space-y-3">
-            {CAMINO_NU.map((p, i) => (
-              <li key={p.paso} className="flex gap-3">
-                <span className="cifra grid h-7 w-7 shrink-0 place-items-center rounded-full bg-tinta text-xs font-semibold text-fondo">{i + 1}</span>
-                <div>
-                  <p className="text-sm font-semibold">{p.paso}</p>
-                  <p className="text-sm text-muted">{p.texto}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
+          {conNu && (
+            <>
+              <h3 className="titulo mt-6 text-xl">Camino para crecer tu historial con Nu</h3>
+              <ol className="mt-3 space-y-3">
+                {CAMINO_NU.map((p, i) => (
+                  <li key={p.paso} className="flex gap-3">
+                    <span className="cifra grid h-7 w-7 shrink-0 place-items-center rounded-full bg-tinta text-xs font-semibold text-fondo">{i + 1}</span>
+                    <div>
+                      <p className="text-sm font-semibold">{p.paso}</p>
+                      <p className="text-sm text-muted">{p.texto}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </>
+          )}
         </section>
       </div>
 
       {/* ── Contador ── */}
+      {perfil.resicoDesde && (
       <section aria-labelledby="contador" className="tarjeta aparecer">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="contador" className="titulo text-2xl">Tu contador</h2>
@@ -183,6 +190,7 @@ export default async function Plan() {
         </ul>
         <p className="mt-4 text-xs text-muted">Son reglas generales para planear. Antes de decisiones grandes confírmalo con un contador.</p>
       </section>
+      )}
     </div>
   );
 }

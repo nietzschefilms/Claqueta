@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { requerirSesion } from "@/lib/sesion";
-import { cargarTareas } from "@/lib/claqueta/datos";
+import { cargarPerfil, cargarTareas } from "@/lib/claqueta/datos";
 import { fechaCDMX, fechaRelativa } from "@/lib/claqueta/fechas";
-import { LISTA_FRENTES } from "@/lib/claqueta/frentes";
+import { frentesDe } from "@/lib/claqueta/frentes";
+import type { Tarea } from "@/lib/claqueta/tipos";
 import { ordenarPorPuntaje, puntaje } from "@/lib/claqueta/prioridad";
 import { CheckTarea } from "@/components/claqueta/CheckTarea";
 import { TituloEditable } from "@/components/claqueta/EditarTarea";
@@ -15,11 +16,14 @@ export const metadata: Metadata = { title: "Tablero" };
 // TABLERO · una columna por frente, de lo más urgente a lo menos.
 // Celular: carrusel con pastillas para saltar de frente. Escritorio: cuadrícula.
 export default async function Tablero() {
-  await requerirSesion();
+  const s = await requerirSesion();
   const hoy = fechaCDMX();
-  const tareas = await cargarTareas(hoy);
+  const [tareas, perfil] = await Promise.all([cargarTareas(hoy), cargarPerfil(s.userId)]);
+  const nombres = new Map(perfil.companeros.map((c) => [c.id, c.nombre.split(" ")[0]]));
+  // De quién es una tarea de equipo: "Tú", el nombre del compañero o "Los dos".
+  const deQuien = (t: Tarea) => (!t.equipo_id ? null : !t.asignada_a ? "Los dos" : t.asignada_a === s.userId ? "Tú" : nombres.get(t.asignada_a) ?? "Equipo");
 
-  const columnas = LISTA_FRENTES.map((f) => {
+  const columnas = frentesDe(perfil.frentes).map((f) => {
     const abiertas = ordenarPorPuntaje(tareas.filter((t) => t.area === f.id && t.status !== "hecho"), hoy);
     const hechas = tareas.filter((t) => t.area === f.id && t.status === "hecho" && t.done_at && fechaCDMX(t.done_at) === hoy);
     return { f, abiertas, hechas, minutos: abiertas.reduce((a, t) => a + t.est_minutes, 0) };
@@ -80,6 +84,11 @@ export default async function Tablero() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2 pl-10">
                       <EtiquetaPrioridad puntaje={puntaje(t, hoy)} />
+                      {deQuien(t) && (
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${deQuien(t) === "Tú" ? "bg-tinta text-fondo" : "bg-[rgb(var(--fc)/0.18)] text-tinta"}`}>
+                          {deQuien(t)}
+                        </span>
+                      )}
                       <span className={`cifra text-[11px] ${vencida ? "font-semibold text-acento" : "text-muted"}`}>
                         {t.due_date ? `${vencida ? "venció " : ""}${fechaRelativa(t.due_date, hoy)}` : "sin fecha"} · {t.est_minutes} min
                         {t.repeat === "weekly" && " · ↻ semanal"}{t.repeat === "daily" && " · ↻ diaria"}
