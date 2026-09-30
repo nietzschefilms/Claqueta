@@ -34,7 +34,10 @@ function Credencial({ correo, contrasena, onCerrar }: { correo: string; contrase
   );
 }
 
-export function PanelSoporte({ inicial, roles, yo }: { inicial: Cuenta[]; roles: Rol[]; yo: string }) {
+type Invitacion = { correo: string; nombre: string | null; frentes: string[] | null };
+
+export function PanelSoporte({ inicial, roles, yo, invitaciones = [] }: { inicial: Cuenta[]; roles: Rol[]; yo: string; invitaciones?: Invitacion[] }) {
+  const [pendientes, setPendientes] = useState(invitaciones);
   const [cuentas, setCuentas] = useState(inicial);
   const [q, setQ] = useState("");
   const [nuevo, setNuevo] = useState({ correo: "", nombre: "", rol: roles[roles.length - 1]?.clave ?? "" });
@@ -57,8 +60,42 @@ export function PanelSoporte({ inicial, roles, yo }: { inicial: Cuenta[]; roles:
       setCuentas(l.cuentas);
     });
 
+  // Un toque: crea la cuenta de una invitación lista; su horario y frentes se cargan solos.
+  const crearDeInvitacion = (i: Invitacion) =>
+    iniciar(async () => {
+      setError(null);
+      const r = await crearCuenta({ correo: i.correo, nombre: i.nombre ?? i.correo.split("@")[0], rol: "miembro" });
+      if (!r.ok) return setError(r.error);
+      setCred({ correo: r.correo, contrasena: r.contrasena });
+      setPendientes((p) => p.filter((x) => x.correo !== i.correo));
+      const l = await buscarCuentas(q);
+      setCuentas(l.cuentas);
+    });
+
   return (
     <div className="space-y-5">
+      {pendientes.length > 0 && (
+        <section className="tarjeta relative space-y-3 overflow-hidden">
+          <span className="absolute inset-y-0 left-0 w-1 bg-rojo" aria-hidden="true" />
+          <h2 className="titulo text-2xl">Invitaciones listas</h2>
+          <p className="text-sm text-muted">Ya tienen horario, frentes, equipo y bienvenida preparados. Al crear la cuenta se carga todo solo.</p>
+          <ul className="space-y-2">
+            {pendientes.map((i) => (
+              <li key={i.correo} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-tinta/[0.04] p-3">
+                <div className="min-w-0">
+                  <p className="font-semibold">{i.nombre ?? i.correo}</p>
+                  <p className="truncate text-xs text-muted">{i.correo}{i.frentes?.length ? ` · ${i.frentes.join(", ")}` : ""}</p>
+                </div>
+                <button type="button" disabled={pendiente} onClick={() => crearDeInvitacion(i)} className="btn-rojo">
+                  {pendiente ? "Creando…" : `Crear cuenta de ${(i.nombre ?? "").split(" ")[0] || "esta persona"}`}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {cred && pendientes.length !== invitaciones.length && <Credencial {...cred} onCerrar={() => setCred(null)} />}
+
       <section className="tarjeta space-y-3">
         <h2 className="titulo text-2xl">Crear cuenta</h2>
         <form
@@ -83,7 +120,7 @@ export function PanelSoporte({ inicial, roles, yo }: { inicial: Cuenta[]; roles:
           </select>
           <button type="submit" disabled={pendiente} className="btn-primario">Crear</button>
         </form>
-        {cred && <Credencial {...cred} onCerrar={() => setCred(null)} />}
+        {cred && pendientes.length === invitaciones.length && <Credencial {...cred} onCerrar={() => setCred(null)} />}
         {error && <p className="alerta-error" role="alert">{error}</p>}
       </section>
 
