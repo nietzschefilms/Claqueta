@@ -6,6 +6,7 @@ import type { FrenteId } from "@/lib/claqueta/frentes";
 import { ParaQuien, paraDe, useEquipo, useEquipoDe, useFrentes, type Para } from "./ContextoEquipo";
 import type { Tarea } from "@/lib/claqueta/tipos";
 import { estiloFrente } from "./frente-ui";
+import { RecordatoriosTarea } from "./RecordatoriosTarea";
 
 const MINUTOS = [10, 15, 30, 45, 60, 90, 120, 180, 240];
 const etiquetaMin = (m: number) => (m < 60 ? `${m} min` : m % 60 ? `${Math.floor(m / 60)} h 30` : `${m / 60} h`);
@@ -26,12 +27,14 @@ export function TituloEditable({ t, className = "" }: { t: Editable; className?:
   const [repeticion, setRepeticion] = useState<string>(t.repeat);
   const [seguro, setSeguro] = useState(false);
   const [quitando, iniciar] = useTransition();
+  const [abierto, setAbierto] = useState(false);
 
   useEffect(() => {
     if (estado?.ok) dialogo.current?.close();
   }, [estado]);
 
   const abrir = () => {
+    setAbierto(true);
     setArea(t.area);
     setPara(paraDe(t, yo));
     setMinutos(t.est_minutes);
@@ -56,6 +59,7 @@ export function TituloEditable({ t, className = "" }: { t: Editable; className?:
       <dialog
         ref={dialogo}
         onClick={(e) => e.target === dialogo.current && dialogo.current?.close()}
+        onClose={() => setAbierto(false)}
         aria-label="Editar tarea"
         className="hoja m-0 mt-auto max-h-[92dvh] w-full max-w-none overflow-visible bg-transparent p-0 md:m-auto md:max-w-lg"
       >
@@ -120,6 +124,8 @@ export function TituloEditable({ t, className = "" }: { t: Editable; className?:
             <input type="date" name="due_date" defaultValue={t.due_date ?? ""} className="campo mt-2 rounded-full py-2 font-mono text-sm" />
             <span className="mt-1 block text-xs text-muted">Déjalo vacío si no tiene fecha.</span>
           </label>
+
+          <RecordatoriosTarea tareaId={t.id} abierto={abierto} />
 
           <fieldset>
             <legend className="etiqueta">Tiempo</legend>

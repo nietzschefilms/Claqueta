@@ -25,6 +25,26 @@ export async function GET(req: Request) {
   const { data: personas } = await admin.from("perfiles").select("id, notif_prefs").eq("activo", true);
   let enviados = 0;
 
+  // Recordatorios programados que ya tocan (de todos). Si la tarea ya se hizo
+  // o se quitó, se dan por cumplidos sin avisar.
+  const { data: recs } = await admin
+    .from("recordatorios")
+    .select("id, user_id, titulo, cuerpo, tarea_id, tasks(status, archived_at)")
+    .is("enviado_at", null)
+    .lte("cuando", new Date().toISOString())
+    .order("cuando")
+    .limit(100);
+  for (const r of recs ?? []) {
+    // Se marca primero (si otra corrida ya lo tomó, no se repite).
+    const { data: tomado } = await admin.from("recordatorios").update({ enviado_at: new Date().toISOString() }).eq("id", r.id).is("enviado_at", null).select("id").maybeSingle();
+    if (!tomado) continue;
+    const t = (Array.isArray(r.tasks) ? r.tasks[0] : r.tasks) as { status: string; archived_at: string | null } | null;
+    if (t && (t.status === "hecho" || t.archived_at)) continue;
+    const res = await notificar(r.user_id as string, { titulo: r.titulo as string, cuerpo: (r.cuerpo as string | null) ?? undefined, href: "/app", categoria: "operativo", tag: `rec-${r.id}`, urgente: true });
+    await admin.from("recordatorios").update({ entregas: res.enviadas }).eq("id", r.id);
+    enviados += 1;
+  }
+
   for (const { id, notif_prefs } of personas ?? []) {
     const prefs = prefsDe(notif_prefs);
     // A las 9:00: cargos fijos que se cobran hoy (Claude, Meli+).

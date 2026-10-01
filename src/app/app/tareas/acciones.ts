@@ -183,3 +183,30 @@ export async function editarTarea(_prev: Resultado | null, form: FormData): Prom
   refrescar();
   return { ok: true };
 }
+
+// ─── Recordatorios de una tarea ──────────────────────────────────────────
+// La hora llega como "AAAA-MM-DDTHH:MM" en hora de CDMX (sin horario de verano: −06:00).
+export async function agregarRecordatorio(tareaId: string, cuandoLocal: string): Promise<Resultado> {
+  const s = await requerirSesion();
+  if (!UUID.test(tareaId)) return { ok: false, error: "Tarea no válida." };
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(cuandoLocal)) return { ok: false, error: "Elige día y hora." };
+  const cuando = new Date(`${cuandoLocal}:00-06:00`);
+  if (Number.isNaN(cuando.getTime())) return { ok: false, error: "Fecha no válida." };
+  if (cuando.getTime() < Date.now() - 60_000) return { ok: false, error: "Esa hora ya pasó." };
+  const supabase = await createClient();
+  const { data: t } = await supabase.from("tasks").select("title").eq("id", tareaId).maybeSingle();
+  if (!t) return { ok: false, error: "No encontré esa tarea." };
+  const { error } = await supabase.from("recordatorios").insert({ user_id: s.userId, tarea_id: tareaId, cuando: cuando.toISOString(), titulo: `Recordatorio: ${t.title}`.slice(0, 120) });
+  if (error) return { ok: false, error: "No se guardó el recordatorio." };
+  return { ok: true };
+}
+
+// Cancelar: no se borra, se da por cumplido.
+export async function cancelarRecordatorio(id: string): Promise<Resultado> {
+  await requerirSesion();
+  if (!UUID.test(id)) return { ok: false, error: "Recordatorio no válido." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("recordatorios").update({ enviado_at: new Date().toISOString(), entregas: 0 }).eq("id", id).is("enviado_at", null);
+  if (error) return { ok: false, error: "No se pudo cancelar." };
+  return { ok: true };
+}
