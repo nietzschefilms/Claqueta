@@ -24,6 +24,8 @@ const COLOR = {
   gris: { barra: "bg-tinta/20", fondo: "bg-tinta/[0.03] border-borde", texto: "text-muted", t: "Después del contrato" }
 } as const;
 
+const menos = (c: number) => (c > 0 ? `−${pesos(c)}` : pesos(0));
+
 export function Inversion({ items, semaforo, fondo, ajustes, cuentas, resico, hoy, contrato }: { items: Item[]; semaforo: Record<string, Semaforo>; fondo: Fondo; ajustes: Ajustes; cuentas: Cuenta[]; resico: boolean; hoy: string; contrato: string | null }) {
   const [cat, setCat] = useState("todas");
   const [prio, setPrio] = useState(0);
@@ -68,9 +70,9 @@ export function Inversion({ items, semaforo, fondo, ajustes, cuentas, resico, ho
           </div>
           <dl className="cifra grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
             <Dato t="Cobrado" v={pesos(fondo.cobrado)} />
-            <Dato t="Impuestos" v={`−${pesos(fondo.impuestos)}`} />
-            <Dato t="Reserva" v={`−${pesos(fondo.reserva)}`} />
-            <Dato t="Ya invertido" v={`−${pesos(fondo.invertido)}`} />
+            <Dato t="Impuestos" v={menos(fondo.impuestos)} />
+            <Dato t="Reserva" v={menos(fondo.reserva)} />
+            <Dato t="Ya invertido" v={menos(fondo.invertido)} />
           </dl>
         </div>
         <div className="relative mt-5 grid gap-3 border-t border-borde/60 pt-4 md:grid-cols-3">

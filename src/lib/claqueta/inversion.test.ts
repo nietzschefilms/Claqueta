@@ -30,6 +30,14 @@ describe("fondo de inversión", () => {
     expect(f.porCobrar).toBe(9_000_000);
     expect(f.netoMensual).toBe(Math.round(f.porLlegarNeto / 12));
   });
+
+  it("si lo ya gastado se comió sus impuestos, se descuentan de lo que viene", () => {
+    const f = fondoInversion({ abonos: [{ centavos: 500_000, mes: "2026-09" }], total: 10_500_000, yaGastado: 500_000, reservaPct: 10, ivaAparte: false, invertido: 0, mesesRestantes: 12 });
+    const deuda = impuestoDeCobro(500_000, false);
+    expect(f.disponible).toBe(0);
+    const bruto = 10_000_000 - impuestoDeCobro(10_000_000, false) - deuda;
+    expect(f.porLlegarNeto).toBe(bruto - Math.round(bruto * 0.1));
+  });
 });
 
 const item = (id: string, precio: number, prioridad: number, retorno = 2, estado: ItemInversion["estado"] = "quiero"): ItemInversion => ({ id, nombre: id, categoria: "otro", precio, cantidad: 1, prioridad, retorno, rentable: false, estado });

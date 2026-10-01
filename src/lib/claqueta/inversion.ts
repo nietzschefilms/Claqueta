@@ -83,9 +83,11 @@ export function fondoInversion(opciones: {
   const cobrado = Math.max(0, pagado - yaGastado);
   // Lo ya gastado sale de lo cobrado; sus impuestos igual se deben.
   const neto = Math.max(0, cobrado - impuestos);
+  // Si lo ya gastado se comió también sus impuestos, esa deuda sale de lo que viene.
+  const deudaImpuestos = Math.max(0, impuestos - cobrado);
   const reserva = Math.round((neto * reservaPct) / 100);
   const porCobrar = Math.max(0, total - pagado);
-  const porLlegarBruto = porCobrar - impuestoDeCobro(porCobrar, ivaAparte);
+  const porLlegarBruto = Math.max(0, porCobrar - impuestoDeCobro(porCobrar, ivaAparte) - deudaImpuestos);
   const porLlegarNeto = porLlegarBruto - Math.round((porLlegarBruto * reservaPct) / 100);
   return {
     cobrado,
