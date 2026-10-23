@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { agregarAEquipo, buscarCuentas, cambiarActivo, cambiarRol, cambiarSoporte, crearCuenta, resetearAcceso, type Cuenta, type EquipoSoporte } from "./acciones";
+import { agregarAEquipo, buscarCuentas, cambiarActivo, cambiarRol, cambiarSoporte, crearCuenta, resetearAcceso, type Cuenta, type EquipoSoporte, type Solicitud } from "./acciones";
 
 type Rol = { clave: string; label: string };
 
@@ -9,10 +9,11 @@ type Rol = { clave: string; label: string };
 function Credencial({ correo, contrasena, onCerrar }: { correo: string; contrasena: string; onCerrar: () => void }) {
   const [copiado, setCopiado] = useState(false);
   const entrar = typeof window === "undefined" ? "/entrar" : `${window.location.origin}/entrar`;
-  const texto = `Tu acceso a Claqueta\nEntra en: ${entrar}\nCorreo: ${correo}\nContraseña temporal: ${contrasena}\nAl entrar te pedirá crear la tuya.`;
+  const usuario = correo.includes("@") ? `Correo: ${correo}` : `Usuario: tu celular ${correo}`;
+  const texto = `Tu acceso a Claqueta, la app de Nietzsche Studios\nEntra en: ${entrar}\n${usuario}\nContraseña temporal: ${contrasena}\nAl entrar te pedirá crear la tuya.`;
   return (
     <div className="alerta-ok space-y-2 text-tinta" role="status">
-      <p className="font-semibold">Acceso listo. Compártelo por un medio privado:</p>
+      <p className="font-semibold">Acceso listo. Cópialo y mándaselo por WhatsApp:</p>
       <pre className="whitespace-pre-wrap rounded-control bg-superficie p-3 font-mono text-sm">{texto}</pre>
       <div className="flex gap-2">
         <button
@@ -42,14 +43,17 @@ export function PanelSoporte({
   roles,
   yo,
   invitaciones = [],
-  equipos = []
+  equipos = [],
+  solicitudes = []
 }: {
   inicial: Cuenta[];
   roles: Rol[];
   yo: string;
   invitaciones?: Invitacion[];
   equipos?: EquipoSoporte[];
+  solicitudes?: Solicitud[];
 }) {
+  const [piden, setPiden] = useState(solicitudes);
   const [pendientes, setPendientes] = useState(invitaciones);
   const [cuentas, setCuentas] = useState(inicial);
   const [q, setQ] = useState("");
@@ -86,8 +90,39 @@ export function PanelSoporte({
       setCuentas(l.cuentas);
     });
 
+  // "Olvidé mi contraseña": resetea y deja el acceso listo para copiar.
+  const atender = (x: Solicitud) =>
+    iniciar(async () => {
+      setError(null);
+      const r = await resetearAcceso(x.uid);
+      if (!r.ok) return setError(r.error);
+      setCred({ correo: r.correo, contrasena: r.contrasena });
+      setPiden((p) => p.filter((y) => y.uid !== x.uid));
+    });
+
   return (
     <div className="space-y-5">
+      {piden.length > 0 && (
+        <section className="tarjeta relative space-y-3 overflow-hidden">
+          <span className="absolute inset-y-0 left-0 w-1 bg-rojo" aria-hidden="true" />
+          <h2 className="titulo text-2xl">Piden acceso</h2>
+          <p className="text-sm text-muted">Olvidaron su contraseña. Resetea y mándales el acceso nuevo.</p>
+          <ul className="space-y-2">
+            {piden.map((x) => (
+              <li key={x.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-tinta/[0.04] p-3">
+                <div className="min-w-0">
+                  <p className="font-semibold">{x.nombre}</p>
+                  <p className="truncate text-xs text-muted">{x.usuario} · {new Date(x.creado_en).toLocaleString("es-MX", { timeZone: "America/Mexico_City", dateStyle: "short", timeStyle: "short" })}</p>
+                </div>
+                <button type="button" disabled={pendiente} onClick={() => atender(x)} className="btn-rojo">
+                  Resetear y copiar acceso
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {cred && piden.length !== solicitudes.length && <Credencial {...cred} onCerrar={() => setCred(null)} />}
       {pendientes.length > 0 && (
         <section className="tarjeta relative space-y-3 overflow-hidden">
           <span className="absolute inset-y-0 left-0 w-1 bg-rojo" aria-hidden="true" />
@@ -108,7 +143,7 @@ export function PanelSoporte({
           </ul>
         </section>
       )}
-      {cred && pendientes.length !== invitaciones.length && <Credencial {...cred} onCerrar={() => setCred(null)} />}
+      {cred && pendientes.length !== invitaciones.length && piden.length === solicitudes.length && <Credencial {...cred} onCerrar={() => setCred(null)} />}
 
       <section className="tarjeta space-y-3">
         <h2 className="titulo text-2xl">Crear cuenta</h2>
@@ -128,7 +163,7 @@ export function PanelSoporte({
           }}
         >
           <input id="nuevo-nombre" required placeholder="Nombre" value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} className="campo" />
-          <input id="nuevo-correo" required type="email" placeholder="Correo" value={nuevo.correo} onChange={(e) => setNuevo({ ...nuevo, correo: e.target.value })} className="campo" />
+          <input id="nuevo-correo" required type="text" inputMode="email" autoCapitalize="none" placeholder="Celular o correo" aria-label="Celular o correo" value={nuevo.correo} onChange={(e) => setNuevo({ ...nuevo, correo: e.target.value })} className="campo" />
           <select id="nuevo-rol" value={nuevo.rol} onChange={(e) => setNuevo({ ...nuevo, rol: e.target.value })} className="campo" aria-label="Rol">
             {roles.map((r) => <option key={r.clave} value={r.clave}>{r.label}</option>)}
           </select>
@@ -138,8 +173,8 @@ export function PanelSoporte({
           </select>
           <button type="submit" disabled={pendiente} className="btn-primario">{pendiente ? "Creando…" : "Crear"}</button>
         </form>
-        <p className="text-xs text-muted">Con equipo, la persona ve Estudio: agenda, Radar y proyectos. Al crearla te sale su acceso para mandárselo por WhatsApp.</p>
-        {cred && pendientes.length === invitaciones.length && <Credencial {...cred} onCerrar={() => setCred(null)} />}
+        <p className="text-xs text-muted">Basta su celular a 10 dígitos: entra con su número y ya adentro pone su correo si quiere. Con equipo ve Estudio y los proyectos. Al crearla te sale su acceso para mandárselo por WhatsApp.</p>
+        {cred && pendientes.length === invitaciones.length && piden.length === solicitudes.length && <Credencial {...cred} onCerrar={() => setCred(null)} />}
         {error && <p className="alerta-error" role="alert">{error}</p>}
       </section>
 

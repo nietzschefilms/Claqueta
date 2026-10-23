@@ -52,7 +52,7 @@ export function NuevoProyecto({ equipoId, prospectos }: { equipoId: string; pros
       )}
       {estado?.error && <p className="alerta-error" role="alert">{estado.error}</p>}
       <button type="submit" disabled={enviando} className="btn-rojo w-full py-3">
-        {enviando ? "Creando…" : "Crear y abrir guion"}
+        {enviando ? "Creando…" : "Crear proyecto"}
       </button>
     </form>
   );

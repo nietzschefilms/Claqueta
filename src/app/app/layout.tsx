@@ -15,6 +15,7 @@ import { cargarEventos, vaYo } from "@/lib/claqueta/datos-estudio";
 import { eventoABloque } from "@/lib/claqueta/estudio";
 import { ProveedorEquipo } from "@/components/claqueta/ContextoEquipo";
 import { Bienvenida } from "@/components/claqueta/Bienvenida";
+import { esCorreoDeCelular } from "@/lib/acceso";
 import { diaSemana, fechaCDMX, horaAMinutos } from "@/lib/claqueta/fechas";
 import { lugarClase } from "@/lib/claqueta/tipos";
 import { prefsDe } from "@/lib/notif-prefs";
@@ -71,7 +72,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
       </div>
 
       <Captura />
-      {!s.contrasenaPropia ? <ContrasenaObligatoria /> : !yo.bienvenidaVista && <Bienvenida nombre={yo.nombre || s.nombre} companeros={yo.companeros.map((c) => c.nombre)} frentes={yo.frentes} />}
+      {!s.contrasenaPropia ? <ContrasenaObligatoria porCelular={esCorreoDeCelular(s.email)} /> : !yo.bienvenidaVista && <Bienvenida nombre={yo.nombre || s.nombre} companeros={yo.companeros.map((c) => c.nombre)} frentes={yo.frentes} />}
     </div>
     </ProveedorEquipo>
   );

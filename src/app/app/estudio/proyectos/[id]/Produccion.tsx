@@ -250,7 +250,7 @@ export function PlanRodaje({ proyectoId, lineas, rodaje, planos, hoy }: { proyec
         </div>
         <div>
           <h3 className="titulo text-xl">Mandar a la agenda</h3>
-          <p className="mt-1 text-sm text-muted">Cada día de rodaje sale en Hoy y Semana de los dos, con aviso.</p>
+          <p className="mt-1 text-sm text-muted">Cada día de rodaje sale en Hoy y Semana de todo el equipo, con aviso.</p>
           <div className="mt-3 flex flex-wrap items-end gap-2">
             <label className="text-xs">
               <span className="etiqueta block">Llamado</span>

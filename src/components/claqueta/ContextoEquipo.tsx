@@ -42,7 +42,7 @@ export function ParaQuien({ area, valor, onCambio }: { area: FrenteId; valor: Pa
   const opciones = [
     { v: "yo", t: "Mía" },
     ...companeros.map((c) => ({ v: c.id, t: `De ${c.nombre.split(" ")[0]}` })),
-    { v: "dos", t: companeros.length ? "De los dos" : "Del equipo" },
+    { v: "dos", t: companeros.length > 1 ? "De todo el equipo" : companeros.length ? "De los dos" : "Del equipo" },
     { v: "privada", t: "Privada" }
   ];
   return (
@@ -64,7 +64,7 @@ export function ParaQuien({ area, valor, onCambio }: { area: FrenteId; valor: Pa
         ))}
       </div>
       <p className="mt-1.5 text-xs text-muted">
-        {valor === "privada" ? "Solo tú la ves." : valor === "dos" ? "Les sale a los dos en su día." : "La ven los dos en el tablero."}
+        {valor === "privada" ? "Solo tú la ves." : valor === "dos" ? "Le sale a todo el equipo en su día." : "La ve todo el equipo en el tablero."}
       </p>
     </fieldset>
   );

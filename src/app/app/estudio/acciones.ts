@@ -5,6 +5,7 @@ import { requerirSesion } from "@/lib/sesion";
 import { createClient } from "@/lib/supabase/server";
 import { esFechaISO, fechaCDMX, horaAMinutos } from "@/lib/claqueta/fechas";
 import { notificar } from "@/lib/notificaciones";
+import { AVANCE_BASE } from "@/lib/claqueta/puestos";
 import { ESTADOS_PROSPECTO, type EstadoProspecto } from "@/lib/claqueta/datos-estudio";
 import { deFountain, escenasDe, sugerirPlan, TIPOS_LINEA, type Linea, type TipoLinea } from "@/lib/claqueta/estudio";
 
@@ -72,7 +73,7 @@ export async function crearEvento(_prev: Resultado | null, form: FormData): Prom
     await notificar(u, { titulo: `${quien} agendó: ${titulo}`, cuerpo: `${fecha.split("-").reverse().join("/")} · ${inicio} a ${fin}${lugar ? ` · ${lugar}` : ""}`, href: "/app/estudio", categoria: "operativo" }).catch(() => {});
   }
   refrescar();
-  return { ok: true, id: data.id as string, mensaje: "Agendado. Les sale a los dos en su día." };
+  return { ok: true, id: data.id as string, mensaje: "Agendado. Les sale a todos en su día." };
 }
 
 export async function cancelarEvento(id: string): Promise<Resultado> {
@@ -180,7 +181,11 @@ export async function crearProyecto(_prev: Resultado | null, form: FormData): Pr
     .select("id")
     .single();
   if (error || !data) return { ok: false, error: "No se creó el proyecto. Inténtalo de nuevo." };
+  // Quien lo crea queda de productor (luego reparte los demás puestos) y
+  // arranca con la lista de lo que hace falta para filmar.
+  await supabase.from("proyecto_miembros").insert({ proyecto_id: data.id, user_id: s.userId, puesto: "productor", creado_por: s.userId });
   await supabase.from("guion_lineas").insert(PLANTILLA.map((l, i) => ({ proyecto_id: data.id, orden: (i + 1) * 1024, tipo: l.tipo, texto: l.texto })));
+  await supabase.from("proyecto_avance").insert(AVANCE_BASE.map((titulo, i) => ({ proyecto_id: data.id, titulo, orden: (i + 1) * 10 })));
   revalidatePath("/app/estudio", "layout");
   return { ok: true, id: data.id as string };
 }
@@ -296,7 +301,7 @@ export async function agendarRodaje(proyectoId: string, llamado: string, horas: 
   );
   if (error) return { ok: false, error: "No se pudo agendar el rodaje." };
   refrescar();
-  return { ok: true, mensaje: `Agendé ${dias.length} ${dias.length === 1 ? "día" : "días"} de rodaje para los dos.` };
+  return { ok: true, mensaje: `Agendé ${dias.length} ${dias.length === 1 ? "día" : "días"} de rodaje para el equipo.` };
 }
 
 // ─── Desglose ────────────────────────────────────────────────────────────

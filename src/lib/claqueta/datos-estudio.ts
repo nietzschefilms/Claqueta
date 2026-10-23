@@ -157,24 +157,49 @@ export type ReporteRodaje = {
   notas: string | null;
   actualizado_en: string;
 };
-export type PersonaProyecto = { id: string; tipo: "reparto" | "crew"; nombre: string; rol: string; telefono: string | null; correo: string | null; llamado: string | null; nota: string | null };
+export type Confirmacion = "falta" | "pendiente" | "confirmado" | "no_puede";
+export type PersonaProyecto = {
+  id: string;
+  tipo: "reparto" | "crew";
+  nombre: string;
+  rol: string;
+  telefono: string | null;
+  correo: string | null;
+  llamado: string | null;
+  nota: string | null;
+  user_id: string | null;
+  fecha: string | null;
+  confirmacion: Confirmacion;
+  confirmado_en: string | null;
+};
+export type MiembroProyecto = { id: string; user_id: string; puesto: string };
+export type Avance = { id: string; titulo: string; estado: "falta" | "en_proceso" | "listo"; responsable: string | null; fecha_limite: string | null; nota: string | null; orden: number; actualizado_por: string | null; actualizado_en: string };
+export type BloqueDia = { id: string; fecha: string; inicio: string; minutos: number; titulo: string; tipo: string; plano_id: string | null; estado: "pendiente" | "en_curso" | "hecho"; empezo_en: string | null; termino_en: string | null };
+export type Documento = { id: string; titulo: string; url: string; solo_direccion: boolean; creado_por: string | null; creado_en: string };
 export type Locacion = { id: string; lugar: string; direccion: string | null; contacto: string | null; telefono: string | null; permiso: string; estacionamiento: string | null; hospital: string | null; notas: string | null };
 export type LineaPres = { id: string; cuenta: string; descripcion: string; cantidad: string; unidad: string; veces: string; tarifa: string; real: string | null; nota: string | null; orden: number };
 
 export async function cargarProyecto(id: string) {
   const supabase = await createClient();
-  const [p, l, r, d, pl, pe, lo, pr, rep] = await Promise.all([
-    supabase.from("proyectos").select("id, equipo_id, nombre, tipo, cliente, prospecto_id, estado, logline, duracion_seg, creado_en, imprevistos_pct, utilidad_pct, con_iva, precio_cliente").eq("id", id).is("archivado_at", null).maybeSingle(),
+  const [p, l, r, d, pl, pe, lo, pr, rep, din, mi, av, pd, doc] = await Promise.all([
+    supabase.from("proyectos").select("id, equipo_id, nombre, tipo, cliente, prospecto_id, estado, logline, duracion_seg, creado_en").eq("id", id).is("archivado_at", null).maybeSingle(),
     supabase.from("guion_lineas").select("id, orden, tipo, texto").eq("proyecto_id", id).is("borrado_at", null).order("orden"),
     supabase.from("rodaje_escenas").select("escena_id, dia, orden, llamado").eq("proyecto_id", id),
     supabase.from("desglose").select("id, escena_id, categoria, elemento, nota").eq("proyecto_id", id).is("archivado_at", null).order("creado_en"),
     supabase.from("planos").select("id, escena_id, numero, tamano, angulo, movimiento, lente, descripcion, minutos, filmado, orden, imagen, tomas, toma_buena, filmado_en").eq("proyecto_id", id).is("archivado_at", null).order("orden"),
-    supabase.from("personas_proyecto").select("id, tipo, nombre, rol, telefono, correo, llamado, nota").eq("proyecto_id", id).is("archivado_at", null).order("creado_en"),
+    supabase.from("personas_proyecto").select("id, tipo, nombre, rol, telefono, correo, llamado, nota, user_id, fecha, confirmacion, confirmado_en").eq("proyecto_id", id).is("archivado_at", null).order("creado_en"),
     supabase.from("locaciones").select("id, lugar, direccion, contacto, telefono, permiso, estacionamiento, hospital, notas").eq("proyecto_id", id).is("archivado_at", null),
     supabase.from("presupuesto_lineas").select("id, cuenta, descripcion, cantidad, unidad, veces, tarifa, real, nota, orden").eq("proyecto_id", id).is("archivado_at", null).order("cuenta").order("orden").order("creado_en"),
-    supabase.from("reportes_rodaje").select("id, fecha, llamado, primera_toma, comida_inicio, comida_fin, fin, clima, incidentes, notas, actualizado_en").eq("proyecto_id", id).order("fecha")
+    supabase.from("reportes_rodaje").select("id, fecha, llamado, primera_toma, comida_inicio, comida_fin, fin, clima, incidentes, notas, actualizado_en").eq("proyecto_id", id).order("fecha"),
+    // Precio y utilidad: la base solo los da al productor (y al admin).
+    supabase.rpc("proyecto_dinero", { p_proyecto: id }).maybeSingle(),
+    supabase.from("proyecto_miembros").select("id, user_id, puesto").eq("proyecto_id", id).is("archivado_at", null).order("creado_en"),
+    supabase.from("proyecto_avance").select("id, titulo, estado, responsable, fecha_limite, nota, orden, actualizado_por, actualizado_en").eq("proyecto_id", id).is("archivado_at", null).order("orden").order("creado_en"),
+    supabase.from("plan_dia").select("id, fecha, inicio, minutos, titulo, tipo, plano_id, estado, empezo_en, termino_en").eq("proyecto_id", id).is("archivado_at", null).order("fecha").order("inicio"),
+    supabase.from("proyecto_documentos").select("id, titulo, url, solo_direccion, creado_por, creado_en").eq("proyecto_id", id).is("archivado_at", null).order("creado_en")
   ]);
   if (!p.data) return null;
+  const dinero = (din.data ?? null) as { imprevistos_pct: string | null; utilidad_pct: string | null; con_iva: boolean | null; precio_cliente: string | null } | null;
   // Cuadros del storyboard: ligas firmadas de 1 hora (el bucket es privado).
   const planos = (pl.data ?? []) as Plano[];
   const rutas = planos.map((x) => x.imagen).filter((x): x is string => !!x);
@@ -184,7 +209,11 @@ export async function cargarProyecto(id: string) {
     for (const x of planos) x.imagenUrl = x.imagen ? url.get(x.imagen) ?? null : null;
   }
   return {
-    proyecto: p.data as Proyecto,
+    proyecto: { ...(p.data as Proyecto), ...(dinero ?? {}) } as Proyecto,
+    miembros: (mi.data ?? []) as MiembroProyecto[],
+    avance: (av.data ?? []) as Avance[],
+    planDia: (pd.data ?? []) as BloqueDia[],
+    documentos: (doc.data ?? []) as Documento[],
     lineas: (l.data ?? []) as Linea[],
     rodaje: (r.data ?? []) as RodajeEscena[],
     desglose: (d.data ?? []) as Desglose[],

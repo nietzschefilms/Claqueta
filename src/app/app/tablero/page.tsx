@@ -20,8 +20,8 @@ export default async function Tablero() {
   const hoy = fechaCDMX();
   const [tareas, perfil] = await Promise.all([cargarTareas(hoy), cargarPerfil(s.userId)]);
   const nombres = new Map(perfil.companeros.map((c) => [c.id, c.nombre.split(" ")[0]]));
-  // De quién es una tarea de equipo: "Tú", el nombre del compañero o "Los dos".
-  const deQuien = (t: Tarea) => (!t.equipo_id ? null : !t.asignada_a ? "Los dos" : t.asignada_a === s.userId ? "Tú" : nombres.get(t.asignada_a) ?? "Equipo");
+  // De quién es una tarea de equipo: "Tú", el nombre del compañero o "Todo el equipo".
+  const deQuien = (t: Tarea) => (!t.equipo_id ? null : !t.asignada_a ? "Todo el equipo" : t.asignada_a === s.userId ? "Tú" : nombres.get(t.asignada_a) ?? "Equipo");
 
   const columnas = frentesDe(perfil.frentes).map((f) => {
     const abiertas = ordenarPorPuntaje(tareas.filter((t) => t.area === f.id && t.status !== "hecho"), hoy);

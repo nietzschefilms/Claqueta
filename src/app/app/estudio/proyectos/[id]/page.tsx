@@ -13,19 +13,28 @@ import { Gente, ListaPlanos } from "./Rodaje";
 import { Storyboard } from "./Storyboard";
 import { Reporte } from "./Reporte";
 import { idsReparto } from "@/lib/claqueta/produccion";
+import { permisosDe } from "@/lib/claqueta/puestos";
+import { Resumen } from "./Resumen";
+import { Llamados } from "./Llamados";
+import { PlanDia } from "./PlanDia";
 
 export const metadata: Metadata = { title: "Proyecto" };
 
+// Quién ve cada sección: "todos" (el equipo), "direccion" (productor, director,
+// asistente de dirección) o "productor". La base aplica lo mismo con RLS.
 const VISTAS = [
-  { v: "guion", t: "Guion" },
-  { v: "desglose", t: "Desglose" },
-  { v: "planos", t: "Planos" },
-  { v: "storyboard", t: "Storyboard" },
-  { v: "gente", t: "Reparto y locaciones" },
-  { v: "plan", t: "Plan de rodaje" },
-  { v: "presupuesto", t: "Presupuesto" },
-  { v: "llamado", t: "Hoja de llamado" },
-  { v: "reporte", t: "Reporte diario" }
+  { v: "resumen", t: "Resumen", ve: "todos" },
+  { v: "guion", t: "Guion", ve: "direccion" },
+  { v: "desglose", t: "Desglose", ve: "direccion" },
+  { v: "planos", t: "Shotlist", ve: "todos" },
+  { v: "storyboard", t: "Storyboard", ve: "todos" },
+  { v: "gente", t: "Reparto y locaciones", ve: "direccion" },
+  { v: "llamados", t: "Llamados", ve: "todos" },
+  { v: "plan", t: "Plan de rodaje", ve: "direccion" },
+  { v: "dia", t: "Minuto a minuto", ve: "todos" },
+  { v: "llamado", t: "Hoja de llamado", ve: "todos" },
+  { v: "reporte", t: "Reporte diario", ve: "todos" },
+  { v: "presupuesto", t: "Presupuesto", ve: "productor" }
 ] as const;
 type Vista = (typeof VISTAS)[number]["v"];
 
@@ -40,9 +49,13 @@ export default async function PaginaProyecto({ params, searchParams }: { params:
   const [datos, perfil] = await Promise.all([cargarProyecto(id), cargarPerfil(s.userId)]);
   if (!datos) notFound();
   const { proyecto, lineas, rodaje, desglose, planos, personas, locaciones, presupuesto } = datos;
-  const vista: Vista = VISTAS.some((x) => x.v === v) ? (v as Vista) : "guion";
+  const permisos = permisosDe(datos.miembros.filter((m) => m.user_id === s.userId).map((m) => m.puesto), s.esAdmin);
+  const visibles = VISTAS.filter((x) => x.ve === "todos" || (x.ve === "direccion" ? permisos.direccion : permisos.productor));
+  const vista: Vista = visibles.some((x) => x.v === v) ? (v as Vista) : "resumen";
   const hoy = fechaCDMX();
   const miembros = [{ id: s.userId, nombre: perfil.nombre || s.nombre || "Yo" }, ...perfil.companeros.filter((c) => c.equipo_id === proyecto.equipo_id)];
+  const diasRodaje = [...new Set(rodaje.map((r) => r.dia).filter((d): d is string => !!d))].sort();
+  const eventos = vista === "resumen" ? (await cargarEventos(sumarDias(hoy, -60), sumarDias(hoy, 365))).filter((e) => e.proyecto_id === proyecto.id) : [];
 
   return (
     <div className="space-y-5">
@@ -60,10 +73,10 @@ export default async function PaginaProyecto({ params, searchParams }: { params:
         </div>
         <Logline id={proyecto.id} valor={proyecto.logline} />
         <nav aria-label="Secciones del proyecto" className="sin-barra -mx-4 mt-4 flex gap-1.5 overflow-x-auto px-4 md:mx-0 md:px-0">
-          {VISTAS.map((x) => (
+          {visibles.map((x) => (
             <Link
               key={x.v}
-              href={`/app/estudio/proyectos/${proyecto.id}${x.v === "guion" ? "" : `?v=${x.v}`}`}
+              href={`/app/estudio/proyectos/${proyecto.id}${x.v === "resumen" ? "" : `?v=${x.v}`}`}
               aria-current={vista === x.v ? "page" : undefined}
               className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${vista === x.v ? "bg-tinta text-fondo" : "bg-tinta/[0.06] text-muted hover:text-tinta"}`}
             >
@@ -73,6 +86,22 @@ export default async function PaginaProyecto({ params, searchParams }: { params:
         </nav>
       </div>
 
+      {vista === "resumen" && (
+        <Resumen
+          proyectoId={proyecto.id}
+          yo={s.userId}
+          personas={miembros}
+          miembros={datos.miembros}
+          avance={datos.avance}
+          documentos={datos.documentos}
+          eventos={eventos}
+          llamados={personas}
+          permisos={permisos}
+          hoy={hoy}
+        />
+      )}
+      {vista === "llamados" && <Llamados proyectoId={proyecto.id} nombre={proyecto.nombre} yo={s.userId} personas={personas} equipo={miembros} diasRodaje={diasRodaje} puedeEditar={permisos.direccion} />}
+      {vista === "dia" && <PlanDia proyectoId={proyecto.id} bloques={datos.planDia} diasRodaje={diasRodaje} hoy={hoy} puedeEditar={permisos.direccion} />}
       {vista === "guion" && <Guion proyectoId={proyecto.id} nombreProyecto={proyecto.nombre} inicial={lineas} yo={s.userId} miembros={miembros} />}
       {vista === "desglose" && <DesgloseEscenas proyectoId={proyecto.id} lineas={lineas} desglose={desglose} />}
       {vista === "planos" && <ListaPlanos proyectoId={proyecto.id} lineas={lineas} planos={planos} />}

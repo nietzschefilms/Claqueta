@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { requerirSoporte } from "@/lib/sesion";
 import { ROLES } from "@/config/marca";
-import { buscarCuentas, listarEquipos } from "./acciones";
+import { buscarCuentas, listarEquipos, listarSolicitudes } from "./acciones";
 import { PanelSoporte } from "./PanelSoporte";
 import { Encabezado } from "@/components/Encabezado";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Soporte" };
 
 export default async function Soporte() {
   const s = await requerirSoporte();
-  const [{ cuentas }, equipos] = await Promise.all([buscarCuentas(""), listarEquipos()]);
+  const [{ cuentas }, equipos, solicitudes] = await Promise.all([buscarCuentas(""), listarEquipos(), listarSolicitudes()]);
   // Invitaciones preparadas (frentes, horario, equipo) que aún no tienen cuenta.
   const { data: inv } = await createAdminClient().from("invitaciones").select("correo, nombre, frentes").is("aplicada_en", null).order("creado_en");
   const invitaciones = (inv ?? []) as { correo: string; nombre: string | null; frentes: string[] | null }[];
@@ -20,7 +20,7 @@ export default async function Soporte() {
     <div className="space-y-5">
       <Encabezado etiqueta="Cuentas y accesos" titulo="Soporte" />
       <p className="-mt-2 text-sm text-muted">Crea cuentas, mete a la gente a su equipo, resetea accesos y asigna roles. Nadie se borra: se desactiva.</p>
-      <PanelSoporte inicial={cuentas} roles={roles} yo={s.userId} invitaciones={invitaciones} equipos={equipos} />
+      <PanelSoporte inicial={cuentas} roles={roles} yo={s.userId} invitaciones={invitaciones} equipos={equipos} solicitudes={solicitudes} />
     </div>
   );
 }

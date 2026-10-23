@@ -131,7 +131,7 @@ export function AgendaEquipo({ equipoId, eventos, ocupados, miembros, yo, hoy, a
 function FilaEvento({ e, hoy, yo, nombre }: { e: Evento; hoy: string; yo: string; nombre: (id: string | null) => string }) {
   const [seguro, setSeguro] = useState(false);
   const [pendiente, iniciar] = useTransition();
-  const van = e.participantes.length ? e.participantes.map(nombre).join(", ") : "Los dos";
+  const van = e.participantes.length ? e.participantes.map(nombre).join(", ") : "Todo el equipo";
   return (
     <li className="flex items-start gap-3 px-5 py-3.5">
       <div className="w-14 shrink-0 text-center">

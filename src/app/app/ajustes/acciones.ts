@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { enviarPush } from "@/lib/push/enviar";
 import { prefsDe } from "@/lib/notif-prefs";
 import { MARCA } from "@/config/marca";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { esCorreoDeCelular } from "@/lib/acceso";
 
 export async function guardarPerfil(datos: { nombre: string; telefono: string }) {
   await requerirSesion();
@@ -41,4 +43,22 @@ export async function marcarBienvenida() {
   const { error } = await supabase.from("perfiles").update({ bienvenida_vista: true }).eq("id", s.userId);
   revalidatePath("/app", "layout");
   return error ? { ok: false } : { ok: true };
+}
+
+// Quien entró con su celular puede poner su correo real. Se cambia directo
+// (sin correo de confirmación, que no siempre llega) y sigue pudiendo entrar
+// con el correo nuevo.
+export async function ponerMiCorreo(texto: string) {
+  const s = await requerirSesion();
+  const correo = texto.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) return { ok: false, error: "Ese correo no es válido. Ej. ana@gmail.com" };
+  if (esCorreoDeCelular(correo)) return { ok: false, error: "Usa tu correo personal." };
+  const admin = createAdminClient();
+  const { data: ya } = await admin.from("perfiles").select("id").eq("correo", correo).neq("id", s.userId).maybeSingle();
+  if (ya) return { ok: false, error: "Ese correo ya lo usa otra cuenta." };
+  const { error } = await admin.auth.admin.updateUserById(s.userId, { email: correo, email_confirm: true });
+  if (error) return { ok: false, error: /already|exists|registered/i.test(error.message) ? "Ese correo ya lo usa otra cuenta." : "No se pudo guardar el correo." };
+  await admin.from("perfiles").update({ correo }).eq("id", s.userId);
+  revalidatePath("/app", "layout");
+  return { ok: true };
 }

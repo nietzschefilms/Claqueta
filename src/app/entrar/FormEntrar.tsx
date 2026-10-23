@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { CampoContrasena } from "@/components/CampoContrasena";
+import { identificadorDeAcceso } from "@/lib/acceso";
 
-// Login con correo y contraseña (el patrón de Rompiendo Tabúes: sin magic
+// Login con correo (o celular) y contraseña (el patrón de Rompiendo Tabúes: sin magic
 // link, porque los links se pierden entre WhatsApp y el correo).
 export function FormEntrar() {
   const [email, setEmail] = useState("");
@@ -15,9 +16,11 @@ export function FormEntrar() {
   async function entrar(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    const usuario = identificadorDeAcceso(email);
+    if (!usuario) return setError("Escribe tu correo o tu celular a 10 dígitos.");
     setCargando(true);
     const { error: err } = await createClient().auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
+      email: usuario,
       password: pass
     });
     if (err) {
@@ -25,7 +28,7 @@ export function FormEntrar() {
       setError(
         /confirm/i.test(err.message)
           ? "Tu correo aún no está confirmado. Escríbenos para activarlo."
-          : "Correo o contraseña incorrectos. Revisa y vuelve a intentar."
+          : "Usuario o contraseña incorrectos. Revisa y vuelve a intentar."
       );
       return;
     }
@@ -36,8 +39,8 @@ export function FormEntrar() {
     <form onSubmit={entrar} className="mt-4 space-y-4">
       {error && <p className="alerta-error" role="alert">{error}</p>}
       <label className="block">
-        <span className="etiqueta">Correo</span>
-        <input id="entrar-correo" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="campo mt-1" />
+        <span className="etiqueta">Correo o celular</span>
+        <input id="entrar-correo" type="text" inputMode="email" autoCapitalize="none" autoCorrect="off" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@correo.com o 55 1234 5678" className="campo mt-1" />
       </label>
       <label className="block">
         <span className="etiqueta">Contraseña</span>

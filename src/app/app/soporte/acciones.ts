@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requerirSoporte } from "@/lib/sesion";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ROL_POR_DEFECTO, esRol } from "@/config/marca";
+import { comoSeEntra, esCorreoDeCelular, identificadorDeAcceso } from "@/lib/acceso";
 
 // Página de soporte: poder total sobre cuentas. TODA acción revisa primero
 // que quien la llama tenga perfiles.es_soporte = true.
@@ -65,7 +66,7 @@ export async function buscarCuentas(q: string): Promise<{ ok: boolean; cuentas: 
     ok: true,
     cuentas: (data ?? []).map((p) => ({
       id: p.id as string,
-      correo: p.correo as string | null,
+      correo: p.correo ? comoSeEntra(p.correo as string) : null,
       nombre: p.nombre as string | null,
       rol: p.rol as string,
       activo: p.activo !== false,
@@ -82,17 +83,19 @@ export async function buscarCuentas(q: string): Promise<{ ok: boolean; cuentas: 
 // la invitación con su equipo; el trigger la aplica al crear el perfil.
 export async function crearCuenta(input: { correo: string; nombre: string; rol: string; equipoId?: string | null }) {
   await requerirSoporte();
-  const correo = input.correo.trim().toLowerCase();
+  // Correo o celular: con celular la cuenta vive en un correo interno y la persona entra con su número.
+  const correo = identificadorDeAcceso(input.correo);
   const nombre = input.nombre.trim();
   const rol = esRol(input.rol) ? input.rol : ROL_POR_DEFECTO;
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) return { ok: false as const, error: "Ese correo no es válido." };
+  if (!correo) return { ok: false as const, error: "Escribe un correo válido o su celular a 10 dígitos." };
+  const porCelular = esCorreoDeCelular(correo);
   if (!nombre) return { ok: false as const, error: "Escribe el nombre." };
 
   const admin = createAdminClient();
-  const yaTiene = "Ese correo ya tiene cuenta. Búscalo abajo y usa Resetear acceso.";
+  const yaTiene = porCelular ? "Ese celular ya tiene cuenta. Búscalo abajo y usa Resetear acceso." : "Ese correo ya tiene cuenta. Búscalo abajo y usa Resetear acceso.";
   const { data: perfil } = await admin.from("perfiles").select("id").eq("correo", correo).maybeSingle();
   if (perfil) return { ok: false as const, error: yaTiene };
-  const { data: clienteWeb } = await admin.from("clientes_web").select("id").eq("correo", correo).maybeSingle();
+  const { data: clienteWeb } = porCelular ? { data: null } : await admin.from("clientes_web").select("id").eq("correo", correo).maybeSingle();
   if (clienteWeb)
     return { ok: false as const, error: "Ese correo ya entró como cliente en la página web con Google. Usa otro correo para su cuenta del equipo." };
 
@@ -127,9 +130,12 @@ export async function crearCuenta(input: { correo: string; nombre: string; rol: 
     };
   }
   // El trigger ya creó el perfil; aseguramos rol y nombre por si acaso.
-  await admin.from("perfiles").update({ rol, nombre, correo }).eq("id", data.user.id);
+  await admin
+    .from("perfiles")
+    .update({ rol, nombre, correo, ...(porCelular ? { telefono: comoSeEntra(correo) } : {}) })
+    .eq("id", data.user.id);
   revalidatePath("/app/soporte");
-  return { ok: true as const, correo, contrasena: pass };
+  return { ok: true as const, correo: comoSeEntra(correo), contrasena: pass };
 }
 
 // Mete a una cuenta existente a un equipo (para que vea Estudio y proyectos).
@@ -153,7 +159,29 @@ export async function resetearAcceso(uid: string) {
     user_metadata: { pwd_set: false }
   });
   if (error) return { ok: false as const, error: "No se pudo resetear." };
-  return { ok: true as const, correo: data.user?.email ?? "", contrasena: pass };
+  // Si había pedido ayuda desde "Olvidé mi contraseña", ya quedó atendido.
+  await createAdminClient().from("solicitudes_acceso").update({ atendida_en: new Date().toISOString() }).eq("user_id", uid).is("atendida_en", null);
+  revalidatePath("/app/soporte");
+  return { ok: true as const, correo: comoSeEntra(data.user?.email ?? ""), contrasena: pass };
+}
+
+export type Solicitud = { id: string; uid: string; nombre: string; usuario: string; creado_en: string };
+
+// Quién pidió ayuda para entrar y no ha sido atendido.
+export async function listarSolicitudes(): Promise<Solicitud[]> {
+  await requerirSoporte();
+  const admin = createAdminClient();
+  const { data } = await admin.from("solicitudes_acceso").select("id, user_id, creado_en").is("atendida_en", null).order("creado_en");
+  const ids = [...new Set((data ?? []).map((x) => x.user_id as string))];
+  if (!ids.length) return [];
+  const { data: p } = await admin.from("perfiles").select("id, nombre, correo").in("id", ids);
+  const vistos = new Set<string>();
+  return (data ?? [])
+    .filter((x) => !vistos.has(x.user_id as string) && vistos.add(x.user_id as string))
+    .map((x) => {
+      const per = (p ?? []).find((y) => y.id === x.user_id);
+      return { id: x.id as string, uid: x.user_id as string, nombre: (per?.nombre as string) || "Sin nombre", usuario: comoSeEntra((per?.correo as string) ?? ""), creado_en: x.creado_en as string };
+    });
 }
 
 export async function cambiarRol(uid: string, rol: string) {

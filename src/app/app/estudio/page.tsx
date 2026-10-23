@@ -21,7 +21,7 @@ export default async function Estudio() {
     cargarTareas(hoy)
   ]);
   const miembros = [{ id: s.userId, nombre: perfil.nombre || s.nombre || "Tú" }, ...perfil.companeros.filter((c) => c.equipo_id === equipo.id)];
-  const nombre = (id: string | null) => (id === s.userId ? "Tú" : miembros.find((m) => m.id === id)?.nombre.split(" ")[0] ?? "Los dos");
+  const nombre = (id: string | null) => (id === s.userId ? "Tú" : miembros.find((m) => m.id === id)?.nombre.split(" ")[0] ?? "Todo el equipo");
 
   const seguimientos = prospectos.filter((p) => p.siguiente_fecha && p.siguiente_fecha <= sumarDias(hoy, 2) && !["cerrado", "descartado"].includes(p.estado));
   const enJuego = prospectos.filter((p) => ["contactado", "respondio", "reunion", "cotizado"].includes(p.estado)).length;

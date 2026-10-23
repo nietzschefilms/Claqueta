@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { CorreoPropio } from "./CorreoPropio";
+import { comoSeEntra, esCorreoDeCelular } from "@/lib/acceso";
 import { requerirSesion } from "@/lib/sesion";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { prefsDe } from "@/lib/notif-prefs";
@@ -20,7 +22,14 @@ export default async function Ajustes() {
 
       <section className="tarjeta space-y-3">
         <h2 className="titulo text-2xl">Tus datos</h2>
-        <p className="text-sm text-muted">{s.email}</p>
+        {esCorreoDeCelular(s.email) ? (
+          <>
+            <p className="text-sm text-muted">Entras con tu celular {comoSeEntra(s.email ?? "")}. Si quieres, pon tu correo:</p>
+            <CorreoPropio />
+          </>
+        ) : (
+          <p className="text-sm text-muted">{s.email}</p>
+        )}
         <FormPerfil nombre={(p?.nombre as string) ?? ""} telefono={(p?.telefono as string) ?? ""} />
       </section>
 
@@ -29,6 +38,14 @@ export default async function Ajustes() {
         <PushActivar />
         <PrefsNotif inicial={prefsDe(p?.notif_prefs)} />
       </section>
+
+      <Link href="/app/tutorial" className="tarjeta flex items-center justify-between gap-3 transition hover:bg-superficie/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rojo">
+        <span>
+          <span className="titulo block text-2xl">Recorrido de la app</span>
+          <span className="text-sm text-muted">Pantalla por pantalla, botón por botón.</span>
+        </span>
+        <span aria-hidden="true" className="text-xl text-muted">→</span>
+      </Link>
 
       {s.esSoporte && (
         <Link href="/app/soporte" className="tarjeta flex items-center justify-between gap-3 transition hover:bg-superficie/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rojo md:hidden">

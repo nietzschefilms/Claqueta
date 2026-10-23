@@ -38,7 +38,7 @@ export function Storyboard({ proyectoId, nombre, lineas, planos }: { proyectoId:
   const conPlanos = escenas.filter((e) => planos.some((p) => p.escena_id === e.id));
   const cuadros = planos.filter((p) => p.imagen).length;
 
-  if (!planos.length) return <p className="tarjeta text-sm text-muted">Primero arma la lista de planos (pestaña Planos). Cada plano se vuelve un cuadro del storyboard.</p>;
+  if (!planos.length) return <p className="tarjeta text-sm text-muted">Primero arma la lista de planos (pestaña Shotlist). Cada plano se vuelve un cuadro del storyboard.</p>;
 
   return (
     <div className="space-y-5">

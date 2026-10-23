@@ -7,28 +7,42 @@ import { estiloFrente } from "./frente-ui";
 
 type Escena = { etiqueta: string; titulo: React.ReactNode; texto: React.ReactNode; extra?: React.ReactNode };
 
-// Primera vez en Claqueta: cinco escenas, como abrir una película. Se ve una vez.
+// Primera vez en Claqueta: bienvenida a la familia Nietzsche Studios en cinco
+// escenas, como abrir una película. Se ve una vez; al final, el recorrido completo.
 export function Bienvenida({ nombre, companeros, frentes }: { nombre: string; companeros: string[]; frentes: FrenteId[] }) {
   const [i, setI] = useState(0);
   const [saliendo, setSaliendo] = useState(false);
   const [, iniciar] = useTransition();
   const primer = (nombre || "").split(" ")[0] || "";
-  const socio = companeros[0]?.split(" ")[0];
+
+  const equipo = companeros.map((c) => c.split(" ")[0]).filter(Boolean);
 
   const escenas: Escena[] = [
     {
       etiqueta: "Escena 1 · Toma 1",
       titulo: (
         <>
-          Bienvenido al set{primer ? `, ${primer}` : ""}<span className="text-rojo">.</span>
+          Bienvenido a la familia{primer ? `, ${primer}` : ""}<span className="text-rojo">.</span>
         </>
       ),
-      texto: "Claqueta es tu hoja de llamado: qué hacer hoy, a qué hora y dónde. Escuela, proyectos y dinero en un solo lugar, sin pensarle."
+      texto: "Esto es Nietzsche Studios. Aquí vive todo lo que hacemos juntos: proyectos, rodajes, llamados y tu día. Qué bueno tenerte en el set.",
+      extra: equipo.length > 0 && (
+        <div className="mt-6 flex flex-col items-center gap-2">
+          <span className="flex -space-x-2" aria-hidden="true">
+            {equipo.slice(0, 8).map((n, k) => (
+              <span key={k} className="grid h-10 w-10 place-items-center rounded-full bg-f-nietzsche text-sm font-bold text-white ring-2 ring-fondo">
+                {n.slice(0, 1).toUpperCase()}
+              </span>
+            ))}
+          </span>
+          <span className="text-sm text-muted">Ya están aquí: {new Intl.ListFormat("es-MX").format(equipo.slice(0, 8))}</span>
+        </div>
+      )
     },
     {
-      etiqueta: "Escena 2 · Tu semana",
-      titulo: "Tu horario ya está armado",
-      texto: "Tus clases están cargadas con salón y profe, y te armé una rutina con bloques para cada frente. Cinco minutos antes de cada bloque te llega el aviso. Ajústala en Semana → Editar rutina.",
+      etiqueta: "Escena 2 · Tu día",
+      titulo: "Tu día, en orden",
+      texto: "En Hoy ves qué hacer y a qué hora. En Semana, tus clases y bloques. El Tablero junta lo de tu escuela y lo de Nietzsche Studios. Tu dinero es solo tuyo: nadie más lo ve.",
       extra: (
         <div className="mt-5 flex flex-wrap justify-center gap-2">
           {frentes.map((f) => (
@@ -41,14 +55,14 @@ export function Bienvenida({ nombre, companeros, frentes }: { nombre: string; co
       )
     },
     {
-      etiqueta: "Escena 3 · Nietzsche",
-      titulo: socio ? `Nietzsche es de ${socio} y tuyo` : "Nietzsche es del equipo",
-      texto: `Cuando captures algo de Nietzsche, elige si es tuyo, ${socio ? `de ${socio}` : "de tu compañero"} o de los dos: les sale a ambos en el tablero y en su día. Si alguien te pasa una tarea, te llega el aviso.`
+      etiqueta: "Escena 3 · Estudio",
+      titulo: "Donde se hace cine",
+      texto: "En Estudio están los proyectos. En cada uno tienes un puesto (dirección, foto, cámara, arte…) y ves lo que falta, quién está en qué, la línea del tiempo, el shotlist, los llamados y el plan minuto a minuto del rodaje."
     },
     {
-      etiqueta: "Escena 4 · Dinero",
-      titulo: "Tu dinero es solo tuyo",
-      texto: "Nadie más lo ve. En Dinero agrega tus cuentas (banco, efectivo, tarjetas) con lo que tienes hoy, pon lo que te pagan seguido y anota cada gasto en diez segundos. La app te dice cuánto te queda y en qué se va."
+      etiqueta: "Escena 4 · Avisos",
+      titulo: "Te avisamos de todo",
+      texto: "Cuando te ponen en un proyecto, te pasan algo o tienes llamado, te llega un aviso. Confirma tu llamado con un toque. Activa los avisos en Ajustes para que te lleguen al celular."
     },
     {
       etiqueta: "Escena 5 · Acción",
@@ -57,7 +71,7 @@ export function Bienvenida({ nombre, companeros, frentes }: { nombre: string; co
           El punto rojo lo es todo<span className="text-rojo">.</span>
         </>
       ),
-      texto: "Cualquier idea, pendiente o tarea: toca el botón rojo y captúrala. Claqueta decide cuándo hacerla según lo urgente y tu horario.",
+      texto: "Cualquier idea, pendiente o tarea: toca el botón rojo y captúrala. Si te pierdes, en Ajustes está el recorrido completo, pantalla por pantalla.",
       extra: (
         <span className="mx-auto mt-6 grid h-16 w-16 place-items-center rounded-full bg-rojo text-3xl font-light text-white shadow-[0_16px_40px_-12px_rgb(255_0_0/0.7)]" aria-hidden="true">
           +
@@ -87,7 +101,7 @@ export function Bienvenida({ nombre, companeros, frentes }: { nombre: string; co
   if (saliendo) return null;
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Bienvenida a Claqueta" className="fixed inset-0 z-[90] flex flex-col bg-fondo text-tinta">
+    <div role="dialog" aria-modal="true" aria-label="Bienvenida a Nietzsche Studios" className="fixed inset-0 z-[90] flex flex-col bg-fondo text-tinta">
       <div className="flex items-center justify-between px-5 pt-[calc(env(safe-area-inset-top,0px)+16px)]">
         <span className="etiqueta">{e.etiqueta}</span>
         <button type="button" onClick={terminar} className="enlace-mono text-muted">
@@ -111,6 +125,18 @@ export function Bienvenida({ nombre, companeros, frentes }: { nombre: string; co
           {i > 0 && (
             <button type="button" onClick={() => setI(i - 1)} className="btn-secundario px-5">
               Atrás
+            </button>
+          )}
+          {ultima && (
+            <button
+              type="button"
+              onClick={() => {
+                terminar();
+                window.location.href = "/app/tutorial";
+              }}
+              className="btn-secundario px-5"
+            >
+              Ver el recorrido
             </button>
           )}
           <button type="button" autoFocus onClick={ultima ? terminar : () => setI(i + 1)} className="btn-rojo flex-1 py-3.5 text-base">

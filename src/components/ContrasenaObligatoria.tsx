@@ -4,10 +4,12 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { CampoContrasena } from "@/components/CampoContrasena";
 import { errorContrasena, MIN_CONTRASENA } from "@/lib/contrasena";
+import { ponerMiCorreo } from "@/app/app/ajustes/acciones";
 
 // Popup obligatorio la primera vez que alguien entra con la contraseña temporal
 // que le dio soporte. No se puede cerrar hasta que ponga una propia.
-export function ContrasenaObligatoria() {
+export function ContrasenaObligatoria({ porCelular = false }: { porCelular?: boolean }) {
+  const [correo, setCorreo] = useState("");
   const [pass, setPass] = useState("");
   const [pass2, setPass2] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -20,10 +22,21 @@ export function ContrasenaObligatoria() {
     const invalida = errorContrasena(pass);
     if (invalida) return setError(invalida);
     if (pass !== pass2) return setError("Las contraseñas no coinciden.");
+    if (correo.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo.trim())) return setError("Ese correo no es válido. Déjalo vacío si no quieres ponerlo.");
     setCargando(true);
     const { error: err } = await createClient().auth.updateUser({ password: pass, data: { pwd_set: true } });
-    setCargando(false);
+    if (err) setCargando(false);
     if (err) return setError("No se pudo guardar. Intenta con otra contraseña.");
+    if (porCelular && correo.trim()) {
+      const r = await ponerMiCorreo(correo);
+      // La contraseña ya quedó; si el correo falla, lo puede poner luego en Ajustes.
+      if (!r.ok) {
+        setCargando(false);
+        setError(`Tu contraseña quedó. El correo no: ${r.error} Puedes ponerlo después en Ajustes.`);
+        setTimeout(() => window.location.reload(), 3500);
+        return;
+      }
+    }
     setListo(true);
     setTimeout(() => window.location.reload(), 900);
   }
@@ -38,6 +51,13 @@ export function ContrasenaObligatoria() {
           <p className="alerta-ok">Listo, contraseña guardada.</p>
         ) : (
           <>
+            {porCelular && (
+              <label className="block">
+                <span className="etiqueta">Tu correo (opcional)</span>
+                <input id="pass-correo" type="email" autoComplete="email" value={correo} onChange={(e) => setCorreo(e.target.value)} placeholder="tu@correo.com" className="campo mt-1" />
+                <span className="mt-1 block text-xs text-muted">Puedes seguir entrando con tu celular.</span>
+              </label>
+            )}
             <CampoContrasena id="pass-nueva" autoComplete="new-password" required minLength={MIN_CONTRASENA} value={pass} onChange={(e) => setPass(e.target.value)} placeholder="Contraseña nueva" className="campo" />
             <CampoContrasena id="pass-repite" autoComplete="new-password" required minLength={MIN_CONTRASENA} value={pass2} onChange={(e) => setPass2(e.target.value)} placeholder="Repítela" className="campo" />
             <button type="submit" disabled={cargando} className="btn-primario w-full">{cargando ? "Guardando..." : "Guardar contraseña"}</button>
