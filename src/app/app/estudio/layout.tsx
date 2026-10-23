@@ -34,7 +34,7 @@ export default async function LayoutEstudio({ children }: { children: React.Reac
                 </span>
               ))}
             </span>
-            {personas.map((p, i) => (i === 0 ? "Tú" : p.nombre.split(" ")[0])).join(" y ")}
+            {new Intl.ListFormat("es-MX").format(personas.map((p, i) => (i === 0 ? "Tú" : p.nombre.split(" ")[0])))}
           </p>
         </div>
         <Pestanas />

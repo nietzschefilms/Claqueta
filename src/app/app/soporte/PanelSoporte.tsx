@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { buscarCuentas, cambiarActivo, cambiarRol, cambiarSoporte, crearCuenta, resetearAcceso, type Cuenta } from "./acciones";
+import { agregarAEquipo, buscarCuentas, cambiarActivo, cambiarRol, cambiarSoporte, crearCuenta, resetearAcceso, type Cuenta, type EquipoSoporte } from "./acciones";
 
 type Rol = { clave: string; label: string };
 
 // Muestra la contraseña temporal UNA vez, con botón de copiar.
 function Credencial({ correo, contrasena, onCerrar }: { correo: string; contrasena: string; onCerrar: () => void }) {
   const [copiado, setCopiado] = useState(false);
-  const texto = `Correo: ${correo}\nContraseña temporal: ${contrasena}\nAl entrar te pedirá crear la tuya.`;
+  const entrar = typeof window === "undefined" ? "/entrar" : `${window.location.origin}/entrar`;
+  const texto = `Tu acceso a Claqueta\nEntra en: ${entrar}\nCorreo: ${correo}\nContraseña temporal: ${contrasena}\nAl entrar te pedirá crear la tuya.`;
   return (
     <div className="alerta-ok space-y-2 text-tinta" role="status">
       <p className="font-semibold">Acceso listo. Compártelo por un medio privado:</p>
@@ -36,11 +37,24 @@ function Credencial({ correo, contrasena, onCerrar }: { correo: string; contrase
 
 type Invitacion = { correo: string; nombre: string | null; frentes: string[] | null };
 
-export function PanelSoporte({ inicial, roles, yo, invitaciones = [] }: { inicial: Cuenta[]; roles: Rol[]; yo: string; invitaciones?: Invitacion[] }) {
+export function PanelSoporte({
+  inicial,
+  roles,
+  yo,
+  invitaciones = [],
+  equipos = []
+}: {
+  inicial: Cuenta[];
+  roles: Rol[];
+  yo: string;
+  invitaciones?: Invitacion[];
+  equipos?: EquipoSoporte[];
+}) {
   const [pendientes, setPendientes] = useState(invitaciones);
   const [cuentas, setCuentas] = useState(inicial);
   const [q, setQ] = useState("");
-  const [nuevo, setNuevo] = useState({ correo: "", nombre: "", rol: roles[roles.length - 1]?.clave ?? "" });
+  const [nuevo, setNuevo] = useState({ correo: "", nombre: "", rol: roles[roles.length - 1]?.clave ?? "", equipoId: equipos[0]?.id ?? "" });
+  const nombreEquipo = (id: string) => equipos.find((e) => e.id === id)?.nombre ?? "Equipo";
   const [cred, setCred] = useState<{ correo: string; contrasena: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
@@ -99,7 +113,7 @@ export function PanelSoporte({ inicial, roles, yo, invitaciones = [] }: { inicia
       <section className="tarjeta space-y-3">
         <h2 className="titulo text-2xl">Crear cuenta</h2>
         <form
-          className="grid gap-3 sm:grid-cols-[1fr_1fr_auto_auto]"
+          className="grid gap-3 sm:grid-cols-[1fr_1fr_auto_auto_auto]"
           onSubmit={(e) => {
             e.preventDefault();
             iniciar(async () => {
@@ -118,8 +132,13 @@ export function PanelSoporte({ inicial, roles, yo, invitaciones = [] }: { inicia
           <select id="nuevo-rol" value={nuevo.rol} onChange={(e) => setNuevo({ ...nuevo, rol: e.target.value })} className="campo" aria-label="Rol">
             {roles.map((r) => <option key={r.clave} value={r.clave}>{r.label}</option>)}
           </select>
-          <button type="submit" disabled={pendiente} className="btn-primario">Crear</button>
+          <select id="nuevo-equipo" value={nuevo.equipoId} onChange={(e) => setNuevo({ ...nuevo, equipoId: e.target.value })} className="campo" aria-label="Equipo">
+            {equipos.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+            <option value="">Sin equipo</option>
+          </select>
+          <button type="submit" disabled={pendiente} className="btn-primario">{pendiente ? "Creando…" : "Crear"}</button>
         </form>
+        <p className="text-xs text-muted">Con equipo, la persona ve Estudio: agenda, Radar y proyectos. Al crearla te sale su acceso para mandárselo por WhatsApp.</p>
         {cred && pendientes.length === invitaciones.length && <Credencial {...cred} onCerrar={() => setCred(null)} />}
         {error && <p className="alerta-error" role="alert">{error}</p>}
       </section>
@@ -134,11 +153,12 @@ export function PanelSoporte({ inicial, roles, yo, invitaciones = [] }: { inicia
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
+          <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="etiqueta">
               <tr>
                 <th className="py-2 pr-3">Persona</th>
                 <th className="py-2 pr-3">Rol</th>
+                <th className="py-2 pr-3">Equipo</th>
                 <th className="py-2 pr-3">Estado</th>
                 <th className="py-2">Acciones</th>
               </tr>
@@ -160,6 +180,17 @@ export function PanelSoporte({ inicial, roles, yo, invitaciones = [] }: { inicia
                     >
                       {roles.map((r) => <option key={r.clave} value={r.clave}>{r.label}</option>)}
                     </select>
+                  </td>
+                  <td className="py-3 pr-3">
+                    {c.equipos.length > 0 ? (
+                      c.equipos.map(nombreEquipo).join(", ")
+                    ) : equipos[0] && c.activo ? (
+                      <button className="btn-secundario px-3 py-1.5" disabled={pendiente} onClick={() => ejecutar(() => agregarAEquipo(c.id, equipos[0].id))}>
+                        Meter a {equipos[0].nombre}
+                      </button>
+                    ) : (
+                      <span className="text-muted">Sin equipo</span>
+                    )}
                   </td>
                   <td className="py-3 pr-3">
                     {c.activo ? "Activa" : "Desactivada"}
@@ -195,7 +226,7 @@ export function PanelSoporte({ inicial, roles, yo, invitaciones = [] }: { inicia
                 </tr>
               ))}
               {cuentas.length === 0 && (
-                <tr><td colSpan={4} className="py-6 text-center text-muted">No hay cuentas con esa búsqueda.</td></tr>
+                <tr><td colSpan={5} className="py-6 text-center text-muted">No hay cuentas con esa búsqueda.</td></tr>
               )}
             </tbody>
           </table>
