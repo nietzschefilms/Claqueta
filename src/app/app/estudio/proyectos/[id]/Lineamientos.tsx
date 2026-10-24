@@ -37,7 +37,7 @@ export function Lineamientos({ proyectoId, lineamientos, planos, puedeEditar, co
       </div>
       {filas.length > 0 && (
         <ul className="divide-y divide-borde/60">
-          {(compacto ? filas.filter((f) => f.auto || !f.ok) : filas).map((f) => (
+          {(compacto ? filas.filter((f) => f.auto) : filas).map((f) => (
             <li key={f.id} className="flex items-start gap-3 py-2.5">
               {f.auto ? (
                 <span className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold text-white ${f.ok ? "bg-ok" : "bg-rojo"}`} aria-label={f.ok ? "Se cumple" : "No se cumple"}>

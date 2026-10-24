@@ -81,7 +81,8 @@ export default async function PaginaProyecto({ params, searchParams }: { params:
   const miembros = [{ id: s.userId, nombre: perfil.nombre || s.nombre || "Yo" }, ...perfil.companeros.filter((c) => c.equipo_id === proyecto.equipo_id)];
   const nombresPub = Object.fromEntries(miembros.map((m) => [m.id, m.id === s.userId ? "ti" : m.nombre.split(" ")[0]]));
   const nombreDePuesto = (puesto: string) => {
-    const m = datos.miembros.find((x) => x.puesto === puesto);
+    // Sin ese puesto (proyecto personal): el productor.
+    const m = datos.miembros.find((x) => x.puesto === puesto) ?? datos.miembros.find((x) => x.puesto === "productor");
     return m ? (miembros.find((x) => x.id === m.user_id)?.nombre.split(" ")[0] ?? "—") : "—";
   };
   const diasRodaje = [...new Set(rodaje.map((r) => r.dia).filter((d): d is string => !!d))].sort();

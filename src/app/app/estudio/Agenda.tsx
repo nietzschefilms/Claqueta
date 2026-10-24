@@ -161,7 +161,7 @@ function FormEvento({ equipoId, miembros, yo, hoy, inicial, ocupados = [] }: { e
           </button>
         ))}
       </div>
-      <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2">
+      <div className="grid grid-cols-2 gap-2 [&>input:first-child]:col-span-2">
         <input type="date" name="fecha" required min={hoy} defaultValue={inicial?.fecha ?? hoy} onChange={(e) => setCuando((c) => ({ ...c, fecha: e.target.value }))} aria-label="Fecha" className="campo rounded-full py-2.5 font-mono text-sm" />
         <input type="time" name="inicio" required defaultValue={inicial?.inicio ?? ""} onChange={(e) => setCuando((c) => ({ ...c, inicio: e.target.value }))} aria-label="Empieza" className="campo rounded-full py-2.5 font-mono text-sm" />
         <input type="time" name="fin" required defaultValue={inicial?.fin ?? ""} onChange={(e) => setCuando((c) => ({ ...c, fin: e.target.value }))} aria-label="Termina" className="campo rounded-full py-2.5 font-mono text-sm" />
