@@ -1,6 +1,7 @@
 import "server-only";
 import type { ReactElement } from "react";
-import { Image, Text, View } from "@react-pdf/renderer";
+import { Circle, G, Image, Line, Polygon, Rect, Svg, Text, Text as SvgText, View } from "@react-pdf/renderer";
+import { ALTO, ANCHO, CUADRO, type Elemento } from "@/lib/claqueta/floorplan";
 import type { cargarProyecto, Evento } from "@/lib/claqueta/datos-estudio";
 import { escenasDe, paginas, type Escena, type Linea } from "@/lib/claqueta/estudio";
 import { idsReparto, nombreCuenta, topsheet, totalLinea } from "@/lib/claqueta/produccion";
@@ -437,3 +438,152 @@ export function Lineamientos(ctx: Contexto, d: Datos) {
 }
 
 export type Pdf = (ctx: Contexto) => ReactElement;
+
+// ─── Guion técnico (toma por toma, con la foto de "tu toma") ────────────
+export function GuionTecnico(ctx: Contexto, d: Datos) {
+  const escenas = escenasDe(d.lineas).filter((s) => d.planos.some((p) => p.escena_id === s.id));
+  return (
+    <Hoja ctx={{ ...ctx, meta: `${d.planos.length} tomas` }}>
+      {escenas.map((s) => (
+        <Seccion key={s.id} t={`${s.numero} · ${s.texto}`}>
+          {d.planos
+            .filter((p) => p.escena_id === s.id)
+            .map((p) => (
+              <View key={p.id} style={[e.fila, { alignItems: "flex-start", paddingVertical: 6 }]} wrap={false}>
+                <Text style={[e.monoFuerte, { width: 34, fontSize: 11 }]}>{`${s.numero}${letra(p.numero)}`}</Text>
+                <View style={{ width: 128, height: 72, marginRight: 10, backgroundColor: C.suave, borderRadius: 3, overflow: "hidden", justifyContent: "center", alignItems: "center" }}>
+                  {p.imagenUrl ? <Image src={p.imagenUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <Text style={e.etiqueta}>Sin foto</Text>}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
+                    {[p.tamano, p.angulo, p.movimiento, p.lente].filter(Boolean).map((x) => (
+                      <Text key={x as string} style={e.chip}>{x as string}</Text>
+                    ))}
+                  </View>
+                  <Text style={{ marginTop: 5 }}>{p.descripcion || "Sin acción escrita."}</Text>
+                </View>
+              </View>
+            ))}
+        </Seccion>
+      ))}
+      {!escenas.length && <Text style={e.vacio}>Todavía no hay tomas en el guion técnico.</Text>}
+    </Hoja>
+  );
+}
+
+// ─── Floor plan (planta vista desde arriba, una hoja por escena) ────────
+const rad = (g: number) => (g * Math.PI) / 180;
+function DibujoElemento({ x: el }: { x: Elemento }) {
+  const rot = `rotate(${el.rot} ${el.x} ${el.y})`;
+  switch (el.tipo) {
+    case "personaje": {
+      const nx = el.x + Math.cos(rad(el.rot)) * 24;
+      const ny = el.y + Math.sin(rad(el.rot)) * 24;
+      return (
+        <G>
+          <Polygon points={`${el.x + Math.cos(rad(el.rot - 28)) * 13},${el.y + Math.sin(rad(el.rot - 28)) * 13} ${nx},${ny} ${el.x + Math.cos(rad(el.rot + 28)) * 13},${el.y + Math.sin(rad(el.rot + 28)) * 13}`} fill={C.negro} />
+          <Circle cx={el.x} cy={el.y} r={14} fill={C.hueso} stroke={C.negro} strokeWidth={2} />
+          <SvgText x={el.x} y={el.y + 30} style={{ fontSize: 11, fontFamily: "PublicSans", fontWeight: 600 }} textAnchor="middle" fill={C.negro}>{el.etiqueta}</SvgText>
+        </G>
+      );
+    }
+    case "camara": {
+      const fov = el.fov ?? 50;
+      const largo = 120;
+      const a = `${el.x + Math.cos(rad(el.rot - fov / 2)) * largo},${el.y + Math.sin(rad(el.rot - fov / 2)) * largo}`;
+      const b = `${el.x + Math.cos(rad(el.rot + fov / 2)) * largo},${el.y + Math.sin(rad(el.rot + fov / 2)) * largo}`;
+      return (
+        <G>
+          <Polygon points={`${el.x},${el.y} ${a} ${b}`} fill={C.rojo} fillOpacity={0.12} stroke={C.rojo} strokeWidth={1} strokeOpacity={0.5} />
+          <G transform={rot}>
+            <Rect x={el.x - 14} y={el.y - 10} width={22} height={20} rx={3} fill={C.negro} />
+            <Polygon points={`${el.x + 8},${el.y - 6} ${el.x + 18},${el.y - 11} ${el.x + 18},${el.y + 11} ${el.x + 8},${el.y + 6}`} fill={C.negro} />
+          </G>
+          <Circle cx={el.x - 18} cy={el.y - 18} r={10} fill={C.rojo} />
+          <SvgText x={el.x - 18} y={el.y - 14} style={{ fontSize: 10, fontFamily: "Plex", fontWeight: 600 }} textAnchor="middle" fill={C.papel}>{el.numero ? String(el.numero) : "C"}</SvgText>
+        </G>
+      );
+    }
+    case "luz":
+      return (
+        <G>
+          <Polygon points={`${el.x},${el.y} ${el.x + Math.cos(rad(el.rot - 20)) * 70},${el.y + Math.sin(rad(el.rot - 20)) * 70} ${el.x + Math.cos(rad(el.rot + 20)) * 70},${el.y + Math.sin(rad(el.rot + 20)) * 70}`} fill="#F5B700" fillOpacity={0.18} />
+          <Circle cx={el.x} cy={el.y} r={11} fill="#F5B700" stroke={C.negro} strokeWidth={1.5} />
+          {el.etiqueta ? <SvgText x={el.x} y={el.y + 25} style={{ fontSize: 10, fontFamily: "PublicSans" }} textAnchor="middle" fill={C.gris}>{el.etiqueta}</SvgText> : null}
+        </G>
+      );
+    case "mueble": {
+      const w = el.w ?? 80;
+      const h = el.h ?? 50;
+      return (
+        <G transform={rot}>
+          <Rect x={el.x - w / 2} y={el.y - h / 2} width={w} height={h} fill={C.suave} stroke={C.gris} strokeWidth={1.5} />
+          {el.etiqueta ? <SvgText x={el.x} y={el.y + 4} style={{ fontSize: 10, fontFamily: "PublicSans" }} textAnchor="middle" fill={C.gris}>{el.etiqueta}</SvgText> : null}
+        </G>
+      );
+    }
+    case "pared":
+      return <Line x1={el.x} y1={el.y} x2={el.x2 ?? el.x} y2={el.y2 ?? el.y} stroke={C.negro} strokeWidth={6} strokeLinecap="square" />;
+    case "puerta":
+      return <Line x1={el.x} y1={el.y} x2={el.x2 ?? el.x} y2={el.y2 ?? el.y} stroke={C.gris} strokeWidth={4} strokeDasharray="6,4" />;
+    case "flecha": {
+      const x2 = el.x2 ?? el.x;
+      const y2 = el.y2 ?? el.y;
+      const ang = Math.atan2(y2 - el.y, x2 - el.x);
+      const color = el.de === "camara" ? C.rojo : C.negro;
+      const p1 = `${x2 - Math.cos(ang - 0.45) * 14},${y2 - Math.sin(ang - 0.45) * 14}`;
+      const p2 = `${x2 - Math.cos(ang + 0.45) * 14},${y2 - Math.sin(ang + 0.45) * 14}`;
+      return (
+        <G>
+          <Line x1={el.x} y1={el.y} x2={x2} y2={y2} stroke={color} strokeWidth={2.5} strokeDasharray={el.de === "camara" ? "8,6" : undefined} />
+          <Polygon points={`${x2},${y2} ${p1} ${p2}`} fill={color} />
+        </G>
+      );
+    }
+    default:
+      return null;
+  }
+}
+
+export function FloorPlan(ctx: Contexto, d: Datos, planes: { escena_id: string; elementos: Elemento[] }[]) {
+  const escenas = escenasDe(d.lineas).filter((s) => planes.some((p) => p.escena_id === s.id && p.elementos.length));
+  const lineas: ReactElement[] = [];
+  for (let x = 0; x <= ANCHO; x += CUADRO) lineas.push(<Line key={`x${x}`} x1={x} y1={0} x2={x} y2={ALTO} stroke={C.linea} strokeWidth={0.6} />);
+  for (let y = 0; y <= ALTO; y += CUADRO) lineas.push(<Line key={`y${y}`} x1={0} y1={y} x2={ANCHO} y2={y} stroke={C.linea} strokeWidth={0.6} />);
+  return (
+    <Hoja ctx={{ ...ctx, horizontal: true, meta: "Planta vista desde arriba · cada cuadro mide unos 50 cm" }}>
+      {escenas.map((s, i) => {
+        const els = planes.find((p) => p.escena_id === s.id)!.elementos;
+        const camaras = els.filter((x) => x.tipo === "camara").sort((a, b) => (a.numero ?? 99) - (b.numero ?? 99));
+        return (
+          <View key={s.id} break={i > 0} wrap={false}>
+            <Text style={e.seccion}>{`${s.numero} · ${s.texto}`}</Text>
+            <View style={{ flexDirection: "row", gap: 14 }}>
+              <Svg viewBox={`0 0 ${ANCHO} ${ALTO}`} style={{ width: 520, height: 390, borderWidth: 1, borderColor: C.linea }}>
+                <Rect x={0} y={0} width={ANCHO} height={ALTO} fill={C.papel} />
+                {lineas}
+                {[...els].sort((a, b) => ORDEN[a.tipo] - ORDEN[b.tipo]).map((x) => (
+                  <DibujoElemento key={x.id} x={x} />
+                ))}
+              </Svg>
+              <View style={{ flex: 1 }}>
+                <Text style={e.etiqueta}>Cámaras</Text>
+                {camaras.map((c) => (
+                  <Text key={c.id} style={{ marginTop: 3 }}>{`${c.numero ? `Toma ${c.numero}` : "Cámara"}${c.etiqueta ? ` · ${c.etiqueta}` : ""}`}</Text>
+                ))}
+                {!camaras.length && <Text style={[e.muted, { marginTop: 3 }]}>Sin cámaras.</Text>}
+                <Text style={[e.etiqueta, { marginTop: 12 }]}>Simbología</Text>
+                <Text style={{ marginTop: 3, fontSize: 8.5 }}>Círculo con nariz: personaje y hacia dónde mira.</Text>
+                <Text style={{ fontSize: 8.5 }}>Cámara negra con número rojo: la toma; el abanico es lo que ve.</Text>
+                <Text style={{ fontSize: 8.5 }}>Flecha negra: movimiento de actor. Roja punteada: de cámara.</Text>
+                <Text style={{ fontSize: 8.5 }}>Amarillo: luces. Gris: muebles, paredes y puertas.</Text>
+              </View>
+            </View>
+          </View>
+        );
+      })}
+      {!escenas.length && <Text style={e.vacio}>Todavía no hay floor plans.</Text>}
+    </Hoja>
+  );
+}
+const ORDEN: Record<Elemento["tipo"], number> = { mueble: 0, pared: 1, puerta: 1, luz: 2, flecha: 3, camara: 4, personaje: 5 };

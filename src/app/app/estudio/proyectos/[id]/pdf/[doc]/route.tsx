@@ -1,6 +1,6 @@
 import { renderToBuffer } from "@react-pdf/renderer";
 import { requerirSesion } from "@/lib/sesion";
-import { cargarEventos, cargarProyecto } from "@/lib/claqueta/datos-estudio";
+import { cargarEventos, cargarFloorPlans, cargarProyecto } from "@/lib/claqueta/datos-estudio";
 import { cargarPerfil } from "@/lib/claqueta/datos";
 import { lineasConPublicado, type Linea } from "@/lib/claqueta/estudio";
 import { fechaCDMX, sumarDias } from "@/lib/claqueta/fechas";
@@ -18,6 +18,8 @@ const DOCS: Record<string, Doc> = {
   guion: { t: "Guion", ve: "todos" },
   shotlist: { t: "Shotlist", ve: "todos" },
   storyboard: { t: "Storyboard", ve: "todos" },
+  tecnico: { t: "Guion técnico", ve: "todos" },
+  floorplan: { t: "Floor plan", ve: "todos" },
   dia: { t: "Minuto a minuto", ve: "todos" },
   llamado: { t: "Hoja de llamado", ve: "todos" },
   llamados: { t: "Crew call y casting", ve: "todos" },
@@ -72,6 +74,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     }
     case "shotlist": pdf = D.Shotlist(ctx, d); break;
     case "storyboard": pdf = D.Storyboard(ctx, d); break;
+    case "tecnico": pdf = D.GuionTecnico(ctx, d); break;
+    case "floorplan": pdf = D.FloorPlan(ctx, d, (await cargarFloorPlans(id)).planes); break;
     case "dia": pdf = D.MinutoAMinuto(ctx, d); break;
     case "llamado": pdf = D.HojaDeLlamado(ctx, d, await extra()); break;
     case "llamados": pdf = D.Llamados(ctx, d, await extra()); break;

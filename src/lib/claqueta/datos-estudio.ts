@@ -2,6 +2,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { sumarDias } from "./fechas";
 import type { Linea, Ocupado } from "./estudio";
+import { validarElementos, type Elemento } from "./floorplan";
 
 // Lecturas del Estudio con el cliente de sesión: RLS deja ver solo lo del equipo.
 
@@ -252,6 +253,21 @@ export async function cargarProyecto(id: string) {
     presupuesto: (pr.data ?? []) as LineaPres[],
     reportes: (rep.data ?? []) as ReporteRodaje[]
   };
+}
+
+// Floor plans del proyecto (0027), uno por escena. Solo se pide en esa vista.
+// Si la tabla aún no existe o falla la lectura, sale vacío (la vista avisa).
+export type FloorPlanGuardado = { escena_id: string; elementos: Elemento[]; actualizado_en: string };
+export async function cargarFloorPlans(proyectoId: string): Promise<{ planes: FloorPlanGuardado[]; error: boolean }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("floor_plans").select("escena_id, elementos, actualizado_en").eq("proyecto_id", proyectoId);
+  if (error) return { planes: [], error: true };
+  // Lo guardado ya pasó por validarElementos, pero se revisa otra vez al leer.
+  const planes = (data ?? []).map((x) => {
+    const v = validarElementos(x.elementos);
+    return { escena_id: x.escena_id as string, elementos: v.ok ? v.elementos : [], actualizado_en: x.actualizado_en as string };
+  });
+  return { planes, error: false };
 }
 
 // HOY · lo de producción que es de una persona: sus llamados que vienen y lo

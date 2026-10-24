@@ -3,24 +3,11 @@
 import { useMemo, useState, useTransition } from "react";
 import { agregarPlano, archivarPersona, archivarPlano, editarPlano, guardarLocacion, guardarPersona } from "../../acciones";
 import { escenasDe, paginas, type Linea } from "@/lib/claqueta/estudio";
-import { MOVIMIENTOS, idsReparto } from "@/lib/claqueta/produccion";
+import { MOVIMIENTOS, TAMANOS, idsReparto } from "@/lib/claqueta/produccion";
 import { guardarReglas } from "./acciones-equipo";
 import type { Locacion, PersonaProyecto, Plano } from "@/lib/claqueta/datos-estudio";
 import { colorTira } from "./Produccion";
 
-const TAMANOS = [
-  { v: "GPG", t: "Gran plano general" },
-  { v: "PG", t: "Plano general" },
-  { v: "PC", t: "Plano conjunto" },
-  { v: "PA", t: "Plano americano" },
-  { v: "PM", t: "Plano medio" },
-  { v: "PMC", t: "Plano medio corto" },
-  { v: "PP", t: "Primer plano" },
-  { v: "PPP", t: "Primerísimo primer plano" },
-  { v: "PD", t: "Plano detalle" },
-  { v: "INSERT", t: "Insert" },
-  { v: "OTRO", t: "Otro" }
-];
 const hm = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60}` : ""}`);
 
 function useGuardar() {
@@ -35,7 +22,7 @@ function useGuardar() {
 }
 
 // ─── Lista de planos ─────────────────────────────────────────────────────
-type Reglas = { max: number | null; permitidos: string[] | null; editar: boolean };
+export type Reglas = { max: number | null; permitidos: string[] | null; editar: boolean };
 
 export function ListaPlanos({ proyectoId, lineas, planos, reglas }: { proyectoId: string; lineas: Linea[]; planos: Plano[]; reglas?: Reglas }) {
   const escenas = useMemo(() => escenasDe(lineas), [lineas]);
@@ -320,7 +307,7 @@ function NuevoCrew({ onAgregar }: { onAgregar: (nombre: string, rol: string) => 
 }
 
 // Reglas del ejercicio: tope de planos y movimientos que valen.
-function ReglasShotlist({ proyectoId, reglas, fuera }: { proyectoId: string; reglas: Reglas; fuera: number }) {
+export function ReglasShotlist({ proyectoId, reglas, fuera }: { proyectoId: string; reglas: Reglas; fuera: number }) {
   const [abierto, setAbierto] = useState(false);
   const [max, setMax] = useState(reglas.max ? String(reglas.max) : "");
   const [permitidos, setPermitidos] = useState<string[]>(reglas.permitidos ?? []);

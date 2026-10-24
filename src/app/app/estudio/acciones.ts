@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { esFechaISO, fechaCDMX, horaAMinutos } from "@/lib/claqueta/fechas";
 import { notificar } from "@/lib/notificaciones";
 import { AVANCE_BASE } from "@/lib/claqueta/puestos";
+import { TAMANOS as TAMANOS_PLANO } from "@/lib/claqueta/produccion";
 import { ESTADOS_PROSPECTO, type EstadoProspecto } from "@/lib/claqueta/datos-estudio";
 import { deFountain, escenasDe, sugerirPlan, TIPOS_LINEA, type Linea, type TipoLinea } from "@/lib/claqueta/estudio";
 
@@ -350,7 +351,7 @@ export async function renumerarGuion(proyectoId: string): Promise<Resultado> {
 
 // ─── Producción: presupuesto, planos, gente y locaciones ────────────────
 const UNIDADES = ["día", "semana", "hora", "pieza", "fijo", "km", "persona"];
-const TAMANOS = ["GPG", "PG", "PC", "PA", "PM", "PMC", "PP", "PPP", "PD", "INSERT", "OTRO"];
+const TAMANOS: string[] = TAMANOS_PLANO.map((t) => t.v);
 const numero = (v: unknown, max: number, decimales = 2) => {
   const t = String(v ?? "").replace(/[$,\s]/g, "");
   if (t === "") return 0;
@@ -569,10 +570,11 @@ export async function agregarPlano(proyectoId: string, escenaId: string, c: Camp
   if (!v.ok) return v;
   const supabase = await createClient();
   const { count } = await supabase.from("planos").select("id", { count: "exact", head: true }).eq("escena_id", escenaId).is("archivado_at", null);
-  const { error } = await supabase.from("planos").insert({ proyecto_id: proyectoId, escena_id: escenaId, numero: (count ?? 0) + 1, orden: (count ?? 0) + 1, ...v.datos });
-  if (error) return { ok: false, error: "No se guardó el plano." };
+  // Regresa el id: el guion técnico sube la foto de la toma justo después.
+  const { data, error } = await supabase.from("planos").insert({ proyecto_id: proyectoId, escena_id: escenaId, numero: (count ?? 0) + 1, orden: (count ?? 0) + 1, ...v.datos }).select("id").single();
+  if (error || !data) return { ok: false, error: "No se guardó el plano." };
   tocarProyecto(proyectoId);
-  return { ok: true };
+  return { ok: true, id: data.id as string };
 }
 
 export async function editarPlano(proyectoId: string, id: string, c: CamposPlano): Promise<Resultado> {
