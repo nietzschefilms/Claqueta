@@ -7,7 +7,8 @@ import { cargarEventos, cargarFloorPlans, cargarProyecto } from "@/lib/claqueta/
 import { escenasDe, esNoche, lineasConPublicado, paginas } from "@/lib/claqueta/estudio";
 import { fechaCDMX, minutosAhoraCDMX, sumarDias } from "@/lib/claqueta/fechas";
 import { Guion } from "./Guion";
-import { BotonImprimir, DesgloseEscenas, EstadoProyecto, Logline, PlanRodaje, nombreCategoria } from "./Produccion";
+import { BotonImprimir, DesgloseEscenas, EstadoProyecto, Logline, PlanRodaje } from "./Produccion";
+import { nombreCategoria } from "@/lib/claqueta/produccion";
 import { Presupuesto } from "./Presupuesto";
 import { Gente, ListaPlanos } from "./Rodaje";
 import { Storyboard } from "./Storyboard";
