@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
-import { agregarAvance, agregarDocumento, archivarAvance, archivarDocumento, asignarPuesto, cargarAvanceBase, confirmarMiLlamado, editarAvance, quitarPuesto } from "./acciones-equipo";
+import { agregarAvance, agregarDocumento, archivarAvance, archivarDocumento, asignarPuesto, cargarAvanceBase, confirmarMiLlamado, editarAvance, quitarPuesto, registrarArchivo } from "./acciones-equipo";
+import { createClient } from "@/lib/supabase/client";
 import { PUESTOS, nombrePuesto, type Permisos } from "@/lib/claqueta/puestos";
 import type { Avance, Documento, Evento, MiembroProyecto, PersonaProyecto } from "@/lib/claqueta/datos-estudio";
 
@@ -37,7 +39,8 @@ export function Resumen({
   eventos,
   llamados,
   permisos,
-  hoy
+  hoy,
+  herramientas = []
 }: {
   proyectoId: string;
   yo: string;
@@ -49,6 +52,7 @@ export function Resumen({
   llamados: PersonaProyecto[];
   permisos: Permisos;
   hoy: string;
+  herramientas?: { href: string; t: string; d: string; editas: boolean }[];
 }) {
   const { error, pendiente, correr } = useAccion();
   const nombre = (id: string | null) => (id ? personas.find((p) => p.id === id)?.nombre.split(" ")[0] ?? "Alguien" : null);
@@ -84,6 +88,29 @@ export function Resumen({
         </section>
       ))}
 
+      {/* Herramientas del proyecto, a un toque */}
+      {herramientas.length > 0 && (
+        <nav aria-label="Herramientas del proyecto">
+          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+            {herramientas.map((h) => (
+              <li key={h.href}>
+                <Link
+                  href={h.href}
+                  className="tarjeta group flex h-full flex-col gap-1 p-4 transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rojo"
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="titulo text-xl leading-tight">{h.t}</span>
+                    <span aria-hidden="true" className="text-muted transition group-hover:translate-x-0.5 group-hover:text-tinta">→</span>
+                  </span>
+                  <span className="text-xs text-muted">{h.d}</span>
+                  <span className={`mt-auto pt-1 text-[10px] font-semibold uppercase tracking-wider ${h.editas ? "text-rojo" : "text-muted"}`}>{h.editas ? "Tú editas" : "Solo ves"}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
+
       {/* Avance general */}
       <section className="tarjeta space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
@@ -112,7 +139,7 @@ export function Resumen({
         <section className="tarjeta p-0">
           <header className="px-5 pb-2 pt-5">
             <h3 className="titulo text-2xl">Lo que falta y lo que está listo</h3>
-            <p className="text-sm text-muted">Tómalo: ponte de responsable y cámbialo a En proceso. Cuando quede, márcalo Listo. Todo el equipo lo ve.</p>
+            <p className="text-sm text-muted">Toca el círculo para avanzar: Falta → En proceso → Listo. Al tomarlo quedas de responsable.</p>
           </header>
           {avance.length === 0 && (
             <div className="px-5 pb-5">
@@ -122,55 +149,59 @@ export function Resumen({
             </div>
           )}
           <ul className="divide-y divide-borde/60">
-            {avance.map((a) => (
-              <li key={a.id} className="space-y-2 px-5 py-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className={`font-semibold ${a.estado === "listo" ? "text-muted line-through decoration-ok/60" : ""}`}>{a.titulo}</p>
-                  <div className="flex gap-1" role="group" aria-label={`Estado de ${a.titulo}`}>
-                    {ESTADOS.map((e) => (
-                      <button
-                        key={e.v}
-                        type="button"
-                        aria-pressed={a.estado === e.v}
-                        disabled={pendiente}
-                        onClick={() => a.estado !== e.v && correr(() => editarAvance(proyectoId, a.id, { estado: e.v, ...(e.v === "en_proceso" && !a.responsable ? { responsable: yo } : {}) }))}
-                        className={`rounded-full px-3 py-1 text-xs font-semibold transition ${a.estado === e.v ? e.clase : "bg-tinta/[0.06] text-muted hover:text-tinta"}`}
-                      >
-                        {e.t}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <select
-                    value={a.responsable ?? ""}
+            {avance.map((a) => {
+              const sig = a.estado === "falta" ? "en_proceso" : a.estado === "en_proceso" ? "listo" : "falta";
+              const vencido = a.fecha_limite && a.fecha_limite < hoy && a.estado !== "listo";
+              return (
+                <li key={a.id} className="flex items-center gap-3 px-5 py-3">
+                  <button
+                    type="button"
                     disabled={pendiente}
-                    onChange={(e) => correr(() => editarAvance(proyectoId, a.id, { responsable: e.target.value || null }))}
-                    aria-label={`Quién trabaja en ${a.titulo}`}
-                    className="campo w-auto rounded-full py-1.5 text-xs"
+                    onClick={() => correr(() => editarAvance(proyectoId, a.id, { estado: sig, ...(sig === "en_proceso" && !a.responsable ? { responsable: yo } : {}) }))}
+                    aria-label={`${a.titulo}: ${ESTADOS.find((e) => e.v === a.estado)?.t}. Toca para pasar a ${ESTADOS.find((e) => e.v === sig)?.t}.`}
+                    title="Toca para avanzar: Falta → En proceso → Listo"
+                    className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border-2 transition active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rojo ${
+                      a.estado === "listo" ? "border-ok bg-ok text-white" : a.estado === "en_proceso" ? "border-aviso" : "border-rojo"
+                    }`}
                   >
-                    <option value="">Nadie lo ha tomado</option>
-                    {personas.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.id === yo ? "Yo" : p.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="date"
-                    defaultValue={a.fecha_limite ?? ""}
-                    aria-label={`Fecha límite de ${a.titulo}`}
-                    onBlur={(e) => e.target.value !== (a.fecha_limite ?? "") && correr(() => editarAvance(proyectoId, a.id, { fecha_limite: e.target.value || null }))}
-                    className="campo w-auto rounded-full py-1.5 font-mono text-xs"
-                  />
-                  {a.fecha_limite && a.fecha_limite < hoy && a.estado !== "listo" && <span className="font-semibold text-rojo">Vencido</span>}
-                  {a.actualizado_por && (a.estado !== "falta" || a.responsable) && <span className="text-muted">Movió {nombre(a.actualizado_por)}</span>}
-                  <button type="button" aria-label={`Quitar ${a.titulo}`} onClick={() => correr(() => archivarAvance(proyectoId, a.id))} className="ml-auto text-muted hover:text-tinta">
+                    {a.estado === "listo" && <span className="text-sm leading-none">✓</span>}
+                    {a.estado === "en_proceso" && <span className="h-3.5 w-3.5 rounded-full bg-aviso" />}
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <p className={`truncate font-semibold leading-tight ${a.estado === "listo" ? "text-muted line-through decoration-ok/60" : ""}`}>{a.titulo}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                      <select
+                        value={a.responsable ?? ""}
+                        disabled={pendiente}
+                        onChange={(e) => correr(() => editarAvance(proyectoId, a.id, { responsable: e.target.value || null }))}
+                        aria-label={`Quién trabaja en ${a.titulo}`}
+                        className={`max-w-[11rem] cursor-pointer truncate rounded-full bg-transparent py-0.5 pr-1 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-rojo ${a.responsable ? "text-tinta" : "text-muted"}`}
+                      >
+                        <option value="">Nadie lo ha tomado</option>
+                        {personas.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.id === yo ? "Yo" : p.nombre}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="text-muted" aria-hidden="true">·</span>
+                      <input
+                        type="date"
+                        defaultValue={a.fecha_limite ?? ""}
+                        aria-label={`Fecha límite de ${a.titulo}`}
+                        onBlur={(e) => e.target.value !== (a.fecha_limite ?? "") && correr(() => editarAvance(proyectoId, a.id, { fecha_limite: e.target.value || null }))}
+                        className={`w-[7.5rem] rounded-full bg-transparent py-0.5 font-mono focus-visible:outline focus-visible:outline-2 focus-visible:outline-rojo ${vencido ? "font-semibold text-rojo" : a.fecha_limite ? "text-tinta" : "text-muted"}`}
+                      />
+                      {vencido && <span className="font-semibold text-rojo">Vencido</span>}
+                    </div>
+                  </div>
+                  <span className={`hidden shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold sm:inline ${ESTADOS.find((e) => e.v === a.estado)?.clase}`}>{ESTADOS.find((e) => e.v === a.estado)?.t}</span>
+                  <button type="button" aria-label={`Quitar ${a.titulo}`} onClick={() => correr(() => archivarAvance(proyectoId, a.id))} className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted hover:bg-tinta/[0.06] hover:text-tinta">
                     ✕
                   </button>
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
           <NuevoAvance onAgregar={(t) => correr(() => agregarAvance(proyectoId, t))} />
         </section>
@@ -312,7 +343,8 @@ function Documentos({ proyectoId, yo, documentos, direccion, correr, pendiente }
       <ul className="space-y-1.5">
         {documentos.map((d) => (
           <li key={d.id} className="flex items-center gap-2">
-            <a href={d.url} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate text-sm font-semibold underline decoration-tinta/30 underline-offset-2">
+            {d.ruta && <span className="rounded bg-tinta/[0.08] px-1.5 py-0.5 font-mono text-[10px] uppercase">{d.tipo_archivo?.includes("pdf") ? "PDF" : "Archivo"}</span>}
+            <a href={d.url ?? "#"} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 truncate text-sm font-semibold underline decoration-tinta/30 underline-offset-2">
               {d.titulo}
             </a>
             {d.solo_direccion && <span className="rounded-full bg-tinta/[0.06] px-2 py-0.5 text-[10px] font-semibold">Dirección</span>}
@@ -324,6 +356,7 @@ function Documentos({ proyectoId, yo, documentos, direccion, correr, pendiente }
           </li>
         ))}
       </ul>
+      <SubirArchivo proyectoId={proyectoId} privado={privado} correr={correr} pendiente={pendiente} />
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -353,5 +386,34 @@ function Documentos({ proyectoId, yo, documentos, direccion, correr, pendiente }
         </div>
       </form>
     </section>
+  );
+}
+
+// Sube un archivo (PDF del guion, contratos, referencias) al bucket privado.
+function SubirArchivo({ proyectoId, privado, correr, pendiente }: { proyectoId: string; privado: boolean; correr: Correr; pendiente: boolean }) {
+  const [subiendo, setSubiendo] = useState(false);
+  return (
+    <label className={`flex cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-borde px-4 py-3 text-sm font-semibold text-muted transition hover:border-tinta/40 hover:text-tinta ${subiendo || pendiente ? "opacity-60" : ""}`}>
+      <input
+        type="file"
+        accept="application/pdf,image/jpeg,image/png,image/webp,text/plain,.docx"
+        className="sr-only"
+        disabled={subiendo || pendiente}
+        onChange={async (e) => {
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (!f) return;
+          if (f.size > 25 * 1024 * 1024) return correr(async () => ({ ok: false, error: "El archivo pesa más de 25 MB." }));
+          setSubiendo(true);
+          const limpio = f.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9._-]+/g, "-").slice(-100) || "archivo";
+          const ruta = `${proyectoId}/${Date.now()}-${limpio}`;
+          const { error } = await createClient().storage.from("proyecto-docs").upload(ruta, f, { contentType: f.type || "application/octet-stream", upsert: false });
+          setSubiendo(false);
+          if (error) return correr(async () => ({ ok: false, error: "No se subió. Revisa que sea PDF, imagen, texto o Word de menos de 25 MB." }));
+          correr(() => registrarArchivo(proyectoId, f.name.replace(/\.[^.]+$/, "").slice(0, 100), ruta, f.type, privado));
+        }}
+      />
+      {subiendo ? "Subiendo…" : "Subir archivo (PDF, imagen, Word)"}
+    </label>
   );
 }

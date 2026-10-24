@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { requerirSesion } from "@/lib/sesion";
 import { cargarPerfil } from "@/lib/claqueta/datos";
 import { cargarProspectos } from "@/lib/claqueta/datos-estudio";
@@ -10,6 +11,7 @@ export const metadata: Metadata = { title: "Radar de spots" };
 // RADAR · negocios recién abiertos sin video propio: a quién llamar, a quién ver en Instagram.
 export default async function PaginaRadar() {
   const s = await requerirSesion();
+  if (!s.esAdmin) redirect("/app/estudio");
   const perfil = await cargarPerfil(s.userId);
   const equipo = perfil.equipos.find((e) => e.frente === "nietzsche") ?? perfil.equipos[0];
   if (!equipo) return null;

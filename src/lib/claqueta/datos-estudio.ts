@@ -175,13 +175,16 @@ export type PersonaProyecto = {
 export type MiembroProyecto = { id: string; user_id: string; puesto: string };
 export type Avance = { id: string; titulo: string; estado: "falta" | "en_proceso" | "listo"; responsable: string | null; fecha_limite: string | null; nota: string | null; orden: number; actualizado_por: string | null; actualizado_en: string };
 export type BloqueDia = { id: string; fecha: string; inicio: string; minutos: number; titulo: string; tipo: string; plano_id: string | null; estado: "pendiente" | "en_curso" | "hecho"; empezo_en: string | null; termino_en: string | null };
-export type Documento = { id: string; titulo: string; url: string; solo_direccion: boolean; creado_por: string | null; creado_en: string };
+export type Publicacion = { id: string; tipo: "guion" | "shotlist" | "llamados"; version: number; contenido: unknown; nota: string | null; publicado_por: string | null; creado_en: string };
+export type Documento = { id: string; titulo: string; url: string | null; ruta: string | null; tipo_archivo: string | null; solo_direccion: boolean; creado_por: string | null; creado_en: string };
 export type Locacion = { id: string; lugar: string; direccion: string | null; contacto: string | null; telefono: string | null; permiso: string; estacionamiento: string | null; hospital: string | null; notas: string | null };
 export type LineaPres = { id: string; cuenta: string; descripcion: string; cantidad: string; unidad: string; veces: string; tarifa: string; real: string | null; nota: string | null; orden: number };
 
 export async function cargarProyecto(id: string) {
   const supabase = await createClient();
-  const [p, l, r, d, pl, pe, lo, pr, rep, din, mi, av, pd, doc] = await Promise.all([
+  const ultimaPub = (tipo: string) =>
+    supabase.from("proyecto_publicaciones").select("id, tipo, version, contenido, nota, publicado_por, creado_en").eq("proyecto_id", id).eq("tipo", tipo).order("version", { ascending: false }).limit(1).maybeSingle();
+  const [p, l, r, d, pl, pe, lo, pr, rep, din, mi, av, pd, doc, pubG, pubS, pubL] = await Promise.all([
     supabase.from("proyectos").select("id, equipo_id, nombre, tipo, cliente, prospecto_id, estado, logline, duracion_seg, creado_en").eq("id", id).is("archivado_at", null).maybeSingle(),
     supabase.from("guion_lineas").select("id, orden, tipo, texto").eq("proyecto_id", id).is("borrado_at", null).order("orden"),
     supabase.from("rodaje_escenas").select("escena_id, dia, orden, llamado").eq("proyecto_id", id),
@@ -196,7 +199,10 @@ export async function cargarProyecto(id: string) {
     supabase.from("proyecto_miembros").select("id, user_id, puesto").eq("proyecto_id", id).is("archivado_at", null).order("creado_en"),
     supabase.from("proyecto_avance").select("id, titulo, estado, responsable, fecha_limite, nota, orden, actualizado_por, actualizado_en").eq("proyecto_id", id).is("archivado_at", null).order("orden").order("creado_en"),
     supabase.from("plan_dia").select("id, fecha, inicio, minutos, titulo, tipo, plano_id, estado, empezo_en, termino_en").eq("proyecto_id", id).is("archivado_at", null).order("fecha").order("inicio"),
-    supabase.from("proyecto_documentos").select("id, titulo, url, solo_direccion, creado_por, creado_en").eq("proyecto_id", id).is("archivado_at", null).order("creado_en")
+    supabase.from("proyecto_documentos").select("id, titulo, url, ruta, tipo_archivo, solo_direccion, creado_por, creado_en").eq("proyecto_id", id).is("archivado_at", null).order("creado_en"),
+    ultimaPub("guion"),
+    ultimaPub("shotlist"),
+    ultimaPub("llamados")
   ]);
   if (!p.data) return null;
   const dinero = (din.data ?? null) as { imprevistos_pct: string | null; utilidad_pct: string | null; con_iva: boolean | null; precio_cliente: string | null } | null;
@@ -208,12 +214,25 @@ export async function cargarProyecto(id: string) {
     const url = new Map((firmadas ?? []).map((f) => [f.path, f.signedUrl]));
     for (const x of planos) x.imagenUrl = x.imagen ? url.get(x.imagen) ?? null : null;
   }
+  // Archivos subidos: ligas firmadas de 1 hora (el bucket es privado).
+  const documentos = (doc.data ?? []) as Documento[];
+  const rutasDoc = documentos.map((x) => x.ruta).filter((x): x is string => !!x);
+  if (rutasDoc.length) {
+    const { data: f } = await supabase.storage.from("proyecto-docs").createSignedUrls(rutasDoc, 3600);
+    const url = new Map((f ?? []).map((x) => [x.path, x.signedUrl]));
+    for (const x of documentos) if (x.ruta) x.url = url.get(x.ruta) ?? null;
+  }
   return {
     proyecto: { ...(p.data as Proyecto), ...(dinero ?? {}) } as Proyecto,
     miembros: (mi.data ?? []) as MiembroProyecto[],
     avance: (av.data ?? []) as Avance[],
     planDia: (pd.data ?? []) as BloqueDia[],
-    documentos: (doc.data ?? []) as Documento[],
+    documentos,
+    publicado: {
+      guion: (pubG.data ?? null) as Publicacion | null,
+      shotlist: (pubS.data ?? null) as Publicacion | null,
+      llamados: (pubL.data ?? null) as Publicacion | null
+    },
     lineas: (l.data ?? []) as Linea[],
     rodaje: (r.data ?? []) as RodajeEscena[],
     desglose: (d.data ?? []) as Desglose[],
@@ -222,5 +241,39 @@ export async function cargarProyecto(id: string) {
     locaciones: (lo.data ?? []) as Locacion[],
     presupuesto: (pr.data ?? []) as LineaPres[],
     reportes: (rep.data ?? []) as ReporteRodaje[]
+  };
+}
+
+// HOY · lo de producción que es de una persona: sus llamados que vienen y lo
+// que tiene asignado (sin terminar) en cualquier proyecto activo.
+export async function cargarMiProduccion(userId: string, hoy: string) {
+  const supabase = await createClient();
+  const [l, p] = await Promise.all([
+    supabase
+      .from("personas_proyecto")
+      .select("id, proyecto_id, rol, fecha, llamado, confirmacion, proyectos!inner(nombre, archivado_at)")
+      .eq("user_id", userId)
+      .gte("fecha", hoy)
+      .neq("confirmacion", "no_puede")
+      .is("archivado_at", null)
+      .is("proyectos.archivado_at", null)
+      .order("fecha")
+      .order("llamado"),
+    supabase
+      .from("proyecto_avance")
+      .select("id, proyecto_id, titulo, estado, fecha_limite, proyectos!inner(nombre, archivado_at)")
+      .eq("responsable", userId)
+      .neq("estado", "listo")
+      .is("archivado_at", null)
+      .is("proyectos.archivado_at", null)
+      .order("fecha_limite", { nullsFirst: false })
+  ]);
+  const nombre = (x: { proyectos: unknown }) => {
+    const pr = x.proyectos as { nombre: string } | { nombre: string }[] | null;
+    return (Array.isArray(pr) ? pr[0]?.nombre : pr?.nombre) ?? "Proyecto";
+  };
+  return {
+    llamados: (l.data ?? []).map((x) => ({ id: x.id as string, proyecto_id: x.proyecto_id as string, proyecto: nombre(x), rol: x.rol as string, fecha: x.fecha as string, llamado: x.llamado as string | null, confirmacion: x.confirmacion as string })),
+    pendientes: (p.data ?? []).map((x) => ({ id: x.id as string, proyecto_id: x.proyecto_id as string, proyecto: nombre(x), titulo: x.titulo as string, estado: x.estado as "falta" | "en_proceso", fecha_limite: x.fecha_limite as string | null }))
   };
 }

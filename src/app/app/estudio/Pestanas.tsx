@@ -9,11 +9,12 @@ const PESTANAS = [
   { href: "/app/estudio/proyectos", t: "Proyectos" }
 ];
 
-export function Pestanas() {
+// El Radar (prospectos y clientes) es del dueño: el equipo no lo ve.
+export function Pestanas({ conRadar }: { conRadar: boolean }) {
   const ruta = usePathname();
   return (
     <nav aria-label="Estudio" className="vidrio inline-flex rounded-full p-1">
-      {PESTANAS.map((p) => {
+      {PESTANAS.filter((p) => conRadar || p.href !== "/app/estudio/radar").map((p) => {
         const on = p.href === "/app/estudio" ? ruta === p.href : ruta.startsWith(p.href);
         return (
           <Link

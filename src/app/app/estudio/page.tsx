@@ -16,7 +16,7 @@ export default async function Estudio() {
   if (!equipo) return null;
   const [eventos, prospectos, tareas] = await Promise.all([
     cargarEventos(hoy, sumarDias(hoy, 45)),
-    cargarProspectos(),
+    s.esAdmin ? cargarProspectos() : Promise.resolve([]),
     cargarTareas(hoy)
   ]);
   const miembros = [{ id: s.userId, nombre: perfil.nombre || s.nombre || "Tú" }, ...perfil.companeros.filter((c) => c.equipo_id === equipo.id)];
@@ -32,6 +32,7 @@ export default async function Estudio() {
       <AgendaEquipo equipoId={equipo.id} eventos={eventos.filter((e) => e.equipo_id === equipo.id)} miembros={miembros} yo={s.userId} hoy={hoy} />
 
       <div className="grid gap-6 lg:grid-cols-2">
+        {s.esAdmin && (
         <section aria-labelledby="radar-res" className="tarjeta aparecer">
           <div className="flex items-baseline justify-between">
             <h2 id="radar-res" className="titulo text-2xl">Radar</h2>
@@ -53,6 +54,7 @@ export default async function Estudio() {
             </ul>
           )}
         </section>
+        )}
 
         <section aria-labelledby="tareas-eq" className="tarjeta aparecer">
           <div className="flex items-baseline justify-between">

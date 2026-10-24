@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { requerirSesion } from "@/lib/sesion";
 import { createClient } from "@/lib/supabase/server";
 import { cargarDinero, cargarPerfil } from "@/lib/claqueta/datos";
@@ -15,6 +16,8 @@ export const metadata: Metadata = { title: "Inversión Nietzsche" };
 // INVERSIÓN NIETZSCHE · la lista de equipo de la productora y el fondo (EK) que la paga.
 export default async function PaginaInversion() {
   const s = await requerirSesion();
+  // Lo de la productora y el plan de Jamez: solo el admin.
+  if (!s.esAdmin) redirect("/app/dinero");
   const perfil = await cargarPerfil(s.userId);
   const hoy = fechaCDMX();
   const supabase = await createClient();

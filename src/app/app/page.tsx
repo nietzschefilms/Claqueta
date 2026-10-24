@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { requerirSesion } from "@/lib/sesion";
 import { cargarDinero, cargarHitos, cargarRutina, cargarTareas, cargarPerfil } from "@/lib/claqueta/datos";
-import { cargarEventos, vaYo } from "@/lib/claqueta/datos-estudio";
+import { cargarEventos, cargarMiProduccion, vaYo } from "@/lib/claqueta/datos-estudio";
+import { DeProduccion } from "./DeProduccion";
 import { eventoABloque } from "@/lib/claqueta/estudio";
 import { esperados, pesos } from "@/lib/claqueta/dinero";
 import Link from "next/link";
@@ -35,7 +36,15 @@ export default async function Hoy() {
   const s = await requerirSesion();
   const hoy = fechaCDMX();
   const ahora = minutosAhoraCDMX();
-  const [tareas, rutinaBase, hitos, dinero, perfil, citas] = await Promise.all([cargarTareas(hoy, s.userId), cargarRutina(), cargarHitos("ek"), cargarDinero(), cargarPerfil(s.userId), cargarEventos(hoy, hoy)]);
+  const [tareas, rutinaBase, hitos, dinero, perfil, citas, produccion] = await Promise.all([
+    cargarTareas(hoy, s.userId),
+    cargarRutina(),
+    cargarHitos("ek"),
+    cargarDinero(),
+    cargarPerfil(s.userId),
+    cargarEventos(hoy, hoy),
+    cargarMiProduccion(s.userId, hoy)
+  ]);
   // Las citas del equipo de hoy entran como bloques fijos (el plan no las pisa).
   const rutina = [...rutinaBase, ...citas.filter((e) => vaYo(e, s.userId)).map(eventoABloque)];
   const conEK = perfil.frentes.includes("ek");
@@ -65,7 +74,7 @@ export default async function Hoy() {
           <p className="cifra text-xs text-muted">{hoy.split("-").reverse().join(".")}</p>
         </div>
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <h1 className="titulo text-[clamp(3.5rem,15vw,7.5rem)]">
+          <h1 className="titulo text-[clamp(2.75rem,11vw,6rem)] leading-[0.9]">
             {DIAS[diaSemana(hoy)]}
             <span className="block text-[0.36em] leading-tight tracking-normal text-muted">
               {dia} de {MESES[mes - 1]}
@@ -93,6 +102,9 @@ export default async function Hoy() {
           </div>
         </div>
       </header>
+
+      {/* ── Producción: tu llamado y lo que te toca ── */}
+      <DeProduccion llamados={produccion.llamados} pendientes={produccion.pendientes} hoy={hoy} />
 
       {/* ── Ahora + resumen ── */}
       <div className="grid gap-4 lg:grid-cols-12">

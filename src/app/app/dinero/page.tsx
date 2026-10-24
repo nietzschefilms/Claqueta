@@ -50,6 +50,7 @@ export default async function Dinero() {
   return (
     <div className="space-y-6">
       <Encabezado etiqueta={`${MESES[Number(mes.slice(5)) - 1]} ${mes.slice(0, 4)}`} titulo="Dinero">
+        {s.esAdmin && (
         <div className="flex flex-wrap gap-2">
           <Link href="/app/dinero/inversion" className="btn-secundario">
             Inversión Nietzsche <span aria-hidden="true">→</span>
@@ -58,6 +59,7 @@ export default async function Dinero() {
             Plan y contador <span aria-hidden="true">→</span>
           </Link>
         </div>
+        )}
       </Encabezado>
 
       {cuentas.length === 0 && (

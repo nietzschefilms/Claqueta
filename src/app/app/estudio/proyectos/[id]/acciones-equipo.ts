@@ -268,6 +268,19 @@ export async function agregarDocumento(proyectoId: string, titulo: string, url: 
   return { ok: true };
 }
 
+// Archivo ya subido al bucket "proyecto-docs" desde el navegador: se registra.
+export async function registrarArchivo(proyectoId: string, titulo: string, ruta: string, tipoArchivo: string, soloDireccion: boolean): Promise<Resultado> {
+  await requerirSesion();
+  const t = titulo.trim();
+  if (!UUID.test(proyectoId) || !ruta.startsWith(`${proyectoId}/`)) return { ok: false, error: "Archivo no válido." };
+  if (!t || t.length > 100) return { ok: false, error: "Ponle nombre al archivo." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("proyecto_documentos").insert({ proyecto_id: proyectoId, titulo: t, ruta, tipo_archivo: tipoArchivo.slice(0, 80), solo_direccion: soloDireccion });
+  if (error) return { ok: false, error: soloDireccion ? "Solo dirección puede subir documentos privados." : "No se guardó el archivo." };
+  tocar(proyectoId);
+  return { ok: true };
+}
+
 export async function archivarDocumento(proyectoId: string, id: string): Promise<Resultado> {
   await requerirSesion();
   if (!UUID.test(proyectoId) || !UUID.test(id)) return { ok: false, error: "Documento no válido." };

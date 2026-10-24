@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { requerirSesion } from "@/lib/sesion";
 import { cargarDinero, cargarPerfil } from "@/lib/claqueta/datos";
 import { fechaCDMX, fechaCorta } from "@/lib/claqueta/fechas";
@@ -19,6 +20,8 @@ const NIVEL = {
 // PLAN Y CONTADOR · cómo repartir lo que entra, cómo crecer tu crédito y cómo pagar menos impuestos (legal).
 export default async function Plan() {
   const s = await requerirSesion();
+  // Lo de la productora y el plan de Jamez: solo el admin.
+  if (!s.esAdmin) redirect("/app/dinero");
   const perfil = await cargarPerfil(s.userId);
   const hoy = fechaCDMX();
   const mes = hoy.slice(0, 7);
