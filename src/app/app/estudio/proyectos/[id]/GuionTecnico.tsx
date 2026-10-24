@@ -60,9 +60,6 @@ export function GuionTecnico({ proyectoId, nombre, lineas, planos, reglas, puede
             <span className="text-base text-muted"> de {planos.length}</span>
           </p>
         </div>
-        <button type="button" onClick={() => window.print()} className="btn-secundario">
-          Imprimir / PDF
-        </button>
       </div>
       {(reglas.max !== null || reglas.permitidos?.length || reglas.editar) && (
         <div className="print:hidden">

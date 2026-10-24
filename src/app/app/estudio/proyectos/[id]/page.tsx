@@ -5,7 +5,7 @@ import { requerirSesion } from "@/lib/sesion";
 import { cargarPerfil } from "@/lib/claqueta/datos";
 import { cargarEventos, cargarFloorPlans, cargarProyecto } from "@/lib/claqueta/datos-estudio";
 import { escenasDe, esNoche, lineasConPublicado, paginas } from "@/lib/claqueta/estudio";
-import { fechaCDMX, sumarDias } from "@/lib/claqueta/fechas";
+import { fechaCDMX, minutosAhoraCDMX, sumarDias } from "@/lib/claqueta/fechas";
 import { Guion } from "./Guion";
 import { BotonImprimir, DesgloseEscenas, EstadoProyecto, Logline, PlanRodaje, nombreCategoria } from "./Produccion";
 import { Presupuesto } from "./Presupuesto";
@@ -217,7 +217,7 @@ export default async function PaginaProyecto({ params, searchParams }: { params:
       )}
       {vista === "llamados" && permisos.direccion && <BarraPublicar proyectoId={proyecto.id} tipo="llamados" ultima={datos.publicado.llamados} nombres={nombresPub} />}
       {vista === "llamados" && <Llamados proyectoId={proyecto.id} nombre={proyecto.nombre} yo={s.userId} personas={personas} equipo={miembros} diasRodaje={diasRodaje} puedeEditar={permisos.direccion} />}
-      {vista === "dia" && <PlanDia proyectoId={proyecto.id} bloques={datos.planDia} diasRodaje={diasRodaje} hoy={hoy} puedeEditar={permisos.direccion} />}
+      {vista === "dia" && <PlanDia proyectoId={proyecto.id} bloques={datos.planDia} diasRodaje={diasRodaje} hoy={hoy} ahoraInicial={minutosAhoraCDMX()} puedeEditar={permisos.direccion} />}
       {vista === "claqueta" && (
         <ClaquetaDigital
           proyectoId={proyecto.id}

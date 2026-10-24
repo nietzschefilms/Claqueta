@@ -23,6 +23,7 @@ const sumarMin = (hora: string, min: number) => {
   const t = Number(hora.slice(0, 2)) * 60 + Number(hora.slice(3, 5)) + min;
   return `${String(Math.floor(t / 60) % 24).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
 };
+const cuenta = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
 const CONFIRMA: Record<string, string> = { falta: "Falta quién", pendiente: "Sin confirmar", confirmado: "Confirmado", no_puede: "No puede" };
 
 // ─── Guion ──────────────────────────────────────────────────────────────
@@ -72,7 +73,7 @@ export function Shotlist(ctx: Contexto, d: Datos) {
   const reglas = [d.proyecto.max_planos ? `Máximo ${d.proyecto.max_planos} planos` : null, d.proyecto.movimientos_permitidos?.length ? `Solo ${d.proyecto.movimientos_permitidos.join(", ")}` : null].filter(Boolean);
   const total = d.planos.reduce((a, p) => a + p.minutos, 0);
   return (
-    <Hoja ctx={{ ...ctx, horizontal: true, meta: `${d.planos.length} planos · ${total} min de rodaje${reglas.length ? ` · Reglas: ${reglas.join(" · ")}` : ""}` }}>
+    <Hoja ctx={{ ...ctx, horizontal: true, meta: `${cuenta(d.planos.length, "plano", "planos")} · ${total} min de rodaje${reglas.length ? ` · Reglas: ${reglas.join(" · ")}` : ""}` }}>
       {escenas.filter((es) => d.planos.some((p) => p.escena_id === es.id)).map((es) => (
         <Seccion key={es.id} t={`${es.numero} · ${es.texto}`}>
           <Tabla
@@ -114,7 +115,7 @@ export function Storyboard(ctx: Contexto, d: Datos) {
   const escenas = escenasDe(d.lineas);
   const num = new Map(escenas.map((x) => [x.id, x.numero]));
   return (
-    <Hoja ctx={{ ...ctx, horizontal: true, meta: `${d.planos.length} cuadros` }}>
+    <Hoja ctx={{ ...ctx, horizontal: true, meta: cuenta(d.planos.length, "cuadro", "cuadros") }}>
       <View style={{ flexDirection: "row", flexWrap: "wrap", marginTop: 12, marginHorizontal: -5 }}>
         {d.planos.map((p) => (
           <View key={p.id} style={{ width: "33.33%", padding: 5 }} wrap={false}>
@@ -340,7 +341,7 @@ export function PlanRodaje(ctx: Contexto, d: Datos) {
     />
   );
   return (
-    <Hoja ctx={{ ...ctx, horizontal: true, meta: `${escenas.length} escenas · ${dias.length} días de rodaje` }}>
+    <Hoja ctx={{ ...ctx, horizontal: true, meta: `${cuenta(escenas.length, "escena", "escenas")} · ${cuenta(dias.length, "día", "días")} de rodaje` }}>
       {dias.map((dia) => {
         const es = escenas.filter((s) => diaDe.get(s.id) === dia);
         return (
@@ -443,7 +444,7 @@ export type Pdf = (ctx: Contexto) => ReactElement;
 export function GuionTecnico(ctx: Contexto, d: Datos) {
   const escenas = escenasDe(d.lineas).filter((s) => d.planos.some((p) => p.escena_id === s.id));
   return (
-    <Hoja ctx={{ ...ctx, meta: `${d.planos.length} tomas` }}>
+    <Hoja ctx={{ ...ctx, meta: cuenta(d.planos.length, "toma", "tomas") }}>
       {escenas.map((s) => (
         <Seccion key={s.id} t={`${s.numero} · ${s.texto}`}>
           {d.planos

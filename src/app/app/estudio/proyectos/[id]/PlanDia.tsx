@@ -23,11 +23,13 @@ const minDe = (ts: string | null) => (ts ? minutosAhoraCDMX(new Date(ts)) : null
 const fechaLarga = (f: string) => new Date(`${f}T12:00:00Z`).toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
 
 // PLAN MINUTO A MINUTO · lo arma dirección/producción; todos ven en vivo dónde vamos.
-export function PlanDia({ proyectoId, bloques, diasRodaje, hoy, puedeEditar }: { proyectoId: string; bloques: BloqueDia[]; diasRodaje: string[]; hoy: string; puedeEditar: boolean }) {
+export function PlanDia({ proyectoId, bloques, diasRodaje, hoy, puedeEditar, ahoraInicial }: { proyectoId: string; bloques: BloqueDia[]; diasRodaje: string[]; hoy: string; puedeEditar: boolean; ahoraInicial: number }) {
   const router = useRouter();
   const dias = useMemo(() => [...new Set([...diasRodaje, ...bloques.map((b) => b.fecha)])].sort(), [diasRodaje, bloques]);
   const [dia, setDia] = useState(() => (dias.includes(hoy) ? hoy : dias.find((d) => d >= hoy) ?? dias[dias.length - 1] ?? hoy));
-  const [ahora, setAhora] = useState(() => minutosAhoraCDMX());
+  // La hora la manda el servidor para que el primer render sea igual en los
+  // dos lados (si no, React marca error de hidratación); luego corre aquí.
+  const [ahora, setAhora] = useState(ahoraInicial);
   const [error, setError] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
