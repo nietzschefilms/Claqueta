@@ -7,6 +7,9 @@ import type { Publicacion } from "@/lib/claqueta/datos-estudio";
 type Tipo = "guion" | "shotlist" | "llamados";
 const NOMBRE: Record<Tipo, string> = { guion: "el guion", shotlist: "el shotlist", llamados: "los llamados" };
 
+// Nombres por id (las funciones no pueden pasar de servidor a cliente).
+const quien = (nombres: Record<string, string>, id: string | null) => (id ? nombres[id] ?? "dirección" : "dirección");
+
 const hace = (iso: string) => {
   const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
   if (min < 1) return "hace un momento";
@@ -17,7 +20,7 @@ const hace = (iso: string) => {
 };
 
 // Barra de dirección: qué ve el equipo hoy y el botón para publicar lo nuevo.
-export function BarraPublicar({ proyectoId, tipo, ultima, nombre }: { proyectoId: string; tipo: Tipo; ultima: Publicacion | null; nombre: (id: string | null) => string }) {
+export function BarraPublicar({ proyectoId, tipo, ultima, nombres }: { proyectoId: string; tipo: Tipo; ultima: Publicacion | null; nombres: Record<string, string> }) {
   const [abierta, setAbierta] = useState(false);
   const [nota, setNota] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
@@ -32,7 +35,7 @@ export function BarraPublicar({ proyectoId, tipo, ultima, nombre }: { proyectoId
           <p className="text-sm">
             {ultima ? (
               <>
-                El equipo ve la <b>versión {ultima.version}</b>, publicada {hace(ultima.creado_en)} por {nombre(ultima.publicado_por)}.
+                El equipo ve la <b>versión {ultima.version}</b>, publicada {hace(ultima.creado_en)} por {quien(nombres, ultima.publicado_por)}.
                 {ultima.nota && <span className="text-muted"> “{ultima.nota}”</span>}
               </>
             ) : (
@@ -72,12 +75,12 @@ export function BarraPublicar({ proyectoId, tipo, ultima, nombre }: { proyectoId
 }
 
 // Encabezado de lo publicado (para quien no edita).
-export function SelloPublicado({ ultima, nombre, que }: { ultima: Publicacion; nombre: (id: string | null) => string; que: string }) {
+export function SelloPublicado({ ultima, nombres, que }: { ultima: Publicacion; nombres: Record<string, string>; que: string }) {
   return (
     <p className="etiqueta flex flex-wrap items-center gap-2 print:hidden">
       <span className="rounded-full bg-ok/15 px-2.5 py-1 text-ok">{que} · versión {ultima.version}</span>
       <span className="normal-case tracking-normal text-muted">
-        Publicado {hace(ultima.creado_en)} por {nombre(ultima.publicado_por)}
+        Publicado {hace(ultima.creado_en)} por {quien(nombres, ultima.publicado_por)}
         {ultima.nota ? ` · “${ultima.nota}”` : ""}
       </span>
     </p>
@@ -87,14 +90,14 @@ export function SelloPublicado({ ultima, nombre, que }: { ultima: Publicacion; n
 type LineaPub = { tipo: string; texto: string };
 
 // Guion publicado, con formato de guion (solo lectura).
-export function GuionPublicado({ ultima, nombre }: { ultima: Publicacion | null; nombre: (id: string | null) => string }) {
+export function GuionPublicado({ ultima, nombres }: { ultima: Publicacion | null; nombres: Record<string, string> }) {
   if (!ultima) return <p className="tarjeta text-sm text-muted">Dirección todavía no publica el guion. Cuando lo haga te llega un aviso.</p>;
   const lineas = ((ultima.contenido as { lineas?: LineaPub[] }).lineas ?? []) as LineaPub[];
   let escena = 0;
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <SelloPublicado ultima={ultima} nombre={nombre} que="Guion" />
+        <SelloPublicado ultima={ultima} nombres={nombres} que="Guion" />
         <button type="button" onClick={() => window.print()} className="btn-secundario print:hidden">Imprimir / PDF</button>
       </div>
       <article className="imprimible mx-auto max-w-[44rem] rounded-tarjeta bg-[#fbfaf7] px-6 py-10 font-mono text-[13px] leading-[1.55] text-[#111] shadow-suave md:px-16">
@@ -131,7 +134,7 @@ export function GuionPublicado({ ultima, nombre }: { ultima: Publicacion | null;
 type PlanoPub = { numero: number; tamano: string | null; angulo: string | null; movimiento: string | null; lente: string | null; descripcion: string; minutos: number };
 
 // Shotlist publicado (solo lectura).
-export function ShotlistPublicado({ ultima, nombre }: { ultima: Publicacion | null; nombre: (id: string | null) => string }) {
+export function ShotlistPublicado({ ultima, nombres }: { ultima: Publicacion | null; nombres: Record<string, string> }) {
   if (!ultima) return <p className="tarjeta text-sm text-muted">Dirección todavía no publica el shotlist. Cuando lo haga te llega un aviso.</p>;
   const escenas = ((ultima.contenido as { escenas?: { numero: number; encabezado: string; planos: PlanoPub[] }[] }).escenas ?? []);
   const total = escenas.reduce((a, e) => a + e.planos.reduce((b, p) => b + p.minutos, 0), 0);
@@ -139,7 +142,7 @@ export function ShotlistPublicado({ ultima, nombre }: { ultima: Publicacion | nu
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <SelloPublicado ultima={ultima} nombre={nombre} que="Shotlist" />
+        <SelloPublicado ultima={ultima} nombres={nombres} que="Shotlist" />
         <span className="cifra text-sm text-muted">
           {nPlanos} planos · ≈ {Math.floor(total / 60)} h {total % 60} min
         </span>

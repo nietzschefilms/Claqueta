@@ -73,7 +73,7 @@ export default async function PaginaProyecto({ params, searchParams }: { params:
   const subvistas = visibles.filter((x) => x.s === actual.s);
   const hoy = fechaCDMX();
   const miembros = [{ id: s.userId, nombre: perfil.nombre || s.nombre || "Yo" }, ...perfil.companeros.filter((c) => c.equipo_id === proyecto.equipo_id)];
-  const quien = (id: string | null) => (id === s.userId ? "ti" : miembros.find((m) => m.id === id)?.nombre.split(" ")[0] ?? "dirección");
+  const nombresPub = Object.fromEntries(miembros.map((m) => [m.id, m.id === s.userId ? "ti" : m.nombre.split(" ")[0]]));
   const diasRodaje = [...new Set(rodaje.map((r) => r.dia).filter((d): d is string => !!d))].sort();
   const eventos = vista === "resumen" ? (await cargarEventos(sumarDias(hoy, -60), sumarDias(hoy, 365))).filter((e) => e.proyecto_id === proyecto.id) : [];
 
@@ -149,27 +149,27 @@ export default async function PaginaProyecto({ params, searchParams }: { params:
           hoy={hoy}
         />
       )}
-      {vista === "llamados" && permisos.direccion && <BarraPublicar proyectoId={proyecto.id} tipo="llamados" ultima={datos.publicado.llamados} nombre={quien} />}
+      {vista === "llamados" && permisos.direccion && <BarraPublicar proyectoId={proyecto.id} tipo="llamados" ultima={datos.publicado.llamados} nombres={nombresPub} />}
       {vista === "llamados" && <Llamados proyectoId={proyecto.id} nombre={proyecto.nombre} yo={s.userId} personas={personas} equipo={miembros} diasRodaje={diasRodaje} puedeEditar={permisos.direccion} />}
       {vista === "dia" && <PlanDia proyectoId={proyecto.id} bloques={datos.planDia} diasRodaje={diasRodaje} hoy={hoy} puedeEditar={permisos.direccion} />}
       {vista === "guion" &&
         (permisos.direccion ? (
           <>
-            <BarraPublicar proyectoId={proyecto.id} tipo="guion" ultima={datos.publicado.guion} nombre={quien} />
+            <BarraPublicar proyectoId={proyecto.id} tipo="guion" ultima={datos.publicado.guion} nombres={nombresPub} />
             <Guion proyectoId={proyecto.id} nombreProyecto={proyecto.nombre} inicial={lineas} yo={s.userId} miembros={miembros} />
           </>
         ) : (
-          <GuionPublicado ultima={datos.publicado.guion} nombre={quien} />
+          <GuionPublicado ultima={datos.publicado.guion} nombres={nombresPub} />
         ))}
       {vista === "desglose" && <DesgloseEscenas proyectoId={proyecto.id} lineas={lineas} desglose={desglose} />}
       {vista === "planos" &&
         (permisos.planos ? (
           <>
-            <BarraPublicar proyectoId={proyecto.id} tipo="shotlist" ultima={datos.publicado.shotlist} nombre={quien} />
+            <BarraPublicar proyectoId={proyecto.id} tipo="shotlist" ultima={datos.publicado.shotlist} nombres={nombresPub} />
             <ListaPlanos proyectoId={proyecto.id} lineas={lineas} planos={planos} />
           </>
         ) : (
-          <ShotlistPublicado ultima={datos.publicado.shotlist} nombre={quien} />
+          <ShotlistPublicado ultima={datos.publicado.shotlist} nombres={nombresPub} />
         ))}
       {vista === "gente" && <Gente proyectoId={proyecto.id} lineas={lineas} personas={personas} locaciones={locaciones} />}
       {vista === "plan" && <PlanRodaje proyectoId={proyecto.id} lineas={lineas} rodaje={rodaje} planos={planos} hoy={hoy} />}
