@@ -36,6 +36,11 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   productionBrowserSourceMaps: false,
+  // Next 15 manda el <title>, el manifiesto y las etiquetas de Apple dentro del
+  // <body> a los navegadores normales (streaming metadata). Safari de iPhone solo
+  // los lee en el <head>: sin eso la app instalada no sabe su alcance y al
+  // entrar abre todo en la vista de Safari con la X. Así van siempre en el <head>.
+  htmlLimitedBots: /.*/,
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
