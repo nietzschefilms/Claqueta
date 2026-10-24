@@ -251,3 +251,41 @@ export function dayOutOfDays(escenas: Escena[], diaDe: Map<string, string | null
 
 // Movimientos de cámara del shotlist (las reglas de un ejercicio eligen cuáles valen).
 export const MOVIMIENTOS = ["Fijo", "Paneo", "Tilt", "Zoom", "Dolly", "Travelling", "Steadicam", "Gimbal", "Mano", "Dron", "Grúa"] as const;
+
+// Tamaños de plano (los mismos que acepta la base en planos.tamano).
+export const TAMANOS = [
+  { v: "GPG", t: "Gran plano general" },
+  { v: "PG", t: "Plano general" },
+  { v: "PC", t: "Plano conjunto" },
+  { v: "PA", t: "Plano americano" },
+  { v: "PM", t: "Plano medio" },
+  { v: "PMC", t: "Plano medio corto" },
+  { v: "PP", t: "Primer plano" },
+  { v: "PPP", t: "Primerísimo primer plano" },
+  { v: "PD", t: "Plano detalle" },
+  { v: "INSERT", t: "Insert" },
+  { v: "OTRO", t: "Otro" }
+] as const;
+
+// Ángulos de cámara para elegir con un toque (planos.angulo es texto libre;
+// "POV" y "Over-shoulder" cuentan para los lineamientos de la escuela).
+export const ANGULOS = ["Normal", "Picado", "Contrapicado", "Cenital", "Nadir", "Holandés", "Over-shoulder", "POV"] as const;
+
+// ─── Guion técnico ───────────────────────────────────────────────────────
+// La toma que sigue en una escena: la más alta + 1 (no el conteo, para no
+// repetir número cuando se quitó una de en medio).
+export function siguienteToma(planos: { escena_id: string; numero: number }[], escenaId: string): number {
+  return Math.max(0, ...planos.filter((p) => p.escena_id === escenaId).map((p) => p.numero)) + 1;
+}
+
+// Reglas del ejercicio (tope de planos y movimientos que valen): qué se rompe.
+export function reglasRotas(planos: { id: string; movimiento: string | null }[], max: number | null, permitidos: readonly string[] | null) {
+  const prohibido = (m: string | null) => !!m && !!permitidos?.length && !permitidos.includes(m);
+  return {
+    sobran: max !== null && planos.length > max ? planos.length - max : 0,
+    // ¿Una toma más ya pasaría el tope?
+    enElTope: max !== null && planos.length >= max,
+    fuera: planos.filter((p) => prohibido(p.movimiento)).map((p) => p.id),
+    prohibido
+  };
+}

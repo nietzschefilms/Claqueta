@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dayOutOfDays, grupoDe, idsReparto, resumenDia, topsheet, totalLinea } from "./produccion";
+import { TAMANOS, dayOutOfDays, grupoDe, idsReparto, reglasRotas, resumenDia, siguienteToma, topsheet, totalLinea } from "./produccion";
 
 describe("reporte diario", () => {
   it("programado contra filmado, horas reales y pendientes", () => {
@@ -98,5 +98,36 @@ describe("reparto", () => {
     expect(d.filas[1]).toEqual({ id: 2, nombre: "BETO", dias: ["SW", "H", "WF"], trabaja: 2, espera: 1 });
     const unDia = dayOutOfDays(e, new Map([["l1", "2026-10-10"], ["l6", "2026-10-10"], ["l9", "2026-10-10"]]));
     expect(unDia.filas[1].dias).toEqual(["SWF"]);
+  });
+});
+
+describe("guion técnico", () => {
+  it("la toma que sigue es la más alta + 1 en esa escena", () => {
+    const planos = [
+      { escena_id: "e1", numero: 1 },
+      { escena_id: "e1", numero: 3 },
+      { escena_id: "e2", numero: 7 }
+    ];
+    expect(siguienteToma(planos, "e1")).toBe(4);
+    expect(siguienteToma(planos, "e2")).toBe(8);
+    expect(siguienteToma(planos, "e3")).toBe(1);
+  });
+  it("reglas del ejercicio: tope y movimientos", () => {
+    const planos = [
+      { id: "a", movimiento: "Fijo" },
+      { id: "b", movimiento: "Dolly" },
+      { id: "c", movimiento: null }
+    ];
+    const r = reglasRotas(planos, 2, ["Fijo", "Paneo", "Tilt"]);
+    expect(r.sobran).toBe(1);
+    expect(r.enElTope).toBe(true);
+    expect(r.fuera).toEqual(["b"]);
+    expect(r.prohibido("Zoom")).toBe(true);
+    expect(reglasRotas(planos, null, null)).toMatchObject({ sobran: 0, enElTope: false, fuera: [] });
+    expect(reglasRotas(planos, 3, []).enElTope).toBe(true);
+    expect(reglasRotas(planos, 4, null).enElTope).toBe(false);
+  });
+  it("los tamaños son los que acepta la base", () => {
+    expect(TAMANOS.map((t) => t.v)).toEqual(["GPG", "PG", "PC", "PA", "PM", "PMC", "PP", "PPP", "PD", "INSERT", "OTRO"]);
   });
 });

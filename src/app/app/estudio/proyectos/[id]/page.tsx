@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { requerirSesion } from "@/lib/sesion";
 import { cargarPerfil } from "@/lib/claqueta/datos";
-import { cargarEventos, cargarProyecto } from "@/lib/claqueta/datos-estudio";
+import { cargarEventos, cargarFloorPlans, cargarProyecto } from "@/lib/claqueta/datos-estudio";
 import { escenasDe, esNoche, paginas } from "@/lib/claqueta/estudio";
 import { fechaCDMX, sumarDias } from "@/lib/claqueta/fechas";
 import { Guion } from "./Guion";
@@ -11,6 +11,8 @@ import { BotonImprimir, DesgloseEscenas, EstadoProyecto, Logline, PlanRodaje, no
 import { Presupuesto } from "./Presupuesto";
 import { Gente, ListaPlanos } from "./Rodaje";
 import { Storyboard } from "./Storyboard";
+import { GuionTecnico } from "./GuionTecnico";
+import { FloorPlan } from "./FloorPlan";
 import { Reporte } from "./Reporte";
 import { idsReparto } from "@/lib/claqueta/produccion";
 import { permisosDe } from "@/lib/claqueta/puestos";
@@ -34,6 +36,8 @@ const VISTAS = [
   { v: "desglose", t: "Desglose", s: "Guion", ve: "direccion" },
   { v: "planos", t: "Shotlist", s: "Rodaje", ve: "todos" },
   { v: "storyboard", t: "Storyboard", s: "Rodaje", ve: "todos" },
+  { v: "tecnico", t: "Guion técnico", s: "Rodaje", ve: "todos" },
+  { v: "floorplan", t: "Floor plan", s: "Rodaje", ve: "todos" },
   { v: "plan", t: "Plan de rodaje", s: "Rodaje", ve: "direccion" },
   { v: "dia", t: "Minuto a minuto", s: "Rodaje", ve: "todos" },
   { v: "claqueta", t: "Claqueta", s: "Rodaje", ve: "todos" },
@@ -50,6 +54,8 @@ const DESCRIPCION: Record<string, string> = {
   desglose: "Lo que necesita cada escena",
   planos: "Cada plano con tamaño, lente y tiempo",
   storyboard: "Un cuadro por plano",
+  tecnico: "Toma por toma con la foto de tu toma",
+  floorplan: "El set visto desde arriba, por escena",
   plan: "Qué escenas se filman cada día",
   dia: "El rodaje minuto a minuto, en vivo",
   claqueta: "La pizarra del set: anota cada toma",
@@ -167,7 +173,7 @@ export default async function PaginaProyecto({ params, searchParams }: { params:
               href: `/app/estudio/proyectos/${proyecto.id}?v=${x.v}`,
               t: x.v === "guion" && !permisos.direccion ? "Guion (publicado)" : x.v === "planos" && !permisos.planos ? "Shotlist (publicado)" : x.t,
               d: x.v === "guion" && !permisos.direccion ? "La última versión que publicó dirección" : x.v === "planos" && !permisos.planos ? "Lo que publicó dirección para filmar" : DESCRIPCION[x.v] ?? "",
-              editas: x.v === "planos" || x.v === "storyboard" || x.v === "claqueta" ? permisos.planos : x.v === "presupuesto" ? permisos.productor : x.v === "llamado" ? false : permisos.direccion
+              editas: x.v === "planos" || x.v === "storyboard" || x.v === "claqueta" || x.v === "tecnico" || x.v === "floorplan" ? permisos.planos : x.v === "presupuesto" ? permisos.productor : x.v === "llamado" ? false : permisos.direccion
             }))}
           hoy={hoy}
         />
@@ -219,9 +225,28 @@ export default async function PaginaProyecto({ params, searchParams }: { params:
       )}
       {vista === "llamado" && <HojasDeLlamado proyectoId={proyecto.id} nombre={proyecto.nombre} cliente={proyecto.cliente} datos={datos} miembros={miembros} hoy={hoy} />}
       {vista === "storyboard" && <Storyboard proyectoId={proyecto.id} nombre={proyecto.nombre} lineas={lineas} planos={planos} />}
+      {vista === "tecnico" && datos.lineamientos.length > 0 && <Lineamientos proyectoId={proyecto.id} lineamientos={datos.lineamientos} planos={planos} puedeEditar={false} compacto />}
+      {vista === "tecnico" && (
+        <GuionTecnico
+          proyectoId={proyecto.id}
+          nombre={proyecto.nombre}
+          lineas={lineas}
+          planos={planos}
+          reglas={{ max: proyecto.max_planos ?? null, permitidos: proyecto.movimientos_permitidos ?? null, editar: permisos.direccion }}
+          puedeEditar={permisos.planos}
+        />
+      )}
+      {vista === "floorplan" && <VistaFloorPlan datos={datos} puedeEditar={permisos.planos} />}
       {vista === "reporte" && <VistaReporte datos={datos} hoy={hoy} />}
     </div>
   );
+}
+
+// Floor plan: se lee solo al abrir esta vista (una tabla más no frena las demás).
+async function VistaFloorPlan({ datos, puedeEditar }: { datos: NonNullable<Awaited<ReturnType<typeof cargarProyecto>>>; puedeEditar: boolean }) {
+  const { planes, error } = await cargarFloorPlans(datos.proyecto.id);
+  const reparto = datos.personas.filter((p) => p.tipo === "reparto").map((p) => p.rol);
+  return <FloorPlan proyectoId={datos.proyecto.id} lineas={datos.lineas} planos={datos.planos} reparto={reparto} planes={planes} puedeEditar={puedeEditar} errorCarga={error} />;
 }
 
 // El reporte compara contra lo agendado (hora de fin de cada día de rodaje).

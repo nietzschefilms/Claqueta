@@ -10,7 +10,7 @@ import type { Plano } from "@/lib/claqueta/datos-estudio";
 const letra = (n: number) => String.fromCharCode(64 + Math.min(Math.max(n, 1), 26));
 
 // Foto o dibujo → JPG de máximo 1600 px (pesa poco en datos del celular).
-async function comprimir(archivo: File): Promise<Blob> {
+export async function comprimir(archivo: File): Promise<Blob> {
   const url = URL.createObjectURL(archivo);
   try {
     const img = await new Promise<HTMLImageElement>((ok, mal) => {
@@ -30,6 +30,16 @@ async function comprimir(archivo: File): Promise<Blob> {
   } finally {
     URL.revokeObjectURL(url);
   }
+}
+
+// Sube el cuadro (ya comprimido) al bucket privado y lo liga al plano.
+// Lo usan el storyboard y el guion técnico (la foto de "tu toma").
+export async function subirCuadro(proyectoId: string, planoId: string, blob: Blob): Promise<void> {
+  const ruta = `${proyectoId}/${planoId}-${Date.now()}.jpg`;
+  const { error: e } = await createClient().storage.from("storyboard").upload(ruta, blob, { contentType: "image/jpeg", upsert: false });
+  if (e) throw new Error("No se subió la imagen. Revisa tu conexión.");
+  const r = await ponerImagenPlano(proyectoId, planoId, ruta);
+  if (!r.ok) throw new Error(r.error ?? "No se guardó la imagen.");
 }
 
 // STORYBOARD · un cuadro por plano, en el orden del guion. Se imprime como PDF.
@@ -86,11 +96,7 @@ function Cuadro({ proyectoId, p, etiqueta }: { proyectoId: string; p: Plano; eti
     try {
       const blob = await comprimir(archivo);
       setVista(URL.createObjectURL(blob));
-      const ruta = `${proyectoId}/${p.id}-${Date.now()}.jpg`;
-      const { error: e } = await createClient().storage.from("storyboard").upload(ruta, blob, { contentType: "image/jpeg", upsert: false });
-      if (e) throw new Error("No se subió la imagen. Revisa tu conexión.");
-      const r = await ponerImagenPlano(proyectoId, p.id, ruta);
-      if (!r.ok) throw new Error(r.error ?? "No se guardó la imagen.");
+      await subirCuadro(proyectoId, p.id, blob);
       setEstado("listo");
       router.refresh();
     } catch (err) {
