@@ -85,6 +85,7 @@ export default async function PaginaProyecto({ params, searchParams }: { params:
           <div className="min-w-0">
             <h2 className="titulo text-4xl md:text-5xl">{proyecto.nombre}</h2>
             <p className="mt-1 text-sm text-muted">
+              {proyecto.visibilidad === "privado" && <span className="mr-2 rounded-full bg-tinta/[0.08] px-2 py-0.5 text-[11px] font-semibold text-tinta">Personal</span>}
               {proyecto.tipo.charAt(0).toUpperCase() + proyecto.tipo.slice(1)}
               {proyecto.cliente ? ` · ${proyecto.cliente}` : ""}
             </p>
@@ -143,7 +144,7 @@ export default async function PaginaProyecto({ params, searchParams }: { params:
               href: `/app/estudio/proyectos/${proyecto.id}?v=${x.v}`,
               t: x.v === "guion" && !permisos.direccion ? "Guion (publicado)" : x.v === "planos" && !permisos.planos ? "Shotlist (publicado)" : x.t,
               d: x.v === "guion" && !permisos.direccion ? "La última versión que publicó dirección" : x.v === "planos" && !permisos.planos ? "Lo que publicó dirección para filmar" : DESCRIPCION[x.v] ?? "",
-              editas: x.v === "guion" || x.v === "desglose" || x.v === "plan" || x.v === "gente" ? permisos.direccion : x.v === "planos" ? permisos.planos : x.v === "presupuesto" ? permisos.productor : x.v === "llamados" || x.v === "dia" ? permisos.direccion : false
+              editas: x.v === "planos" || x.v === "storyboard" ? permisos.planos : x.v === "presupuesto" ? permisos.productor : x.v === "llamado" ? false : permisos.direccion
             }))}
           hoy={hoy}
         />

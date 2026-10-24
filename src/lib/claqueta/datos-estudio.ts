@@ -53,6 +53,9 @@ export type EstadoProspecto = (typeof ESTADOS_PROSPECTO)[number];
 export type Proyecto = {
   id: string;
   equipo_id: string;
+  // equipo = del estudio (lo ve todo el equipo); privado = personal.
+  visibilidad: "equipo" | "privado";
+  creado_por: string | null;
   nombre: string;
   tipo: string;
   cliente: string | null;
@@ -117,7 +120,7 @@ export async function cargarProyectos(): Promise<Proyecto[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("proyectos")
-    .select("id, equipo_id, nombre, tipo, cliente, prospecto_id, estado, logline, duracion_seg, creado_en")
+    .select("id, equipo_id, visibilidad, creado_por, nombre, tipo, cliente, prospecto_id, estado, logline, duracion_seg, creado_en")
     .is("archivado_at", null)
     .order("creado_en", { ascending: false });
   return (data ?? []) as Proyecto[];
@@ -185,7 +188,7 @@ export async function cargarProyecto(id: string) {
   const ultimaPub = (tipo: string) =>
     supabase.from("proyecto_publicaciones").select("id, tipo, version, contenido, nota, publicado_por, creado_en").eq("proyecto_id", id).eq("tipo", tipo).order("version", { ascending: false }).limit(1).maybeSingle();
   const [p, l, r, d, pl, pe, lo, pr, rep, din, mi, av, pd, doc, pubG, pubS, pubL] = await Promise.all([
-    supabase.from("proyectos").select("id, equipo_id, nombre, tipo, cliente, prospecto_id, estado, logline, duracion_seg, creado_en").eq("id", id).is("archivado_at", null).maybeSingle(),
+    supabase.from("proyectos").select("id, equipo_id, visibilidad, creado_por, nombre, tipo, cliente, prospecto_id, estado, logline, duracion_seg, creado_en").eq("id", id).is("archivado_at", null).maybeSingle(),
     supabase.from("guion_lineas").select("id, orden, tipo, texto").eq("proyecto_id", id).is("borrado_at", null).order("orden"),
     supabase.from("rodaje_escenas").select("escena_id, dia, orden, llamado").eq("proyecto_id", id),
     supabase.from("desglose").select("id, escena_id, categoria, elemento, nota").eq("proyecto_id", id).is("archivado_at", null).order("creado_en"),
