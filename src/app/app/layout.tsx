@@ -5,6 +5,7 @@ import { contarNoLeidas } from "@/lib/notificaciones";
 import { MARCA } from "@/config/marca";
 import { BotonTema } from "@/components/Tema";
 import { NavApp } from "@/components/NavApp";
+import { ViewportFijo } from "@/components/ViewportFijo";
 import { ContrasenaObligatoria } from "@/components/ContrasenaObligatoria";
 import { Logo } from "@/components/claqueta/Logo";
 import { Captura } from "@/components/claqueta/Captura";
@@ -72,6 +73,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
       </div>
 
       <Captura />
+      <ViewportFijo />
       {!s.contrasenaPropia ? <ContrasenaObligatoria porCelular={esCorreoDeCelular(s.email)} /> : !yo.bienvenidaVista && <Bienvenida nombre={yo.nombre || s.nombre} companeros={yo.companeros.map((c) => c.nombre)} frentes={yo.frentes} />}
     </div>
     </ProveedorEquipo>
