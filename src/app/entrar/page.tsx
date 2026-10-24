@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { MARCA } from "@/config/marca";
 import { FormEntrar } from "./FormEntrar";
 import { Logo } from "@/components/claqueta/Logo";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Entrar" };
 
@@ -15,6 +17,12 @@ const ESTADOS: Record<string, string> = {
 export default async function Entrar({ searchParams }: { searchParams: Promise<{ estado?: string }> }) {
   const { estado } = await searchParams;
   const aviso = estado ? ESTADOS[estado] : null;
+  // Con sesión abierta no hay nada que hacer aquí: el iPhone a veces abre la
+  // app en esta página y parecía que la sesión se había cerrado.
+  if (!estado) {
+    const { data } = await (await createClient()).auth.getUser();
+    if (data.user) redirect("/app");
+  }
 
   return (
     <main className="mx-auto flex min-h-[100dvh] max-w-md flex-col justify-center px-4 py-12">

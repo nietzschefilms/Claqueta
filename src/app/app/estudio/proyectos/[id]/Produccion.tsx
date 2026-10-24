@@ -6,21 +6,9 @@ import { escenasDe, esNoche, paginas, type Escena, type Linea } from "@/lib/claq
 import { dayOutOfDays } from "@/lib/claqueta/produccion";
 import type { Desglose, Plano, RodajeEscena } from "@/lib/claqueta/datos-estudio";
 
-export const CATEGORIAS: { v: string; t: string }[] = [
-  { v: "reparto", t: "Reparto" },
-  { v: "extras", t: "Extras" },
-  { v: "utileria", t: "Utilería" },
-  { v: "vestuario", t: "Vestuario" },
-  { v: "maquillaje", t: "Maquillaje" },
-  { v: "arte", t: "Arte" },
-  { v: "vehiculos", t: "Vehículos" },
-  { v: "efectos", t: "Efectos" },
-  { v: "sonido", t: "Sonido" },
-  { v: "camara", t: "Cámara" },
-  { v: "locacion", t: "Locación" },
-  { v: "otro", t: "Otro" }
-];
-export const nombreCategoria = (v: string) => CATEGORIAS.find((c) => c.v === v)?.t ?? v;
+// Categorías del desglose: viven en lib para usarlas también en el servidor.
+import { CATEGORIAS, nombreCategoria } from "@/lib/claqueta/produccion";
+export { CATEGORIAS, nombreCategoria };
 
 // Colores clásicos del stripboard.
 export function colorTira(e: Escena) {
