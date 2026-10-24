@@ -145,6 +145,31 @@ export type Escena = {
 };
 
 // Parte el guion en escenas. Lo que haya antes de la primera escena no cuenta.
+// Fuera de dirección la base solo deja leer los encabezados de escena. Para la
+// hoja de llamado (personajes, páginas) se rellena con el guion publicado:
+// sus escenas se emparejan en orden con los encabezados visibles (que traen
+// el id que usa el plan de rodaje).
+export function lineasConPublicado(visibles: Linea[], publicadas: { tipo: string; texto: string }[]): Linea[] {
+  if (visibles.some((l) => l.tipo !== "escena") || !publicadas.length) return visibles;
+  const escenas = [...visibles].sort((a, b) => a.orden - b.orden);
+  const out: Linea[] = [];
+  let e = -1;
+  let orden = 0;
+  for (const [i, l] of publicadas.entries()) {
+    if (!(l.tipo in NOMBRE_TIPO)) continue;
+    if (l.tipo === "escena") {
+      e++;
+      const v = escenas[e];
+      orden = v ? v.orden : orden + 1;
+      out.push(v ?? { id: `pub-${i}`, orden, tipo: "escena", texto: l.texto });
+    } else {
+      orden += 0.001;
+      out.push({ id: `pub-${i}`, orden, tipo: l.tipo as TipoLinea, texto: l.texto });
+    }
+  }
+  return out;
+}
+
 export function escenasDe(lineas: Linea[]): Escena[] {
   const orden = [...lineas].sort((a, b) => a.orden - b.orden);
   const out: Escena[] = [];

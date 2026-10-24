@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aFountain, deFountain, escenasDe, huecosEnComun, leerSlug, nombrePersonaje, ordenEntre, paginas, pareceEscena, resumenGuion, rotarTipo, sugerirPlan, type Linea, type Ocupado } from "./estudio";
+import { aFountain, deFountain, escenasDe, huecosEnComun, leerSlug, lineasConPublicado, nombrePersonaje, ordenEntre, paginas, pareceEscena, resumenGuion, rotarTipo, sugerirPlan, type Linea, type Ocupado } from "./estudio";
 
 const oc = (user_id: string, inicio: string, fin: string, tipo: Ocupado["tipo"] = "clase", fecha = "2026-10-05"): Ocupado => ({ user_id, fecha, inicio, fin, tipo });
 
@@ -87,5 +87,32 @@ describe("guion", () => {
     expect(de.filter((x) => x.tipo === "escena").length).toBe(3);
     expect(de.find((x) => x.tipo === "parentesis")?.texto).toBe("hambriento");
     expect(de.filter((x) => x.tipo === "personaje").map((x) => x.texto)).toEqual(["TAQUERO", "CLIENTE (V.O.)", "TAQUERO"]);
+  });
+});
+
+describe("lineasConPublicado", () => {
+  const visibles = [
+    { id: "e1", orden: 1024, tipo: "escena" as const, texto: "INT. OFICINA - DÍA" },
+    { id: "e2", orden: 4096, tipo: "escena" as const, texto: "EXT. CALLE - NOCHE" }
+  ];
+  const publicadas = [
+    { tipo: "nota", texto: "Reglas" },
+    { tipo: "escena", texto: "INT. OFICINA - DÍA" },
+    { tipo: "accion", texto: "JUAN lee." },
+    { tipo: "personaje", texto: "JUAN" },
+    { tipo: "dialogo", texto: "Hola." },
+    { tipo: "escena", texto: "EXT. CALLE - NOCHE" },
+    { tipo: "personaje", texto: "RICARDO" },
+    { tipo: "dialogo", texto: "¡Alto!" }
+  ];
+  it("empareja escenas con sus ids y trae personajes", () => {
+    const esc = escenasDe(lineasConPublicado(visibles, publicadas));
+    expect(esc.map((e) => e.id)).toEqual(["e1", "e2"]);
+    expect(esc[0].personajes).toContain("JUAN");
+    expect(esc[1].personajes).toContain("RICARDO");
+  });
+  it("si ya hay guion completo no lo toca", () => {
+    const completo = [...visibles, { id: "a", orden: 2000, tipo: "accion" as const, texto: "x" }];
+    expect(lineasConPublicado(completo, publicadas)).toBe(completo);
   });
 });

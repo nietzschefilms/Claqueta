@@ -23,12 +23,21 @@ async function nombreProyecto(supabase: Awaited<ReturnType<typeof createClient>>
   return (data?.nombre as string) ?? "el proyecto";
 }
 
+// Solo se liga o se avisa a gente del equipo del proyecto.
+async function esDelEquipo(supabase: Awaited<ReturnType<typeof createClient>>, proyectoId: string, userId: string) {
+  const { data: pr } = await supabase.from("proyectos").select("equipo_id").eq("id", proyectoId).maybeSingle();
+  if (!pr?.equipo_id) return false;
+  const { count } = await supabase.from("equipo_miembros").select("user_id", { count: "exact", head: true }).eq("equipo_id", pr.equipo_id).eq("user_id", userId);
+  return !!count;
+}
+
 // ─── Puestos ─────────────────────────────────────────────────────────────
 export async function asignarPuesto(proyectoId: string, userId: string, puesto: string): Promise<Resultado> {
   const s = await requerirSesion();
   if (!UUID.test(proyectoId) || !UUID.test(userId)) return { ok: false, error: "Persona no válida." };
   if (!esPuesto(puesto)) return { ok: false, error: "Elige el puesto." };
   const supabase = await createClient();
+  if (!(await esDelEquipo(supabase, proyectoId, userId))) return { ok: false, error: "Esa persona no está en tu equipo." };
   const { data: ya } = await supabase.from("proyecto_miembros").select("id, archivado_at").eq("proyecto_id", proyectoId).eq("user_id", userId).eq("puesto", puesto).maybeSingle();
   const { error } = ya
     ? await supabase.from("proyecto_miembros").update({ archivado_at: null }).eq("id", ya.id)
@@ -108,6 +117,7 @@ export async function editarAvance(
     d.titulo = t;
   }
   const supabase = await createClient();
+  if (c.responsable && !(await esDelEquipo(supabase, proyectoId, c.responsable))) return { ok: false, error: "Esa persona no está en tu equipo." };
   const { data, error } = await supabase.from("proyecto_avance").update(d).eq("id", id).eq("proyecto_id", proyectoId).select("titulo, responsable").maybeSingle();
   if (error || !data) return { ok: false, error: "No se guardó." };
   if (c.responsable && c.responsable !== s.userId) {
@@ -122,8 +132,8 @@ export async function archivarAvance(proyectoId: string, id: string): Promise<Re
   await requerirSesion();
   if (!UUID.test(proyectoId) || !UUID.test(id)) return { ok: false, error: "Pendiente no válido." };
   const supabase = await createClient();
-  const { error } = await supabase.from("proyecto_avance").update({ archivado_at: new Date().toISOString() }).eq("id", id).eq("proyecto_id", proyectoId);
-  if (error) return { ok: false, error: "No se pudo quitar." };
+  const { data, error } = await supabase.from("proyecto_avance").update({ archivado_at: new Date().toISOString() }).eq("id", id).eq("proyecto_id", proyectoId).select("id");
+  if (error || !data?.length) return { ok: false, error: "No se pudo quitar. Solo dirección quita pendientes." };
   tocar(proyectoId);
   return { ok: true };
 }
@@ -249,6 +259,8 @@ export async function armarPlanDesdePlanos(proyectoId: string, fecha: string, ll
     }
   }
   poner("Cierre, desmontaje y respaldo de material", "cierre", 45);
+  // El plan es de un solo día: si pasa de medianoche, las horas se revuelven.
+  if (t > 24 * 60) return { ok: false, error: `El plan termina después de medianoche (${hh(t)} del día siguiente). Adelanta el llamado o reparte los planos en dos días.` };
   const { error } = await supabase.from("plan_dia").insert(filas);
   if (error) return { ok: false, error: sinPermiso };
   tocar(proyectoId);
@@ -338,12 +350,18 @@ export async function guardarLlamado(
     d.confirmacion = c.confirmacion;
     d.confirmado_en = c.confirmacion === "confirmado" || c.confirmacion === "no_puede" ? new Date().toISOString() : null;
   }
-  // Cambió la hora o el día: hay que volver a confirmar.
-  if (id && (c.fecha !== undefined || c.llamado !== undefined) && c.confirmacion === undefined) {
-    d.confirmacion = "pendiente";
-    d.confirmado_en = null;
-  }
   const supabase = await createClient();
+  if (c.user_id && !(await esDelEquipo(supabase, proyectoId, c.user_id))) return { ok: false, error: "Esa persona no está en tu equipo." };
+  // Cambió la hora, el día o la persona: hay que volver a confirmar. Un papel
+  // sin actor ("falta") se queda así hasta que alguien lo tome.
+  if (id && (c.fecha !== undefined || c.llamado !== undefined || c.user_id !== undefined) && c.confirmacion === undefined) {
+    const { data: antes } = await supabase.from("personas_proyecto").select("confirmacion, user_id").eq("id", id).maybeSingle();
+    const cambioPersona = c.user_id !== undefined && (c.user_id || null) !== (antes?.user_id ?? null);
+    if (antes && (antes.confirmacion === "confirmado" || antes.confirmacion === "no_puede") && (cambioPersona || c.fecha !== undefined || c.llamado !== undefined)) {
+      d.confirmacion = "pendiente";
+      d.confirmado_en = null;
+    }
+  }
   const { data, error } = id
     ? await supabase.from("personas_proyecto").update(d).eq("id", id).eq("proyecto_id", proyectoId).select("id, user_id, fecha, llamado, rol").maybeSingle()
     : await supabase.from("personas_proyecto").insert({ proyecto_id: proyectoId, ...d }).select("id, user_id, fecha, llamado, rol").maybeSingle();
@@ -407,6 +425,8 @@ export async function hacerMiVersion(proyectoId: string): Promise<Resultado> {
   if (!lineas.length) {
     const { data } = await supabase.from("guion_lineas").select("tipo, texto").eq("proyecto_id", proyectoId).is("borrado_at", null).order("orden");
     lineas = (data ?? []) as { tipo: string; texto: string }[];
+    // Fuera de dirección solo se leen los encabezados: eso no es un guion.
+    if (!lineas.some((l) => l.tipo !== "escena")) lineas = [];
   }
   if (!lineas.length) return { ok: false, error: "Todavía no hay guion publicado para copiar." };
   const nombre = `${pr.nombre} · mi versión`.slice(0, 100);

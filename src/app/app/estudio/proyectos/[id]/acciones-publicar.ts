@@ -44,9 +44,12 @@ export async function publicar(proyectoId: string, tipo: Tipo, nota: string): Pr
   const { error } = await supabase.from("proyecto_publicaciones").insert({ proyecto_id: proyectoId, tipo, version, contenido, nota: n || null, publicado_por: s.userId });
   if (error) return { ok: false, error: tipo === "shotlist" ? "Solo dirección o fotografía publican el shotlist." : "Solo productor, director o asistente de dirección publican esto." };
 
-  // Aviso a todo el equipo del proyecto.
-  const { data: pr } = await supabase.from("proyectos").select("nombre, equipo_id").eq("id", proyectoId).maybeSingle();
-  const { data: gente } = await supabase.from("equipo_miembros").select("user_id").eq("equipo_id", pr?.equipo_id ?? "");
+  // Aviso a todo el equipo del proyecto (en uno personal, solo a sus miembros).
+  const { data: pr } = await supabase.from("proyectos").select("nombre, equipo_id, visibilidad").eq("id", proyectoId).maybeSingle();
+  const { data: gente } =
+    pr?.visibilidad === "privado"
+      ? await supabase.from("proyecto_miembros").select("user_id").eq("proyecto_id", proyectoId).is("archivado_at", null)
+      : await supabase.from("equipo_miembros").select("user_id").eq("equipo_id", pr?.equipo_id ?? "");
   const vista = tipo === "guion" ? "guion" : tipo === "shotlist" ? "planos" : "llamados";
   const quien = s.nombre.split(" ")[0] || "Dirección";
   for (const u of new Set((gente ?? []).map((g) => g.user_id as string).filter((u) => u !== s.userId))) {

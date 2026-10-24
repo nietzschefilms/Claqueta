@@ -43,13 +43,16 @@ export function PlanDia({ proyectoId, bloques, diasRodaje, hoy, puedeEditar }: {
   }, [dia, hoy, router]);
 
   const correr = (f: () => Promise<{ ok: boolean; error?: string; mensaje?: string }>) =>
-    iniciar(async () => {
-      setError(null);
-      setMensaje(null);
-      const r = await f();
-      if (!r.ok) setError(r.error ?? "No se pudo.");
-      else if (r.mensaje) setMensaje(r.mensaje);
-    });
+    new Promise<boolean>((listo) =>
+      iniciar(async () => {
+        setError(null);
+        setMensaje(null);
+        const r = await f();
+        listo(r.ok);
+        if (!r.ok) setError(r.error ?? "No se pudo.");
+        else if (r.mensaje) setMensaje(r.mensaje);
+      })
+    );
 
   const delDia = bloques.filter((b) => b.fecha === dia).sort((a, b) => a.inicio.localeCompare(b.inicio));
   const esHoy = dia === hoy;
@@ -175,7 +178,7 @@ export function PlanDia({ proyectoId, bloques, diasRodaje, hoy, puedeEditar }: {
   );
 }
 
-function NuevoBloque({ onAgregar, sugerida, pendiente }: { onAgregar: (c: { inicio: string; minutos: number; titulo: string; tipo: string }) => void; sugerida: string; pendiente: boolean }) {
+function NuevoBloque({ onAgregar, sugerida, pendiente }: { onAgregar: (c: { inicio: string; minutos: number; titulo: string; tipo: string }) => Promise<boolean>; sugerida: string; pendiente: boolean }) {
   const [titulo, setTitulo] = useState("");
   const [tipo, setTipo] = useState("toma");
   const [inicio, setInicio] = useState(sugerida);
@@ -183,10 +186,9 @@ function NuevoBloque({ onAgregar, sugerida, pendiente }: { onAgregar: (c: { inic
   useEffect(() => setInicio(sugerida), [sugerida]);
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
-        onAgregar({ inicio, minutos, titulo, tipo });
-        setTitulo("");
+        if (await onAgregar({ inicio, minutos, titulo, tipo })) setTitulo("");
       }}
       className="tarjeta space-y-3"
     >

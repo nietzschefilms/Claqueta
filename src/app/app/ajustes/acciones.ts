@@ -18,6 +18,13 @@ export async function guardarPerfil(datos: { nombre: string; telefono: string })
   // Con el cliente de la sesión: RLS garantiza que solo edite su propio perfil.
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
+  // El celular sirve para entrar: no puede repetirse entre cuentas activas.
+  const diez = telefono.replace(/\D/g, "").replace(/^52(?=\d{10}$)/, "");
+  if (diez) {
+    const { data: otros } = await createAdminClient().from("perfiles").select("id, telefono").not("telefono", "is", null).eq("activo", true).neq("id", data.user!.id);
+    if ((otros ?? []).some((o) => String(o.telefono).replace(/\D/g, "").replace(/^52(?=\d{10}$)/, "") === diez))
+      return { ok: false, error: "Ese celular ya es de otra cuenta. Revisa el número o escríbele a soporte." };
+  }
   const { error } = await supabase.from("perfiles").update({ nombre, telefono: telefono || null }).eq("id", data.user!.id);
   if (error) return { ok: false, error: "No se pudo guardar." };
   revalidatePath("/app", "layout");

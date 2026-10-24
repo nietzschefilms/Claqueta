@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { cancelarEvento, crearEvento, type Resultado } from "./acciones";
 import { horaAMinutos, minutosAHora, sumarDias } from "@/lib/claqueta/fechas";
 import type { Ocupado } from "@/lib/claqueta/estudio";
@@ -77,6 +77,7 @@ export function AgendaEquipo({ equipoId, eventos, ocupados, miembros, yo, hoy }:
 
 function FilaEvento({ e, hoy, yo, nombre }: { e: Evento; hoy: string; yo: string; nombre: (id: string | null) => string }) {
   const [seguro, setSeguro] = useState(false);
+  const [fallo, setFallo] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
   const van = e.participantes.length ? e.participantes.map(nombre).join(", ") : "Todo el equipo";
   return (
@@ -96,10 +97,21 @@ function FilaEvento({ e, hoy, yo, nombre }: { e: Evento; hoy: string; yo: string
           {e.creado_por && e.creado_por !== yo ? ` · agendó ${nombre(e.creado_por)}` : ""}
         </p>
         {e.notas && <p className="mt-1 text-xs text-muted">{e.notas}</p>}
+        {fallo && <p className="mt-1 text-xs text-rojo" role="alert">{fallo}</p>}
       </div>
       {seguro ? (
         <div className="flex shrink-0 gap-1">
-          <button type="button" disabled={pendiente} onClick={() => iniciar(async () => void (await cancelarEvento(e.id)))} className="rounded-full bg-rojo px-3 py-1.5 text-xs font-semibold text-white">
+          <button
+            type="button"
+            disabled={pendiente}
+            onClick={() =>
+              iniciar(async () => {
+                const r = await cancelarEvento(e.id);
+                if (!r.ok) setFallo(r.error ?? "No se pudo cancelar.");
+              })
+            }
+            className="rounded-full bg-rojo px-3 py-1.5 text-xs font-semibold text-white"
+          >
             Cancelar cita
           </button>
           <button type="button" onClick={() => setSeguro(false)} className="rounded-full bg-tinta/[0.06] px-3 py-1.5 text-xs">
@@ -142,12 +154,24 @@ function FormEvento({ equipoId, miembros, yo, hoy, inicial, ocupados = [] }: { e
     if (estado?.ok) {
       form.current?.reset();
       setVan([]);
+      setCuando({ fecha: hoy, inicio: "", fin: "" });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estado]);
   const alternar = (id: string) => setVan((v) => (v.includes(id) ? v.filter((x) => x !== id) : [...v, id]));
 
   return (
-    <form ref={form} action={enviar} className="mt-4 space-y-3">
+    // onSubmit en lugar de action: React 19 vacía el form después de una
+    // action aunque falle, y se perdía lo escrito con cualquier error.
+    <form
+      ref={form}
+      onSubmit={(e) => {
+        e.preventDefault();
+        const datos = new FormData(e.currentTarget);
+        startTransition(() => enviar(datos));
+      }}
+      className="mt-4 space-y-3"
+    >
       <input type="hidden" name="equipo_id" value={equipoId} />
       <input type="hidden" name="tipo" value={tipo} />
       {van.map((v) => (

@@ -80,8 +80,8 @@ export async function cancelarEvento(id: string): Promise<Resultado> {
   await requerirSesion();
   if (!UUID.test(id)) return { ok: false, error: "Cita no válida." };
   const supabase = await createClient();
-  const { error } = await supabase.from("eventos").update({ cancelado_at: new Date().toISOString() }).eq("id", id);
-  if (error) return { ok: false, error: "No se pudo cancelar." };
+  const { data, error } = await supabase.from("eventos").update({ cancelado_at: new Date().toISOString() }).eq("id", id).select("id");
+  if (error || !data?.length) return { ok: false, error: "No se pudo cancelar. Solo quien la agendó (o dirección del proyecto) la cancela." };
   refrescar();
   return { ok: true };
 }
@@ -213,8 +213,8 @@ export async function editarProyecto(id: string, cambios: { nombre?: string; log
     patch.estado = cambios.estado;
   }
   const supabase = await createClient();
-  const { error } = await supabase.from("proyectos").update(patch).eq("id", id);
-  if (error) return { ok: false, error: "No se guardó." };
+  const { data, error } = await supabase.from("proyectos").update(patch).eq("id", id).select("id");
+  if (error || !data?.length) return { ok: false, error: "No se guardó. Solo dirección del proyecto lo edita." };
   revalidatePath(`/app/estudio/proyectos/${id}`);
   return { ok: true };
 }
@@ -223,8 +223,8 @@ export async function archivarProyecto(id: string): Promise<Resultado> {
   await requerirSesion();
   if (!UUID.test(id)) return { ok: false, error: "Proyecto no válido." };
   const supabase = await createClient();
-  const { error } = await supabase.from("proyectos").update({ archivado_at: new Date().toISOString() }).eq("id", id);
-  if (error) return { ok: false, error: "No se pudo archivar." };
+  const { data, error } = await supabase.from("proyectos").update({ archivado_at: new Date().toISOString() }).eq("id", id).select("id");
+  if (error || !data?.length) return { ok: false, error: "No se pudo archivar. Solo dirección del proyecto lo archiva." };
   revalidatePath("/app/estudio", "layout");
   return { ok: true };
 }

@@ -6,21 +6,9 @@ import { escenasDe, esNoche, paginas, type Escena, type Linea } from "@/lib/claq
 import { dayOutOfDays } from "@/lib/claqueta/produccion";
 import type { Desglose, Plano, RodajeEscena } from "@/lib/claqueta/datos-estudio";
 
-export const CATEGORIAS: { v: string; t: string }[] = [
-  { v: "reparto", t: "Reparto" },
-  { v: "extras", t: "Extras" },
-  { v: "utileria", t: "Utilería" },
-  { v: "vestuario", t: "Vestuario" },
-  { v: "maquillaje", t: "Maquillaje" },
-  { v: "arte", t: "Arte" },
-  { v: "vehiculos", t: "Vehículos" },
-  { v: "efectos", t: "Efectos" },
-  { v: "sonido", t: "Sonido" },
-  { v: "camara", t: "Cámara" },
-  { v: "locacion", t: "Locación" },
-  { v: "otro", t: "Otro" }
-];
-export const nombreCategoria = (v: string) => CATEGORIAS.find((c) => c.v === v)?.t ?? v;
+// Categorías del desglose: viven en lib para usarlas también en los PDF.
+import { CATEGORIAS, nombreCategoria } from "@/lib/claqueta/produccion";
+export { CATEGORIAS, nombreCategoria };
 
 // Colores clásicos del stripboard.
 export function colorTira(e: Escena) {
@@ -40,41 +28,64 @@ const ESTADOS = [
   { v: "entregado", t: "Entregado" }
 ];
 
-export function EstadoProyecto({ id, estado }: { id: string; estado: string }) {
+// Sin permiso de edición se muestra solo el estado actual.
+export function EstadoProyecto({ id, estado, puedeEditar = true }: { id: string; estado: string; puedeEditar?: boolean }) {
   const [valor, setValor] = useState(estado);
+  const [error, setError] = useState<string | null>(null);
   const [, iniciar] = useTransition();
+  if (!puedeEditar)
+    return <span className="rounded-full bg-tinta/[0.06] px-3 py-1.5 text-xs font-semibold">{ESTADOS.find((e) => e.v === estado)?.t ?? estado}</span>;
   return (
-    <div className="flex flex-wrap gap-1">
-      {ESTADOS.map((e) => (
-        <button
-          key={e.v}
-          type="button"
-          aria-pressed={valor === e.v}
-          onClick={() => {
-            setValor(e.v);
-            iniciar(async () => void (await editarProyecto(id, { estado: e.v })));
-          }}
-          className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${valor === e.v ? "bg-rojo text-white" : "bg-tinta/[0.06] text-muted hover:text-tinta"}`}
-        >
-          {e.t}
-        </button>
-      ))}
+    <div>
+      <div className="flex flex-wrap gap-1">
+        {ESTADOS.map((e) => (
+          <button
+            key={e.v}
+            type="button"
+            aria-pressed={valor === e.v}
+            onClick={() => {
+              const antes = valor;
+              setValor(e.v);
+              iniciar(async () => {
+                const r = await editarProyecto(id, { estado: e.v });
+                setError(r.ok ? null : (r.error ?? "No se guardó."));
+                if (!r.ok) setValor(antes);
+              });
+            }}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-rojo ${valor === e.v ? "bg-rojo text-white" : "bg-tinta/[0.06] text-muted hover:text-tinta"}`}
+          >
+            {e.t}
+          </button>
+        ))}
+      </div>
+      {error && <p className="mt-1 text-right text-xs text-rojo" role="alert">{error}</p>}
     </div>
   );
 }
 
-export function Logline({ id, valor }: { id: string; valor: string | null }) {
+export function Logline({ id, valor, puedeEditar = true }: { id: string; valor: string | null; puedeEditar?: boolean }) {
+  const [error, setError] = useState<string | null>(null);
   const [, iniciar] = useTransition();
+  if (!puedeEditar) return valor ? <p className="mt-3 max-w-2xl text-sm text-muted">{valor}</p> : null;
   return (
-    <textarea
-      defaultValue={valor ?? ""}
-      maxLength={400}
-      rows={2}
-      placeholder="Logline: la historia en una frase."
-      aria-label="Logline"
-      onBlur={(e) => e.target.value !== (valor ?? "") && iniciar(async () => void (await editarProyecto(id, { logline: e.target.value })))}
-      className="campo mt-3 w-full max-w-2xl rounded-2xl py-2 text-sm"
-    />
+    <div>
+      <textarea
+        defaultValue={valor ?? ""}
+        maxLength={400}
+        rows={2}
+        placeholder="Logline: la historia en una frase."
+        aria-label="Logline"
+        onBlur={(e) =>
+          e.target.value !== (valor ?? "") &&
+          iniciar(async () => {
+            const r = await editarProyecto(id, { logline: e.target.value });
+            setError(r.ok ? null : (r.error ?? "No se guardó."));
+          })
+        }
+        className="campo mt-3 w-full max-w-2xl rounded-2xl py-2 text-sm"
+      />
+      {error && <p className="mt-1 text-xs text-rojo" role="alert">{error}</p>}
+    </div>
   );
 }
 

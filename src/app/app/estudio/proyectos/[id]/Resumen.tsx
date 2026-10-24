@@ -21,11 +21,14 @@ function useAccion() {
   const [error, setError] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
   const correr = (f: () => Promise<{ ok: boolean; error?: string }>) =>
-    iniciar(async () => {
-      setError(null);
-      const r = await f();
-      if (!r.ok) setError(r.error ?? "No se pudo.");
-    });
+    new Promise<boolean>((listo) =>
+      iniciar(async () => {
+        setError(null);
+        const r = await f();
+        listo(r.ok);
+        if (!r.ok) setError(r.error ?? "No se pudo.");
+      })
+    );
   return { error, pendiente, correr };
 }
 
@@ -216,15 +219,14 @@ export function Resumen({
   );
 }
 
-function NuevoAvance({ onAgregar }: { onAgregar: (t: string) => void }) {
+function NuevoAvance({ onAgregar }: { onAgregar: (t: string) => Promise<boolean> }) {
   const [t, setT] = useState("");
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         if (!t.trim()) return;
-        onAgregar(t);
-        setT("");
+        if (await onAgregar(t)) setT("");
       }}
       className="flex gap-2 border-t border-borde/60 px-5 py-4"
     >

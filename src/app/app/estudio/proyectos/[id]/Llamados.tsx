@@ -27,80 +27,88 @@ function ligaWhatsApp(p: PersonaProyecto, proyecto: string) {
   return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
 }
 
+// Fila de un llamado. Vive fuera de Llamados para que React no la vuelva a
+// montar en cada render (perdía el foco al pasar de la fecha a la hora).
+type CtxFila = { proyectoId: string; nombre: string; yo: string; equipo: Persona[]; puedeEditar: boolean; pendiente: boolean; correr: (f: () => Promise<{ ok: boolean; error?: string }>) => void };
+function Fila({ p, proyectoId, nombre, yo, equipo, puedeEditar, pendiente, correr }: { p: PersonaProyecto } & CtxFila) {
+  const wa = ligaWhatsApp(p, nombre);
+  const ligado = equipo.find((e) => e.id === p.user_id);
+  return (
+    <li className="space-y-2 px-5 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-semibold">
+            {p.nombre}
+            {ligado && <span className="ml-2 rounded-full bg-tinta/[0.06] px-2 py-0.5 text-[10px] font-semibold">Equipo</span>}
+          </p>
+          <p className="text-xs text-muted">{p.rol}</p>
+        </div>
+        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${ESTADO[p.confirmacion].clase}`}>{ESTADO[p.confirmacion].t}</span>
+      </div>
+      {puedeEditar ? (
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <input
+            type="date"
+            list={`dias-${proyectoId}`}
+            defaultValue={p.fecha ?? ""}
+            aria-label={`Día de llamado de ${p.nombre}`}
+            onBlur={(e) => e.target.value !== (p.fecha ?? "") && correr(() => guardarLlamado(proyectoId, p.id, { fecha: e.target.value || null }))}
+            className="campo w-auto rounded-full py-1.5 font-mono text-xs"
+          />
+          <input type="time" defaultValue={p.llamado?.slice(0, 5) ?? ""} aria-label={`Hora de llamado de ${p.nombre}`} onBlur={(e) => e.target.value !== (p.llamado?.slice(0, 5) ?? "") && correr(() => guardarLlamado(proyectoId, p.id, { llamado: e.target.value || null }))} className="campo w-auto rounded-full py-1.5 font-mono text-xs" />
+          <input defaultValue={p.telefono ?? ""} inputMode="tel" maxLength={40} placeholder="WhatsApp" aria-label={`Teléfono de ${p.nombre}`} onBlur={(e) => e.target.value !== (p.telefono ?? "") && correr(() => guardarLlamado(proyectoId, p.id, { telefono: e.target.value }))} className="campo w-32 rounded-full py-1.5 text-xs" />
+          <select value={p.user_id ?? ""} aria-label={`Cuenta de ${p.nombre}`} onChange={(e) => correr(() => guardarLlamado(proyectoId, p.id, { user_id: e.target.value || null }))} className="campo w-auto rounded-full py-1.5 text-xs">
+            <option value="">Sin cuenta en Claqueta</option>
+            {equipo.map((e) => (
+              <option key={e.id} value={e.id}>Es {e.id === yo ? "yo" : e.nombre}</option>
+            ))}
+          </select>
+          <select value={p.confirmacion} aria-label={`Confirmación de ${p.nombre}`} onChange={(e) => correr(() => guardarLlamado(proyectoId, p.id, { confirmacion: e.target.value }))} className="campo w-auto rounded-full py-1.5 text-xs">
+            {(Object.keys(ESTADO) as Confirmacion[]).map((k) => (
+              <option key={k} value={k}>{ESTADO[k].t}</option>
+            ))}
+          </select>
+          {wa && (
+            <a href={wa} target="_blank" rel="noopener noreferrer" className="btn-secundario px-3 py-1.5 text-xs">
+              Mandar por WhatsApp
+            </a>
+          )}
+          <button type="button" aria-label={`Quitar a ${p.nombre}`} onClick={() => correr(() => archivarPersona(proyectoId, p.id))} className="ml-auto text-muted hover:text-tinta">✕</button>
+        </div>
+      ) : (
+        <p className="cifra text-xs text-muted">
+          {p.fecha ? fechaCorta(p.fecha) : "Día por definir"} · {p.llamado?.slice(0, 5) ?? "hora por definir"}
+        </p>
+      )}
+      {p.user_id === yo && p.confirmacion !== "confirmado" && (
+        <div className="flex gap-2">
+          <button type="button" disabled={pendiente} onClick={() => correr(() => confirmarMiLlamado(proyectoId, p.id, "confirmado"))} className="btn-rojo px-4 py-1.5">Confirmo</button>
+          <button type="button" disabled={pendiente} onClick={() => correr(() => confirmarMiLlamado(proyectoId, p.id, "no_puede"))} className="btn-secundario px-4 py-1.5">No puedo</button>
+        </div>
+      )}
+    </li>
+  );
+}
+
 export function Llamados({ proyectoId, nombre, yo, personas, equipo, diasRodaje, puedeEditar }: { proyectoId: string; nombre: string; yo: string; personas: PersonaProyecto[]; equipo: Persona[]; diasRodaje: string[]; puedeEditar: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
   const correr = (f: () => Promise<{ ok: boolean; error?: string }>) =>
-    iniciar(async () => {
-      setError(null);
-      const r = await f();
-      if (!r.ok) setError(r.error ?? "No se pudo.");
-    });
+    new Promise<boolean>((listo) =>
+      iniciar(async () => {
+        setError(null);
+        const r = await f();
+        listo(r.ok);
+        if (!r.ok) setError(r.error ?? "No se pudo.");
+      })
+    );
 
   const crew = personas.filter((p) => p.tipo === "crew");
   const reparto = personas.filter((p) => p.tipo === "reparto");
   const confirmados = personas.filter((p) => p.confirmacion === "confirmado").length;
   const faltanActores = reparto.filter((p) => p.confirmacion === "falta");
 
-  const Fila = ({ p }: { p: PersonaProyecto }) => {
-    const wa = ligaWhatsApp(p, nombre);
-    const ligado = equipo.find((e) => e.id === p.user_id);
-    return (
-      <li className="space-y-2 px-5 py-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="min-w-0">
-            <p className="font-semibold">
-              {p.nombre}
-              {ligado && <span className="ml-2 rounded-full bg-tinta/[0.06] px-2 py-0.5 text-[10px] font-semibold">Equipo</span>}
-            </p>
-            <p className="text-xs text-muted">{p.rol}</p>
-          </div>
-          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${ESTADO[p.confirmacion].clase}`}>{ESTADO[p.confirmacion].t}</span>
-        </div>
-        {puedeEditar ? (
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <input
-              type="date"
-              list={`dias-${proyectoId}`}
-              defaultValue={p.fecha ?? ""}
-              aria-label={`Día de llamado de ${p.nombre}`}
-              onBlur={(e) => e.target.value !== (p.fecha ?? "") && correr(() => guardarLlamado(proyectoId, p.id, { fecha: e.target.value || null }))}
-              className="campo w-auto rounded-full py-1.5 font-mono text-xs"
-            />
-            <input type="time" defaultValue={p.llamado?.slice(0, 5) ?? ""} aria-label={`Hora de llamado de ${p.nombre}`} onBlur={(e) => e.target.value !== (p.llamado?.slice(0, 5) ?? "") && correr(() => guardarLlamado(proyectoId, p.id, { llamado: e.target.value || null }))} className="campo w-auto rounded-full py-1.5 font-mono text-xs" />
-            <input defaultValue={p.telefono ?? ""} inputMode="tel" maxLength={40} placeholder="WhatsApp" aria-label={`Teléfono de ${p.nombre}`} onBlur={(e) => e.target.value !== (p.telefono ?? "") && correr(() => guardarLlamado(proyectoId, p.id, { telefono: e.target.value }))} className="campo w-32 rounded-full py-1.5 text-xs" />
-            <select value={p.user_id ?? ""} aria-label={`Cuenta de ${p.nombre}`} onChange={(e) => correr(() => guardarLlamado(proyectoId, p.id, { user_id: e.target.value || null }))} className="campo w-auto rounded-full py-1.5 text-xs">
-              <option value="">Sin cuenta en Claqueta</option>
-              {equipo.map((e) => (
-                <option key={e.id} value={e.id}>Es {e.id === yo ? "yo" : e.nombre}</option>
-              ))}
-            </select>
-            <select value={p.confirmacion} aria-label={`Confirmación de ${p.nombre}`} onChange={(e) => correr(() => guardarLlamado(proyectoId, p.id, { confirmacion: e.target.value }))} className="campo w-auto rounded-full py-1.5 text-xs">
-              {(Object.keys(ESTADO) as Confirmacion[]).map((k) => (
-                <option key={k} value={k}>{ESTADO[k].t}</option>
-              ))}
-            </select>
-            {wa && (
-              <a href={wa} target="_blank" rel="noopener noreferrer" className="btn-secundario px-3 py-1.5 text-xs">
-                Mandar por WhatsApp
-              </a>
-            )}
-            <button type="button" aria-label={`Quitar a ${p.nombre}`} onClick={() => correr(() => archivarPersona(proyectoId, p.id))} className="ml-auto text-muted hover:text-tinta">✕</button>
-          </div>
-        ) : (
-          <p className="cifra text-xs text-muted">
-            {p.fecha ? fechaCorta(p.fecha) : "Día por definir"} · {p.llamado?.slice(0, 5) ?? "hora por definir"}
-          </p>
-        )}
-        {p.user_id === yo && p.confirmacion !== "confirmado" && (
-          <div className="flex gap-2">
-            <button type="button" disabled={pendiente} onClick={() => correr(() => confirmarMiLlamado(proyectoId, p.id, "confirmado"))} className="btn-rojo px-4 py-1.5">Confirmo</button>
-            <button type="button" disabled={pendiente} onClick={() => correr(() => confirmarMiLlamado(proyectoId, p.id, "no_puede"))} className="btn-secundario px-4 py-1.5">No puedo</button>
-          </div>
-        )}
-      </li>
-    );
-  };
+  const ctx = { proyectoId, nombre, yo, equipo, puedeEditar, pendiente, correr };
 
   return (
     <div className="space-y-6">
@@ -127,7 +135,7 @@ export function Llamados({ proyectoId, nombre, yo, personas, equipo, diasRodaje,
           <p className="text-sm text-muted">Si la persona tiene cuenta, ligala: le llega el aviso y confirma desde su app. Si no, mándale el llamado por WhatsApp.</p>
         </header>
         <ul className="divide-y divide-borde/60">
-          {crew.map((p) => <Fila key={p.id} p={p} />)}
+          {crew.map((p) => <Fila key={p.id} p={p} {...ctx} />)}
           {crew.length === 0 && <li className="px-5 pb-4 text-sm text-muted">Aún no hay crew en este proyecto.</li>}
         </ul>
         {puedeEditar && <NuevoLlamado tipo="crew" equipo={equipo} yo={yo} onAgregar={(c) => correr(() => guardarLlamado(proyectoId, null, c))} />}
@@ -139,7 +147,7 @@ export function Llamados({ proyectoId, nombre, yo, personas, equipo, diasRodaje,
           <p className="text-sm text-muted">Abre un personaje aunque no tengas a nadie (queda como Falta quién) y cuando lo consigas, pon su nombre.</p>
         </header>
         <ul className="divide-y divide-borde/60">
-          {reparto.map((p) => <Fila key={p.id} p={p} />)}
+          {reparto.map((p) => <Fila key={p.id} p={p} {...ctx} />)}
           {reparto.length === 0 && <li className="px-5 pb-4 text-sm text-muted">Aún no hay personajes con actor.</li>}
         </ul>
         {puedeEditar && <NuevoLlamado tipo="reparto" equipo={equipo} yo={yo} onAgregar={(c) => correr(() => guardarLlamado(proyectoId, null, c))} />}
@@ -149,18 +157,19 @@ export function Llamados({ proyectoId, nombre, yo, personas, equipo, diasRodaje,
   );
 }
 
-function NuevoLlamado({ tipo, equipo, yo, onAgregar }: { tipo: "crew" | "reparto"; equipo: Persona[]; yo: string; onAgregar: (c: { tipo: "crew" | "reparto"; nombre: string; rol: string; user_id?: string | null; confirmacion?: string }) => void }) {
+function NuevoLlamado({ tipo, equipo, yo, onAgregar }: { tipo: "crew" | "reparto"; equipo: Persona[]; yo: string; onAgregar: (c: { tipo: "crew" | "reparto"; nombre: string; rol: string; user_id?: string | null; confirmacion?: string }) => Promise<boolean> }) {
   const [nombre, setNombre] = useState("");
   const [rol, setRol] = useState("");
   const [cuenta, setCuenta] = useState("");
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         const quien = cuenta ? equipo.find((x) => x.id === cuenta)?.nombre ?? nombre : nombre;
         if (!rol.trim()) return;
         if (tipo === "crew" && !quien.trim()) return;
-        onAgregar({ tipo, nombre: quien.trim() || "Por definir", rol, user_id: cuenta || null, confirmacion: tipo === "reparto" && !quien.trim() ? "falta" : "pendiente" });
+        // Se limpia solo si se guardó: si falla, no se pierde lo escrito.
+        if (!(await onAgregar({ tipo, nombre: quien.trim() || "Por definir", rol, user_id: cuenta || null, confirmacion: tipo === "reparto" && !quien.trim() ? "falta" : "pendiente" }))) return;
         setNombre("");
         setRol("");
         setCuenta("");

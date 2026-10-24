@@ -119,11 +119,23 @@ export function Lineamientos({ proyectoId, lineamientos, planos, puedeEditar, co
 // Selector del tipo de proyecto (dirección).
 export function SelectorCategoria({ proyectoId, categoria }: { proyectoId: string; categoria: string | null }) {
   const [pendiente, iniciar] = useTransition();
+  const [valor, setValor] = useState(categoria ?? "");
+  const [error, setError] = useState<string | null>(null);
   return (
+    <span className="inline-flex flex-col items-end">
     <select
-      defaultValue={categoria ?? ""}
+      value={valor}
       disabled={pendiente}
-      onChange={(e) => iniciar(async () => void (await cambiarCategoria(proyectoId, e.target.value || null)))}
+      onChange={(e) => {
+        const antes = valor;
+        const nuevo = e.target.value;
+        setValor(nuevo);
+        iniciar(async () => {
+          const r = await cambiarCategoria(proyectoId, nuevo || null);
+          setError(r.ok ? null : (r.error ?? "No se guardó."));
+          if (!r.ok) setValor(antes);
+        });
+      }}
       aria-label="Tipo de proyecto"
       className="rounded-full bg-tinta/[0.06] px-3 py-1.5 text-xs font-semibold"
     >
@@ -134,5 +146,7 @@ export function SelectorCategoria({ proyectoId, categoria }: { proyectoId: strin
         </option>
       ))}
     </select>
+    {error && <span className="mt-1 text-xs text-rojo" role="alert">{error}</span>}
+    </span>
   );
 }
