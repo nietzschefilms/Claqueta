@@ -248,3 +248,6 @@ export function dayOutOfDays(escenas: Escena[], diaDe: Map<string, string | null
   });
   return { dias, filas };
 }
+
+// Movimientos de cámara del shotlist (las reglas de un ejercicio eligen cuáles valen).
+export const MOVIMIENTOS = ["Fijo", "Paneo", "Tilt", "Zoom", "Dolly", "Travelling", "Steadicam", "Gimbal", "Mano", "Dron", "Grúa"] as const;

@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { notificar } from "@/lib/notificaciones";
 import { esFechaISO } from "@/lib/claqueta/fechas";
 import { AVANCE_BASE, esPuesto, nombrePuesto } from "@/lib/claqueta/puestos";
+import { MOVIMIENTOS } from "@/lib/claqueta/produccion";
+import { CATEGORIAS_PROYECTO, leerLineamiento, partirLineamientos } from "@/lib/claqueta/lineamientos";
 import type { Resultado } from "../../acciones";
 
 // Equipo del proyecto: puestos, avance, plan minuto a minuto, documentos y
@@ -374,6 +376,109 @@ export async function confirmarMiLlamado(proyectoId: string, id: string, valor: 
   for (const u of new Set((jefes ?? []).map((j) => j.user_id as string).filter((u) => u !== s.userId))) {
     await notificar(u, { titulo: valor === "confirmado" ? `${quien} confirmó su llamado` : `${quien} NO puede ir`, cuerpo: nombre, href: `/app/estudio/proyectos/${proyectoId}?v=llamados`, categoria: "operativo", urgente: valor === "no_puede" }).catch(() => {});
   }
+  tocar(proyectoId);
+  return { ok: true };
+}
+
+// ─── Reglas del shotlist ─────────────────────────────────────────────────
+export async function guardarReglas(proyectoId: string, maxPlanos: number | null, permitidos: string[] | null): Promise<Resultado> {
+  await requerirSesion();
+  if (!UUID.test(proyectoId)) return { ok: false, error: "Proyecto no válido." };
+  if (maxPlanos !== null && (!Number.isInteger(maxPlanos) || maxPlanos < 1 || maxPlanos > 999)) return { ok: false, error: "El tope va de 1 a 999 planos." };
+  const lista = permitidos?.filter((m) => (MOVIMIENTOS as readonly string[]).includes(m)) ?? null;
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("proyectos").update({ max_planos: maxPlanos, movimientos_permitidos: lista?.length ? lista : null }).eq("id", proyectoId).select("id");
+  if (error || !data?.length) return { ok: false, error: sinPermiso };
+  tocar(proyectoId);
+  return { ok: true };
+}
+
+// ─── Hacer mi versión ────────────────────────────────────────────────────
+// Copia el guion (lo publicado, o el borrador si eres de dirección) a un
+// proyecto personal: cada quien arma ahí su propio shooting y plantillas.
+export async function hacerMiVersion(proyectoId: string): Promise<Resultado> {
+  const s = await requerirSesion();
+  if (!UUID.test(proyectoId)) return { ok: false, error: "Proyecto no válido." };
+  const supabase = await createClient();
+  const { data: pr } = await supabase.from("proyectos").select("equipo_id, nombre, tipo, logline, max_planos, movimientos_permitidos, categoria").eq("id", proyectoId).maybeSingle();
+  if (!pr) return { ok: false, error: "No encontré el proyecto." };
+  const { data: pub } = await supabase.from("proyecto_publicaciones").select("contenido").eq("proyecto_id", proyectoId).eq("tipo", "guion").order("version", { ascending: false }).limit(1).maybeSingle();
+  let lineas = ((pub?.contenido as { lineas?: { tipo: string; texto: string }[] } | null)?.lineas ?? []) as { tipo: string; texto: string }[];
+  if (!lineas.length) {
+    const { data } = await supabase.from("guion_lineas").select("tipo, texto").eq("proyecto_id", proyectoId).is("borrado_at", null).order("orden");
+    lineas = (data ?? []) as { tipo: string; texto: string }[];
+  }
+  if (!lineas.length) return { ok: false, error: "Todavía no hay guion publicado para copiar." };
+  const nombre = `${pr.nombre} · mi versión`.slice(0, 100);
+  const { data: nuevo, error } = await supabase
+    .from("proyectos")
+    .insert({ equipo_id: pr.equipo_id, nombre, tipo: pr.tipo, logline: pr.logline, visibilidad: "privado", creado_por: s.userId, max_planos: pr.max_planos, movimientos_permitidos: pr.movimientos_permitidos, categoria: pr.categoria })
+    .select("id")
+    .single();
+  if (error || !nuevo) return { ok: false, error: "No se creó tu versión. Inténtalo de nuevo." };
+  await supabase.from("proyecto_miembros").insert({ proyecto_id: nuevo.id, user_id: s.userId, puesto: "productor", creado_por: s.userId });
+  await supabase.from("guion_lineas").insert(lineas.map((l, i) => ({ proyecto_id: nuevo.id, orden: (i + 1) * 1024, tipo: l.tipo, texto: l.texto })));
+  const { data: lin } = await supabase.from("proyecto_lineamientos").select("texto, regla, valor, orden").eq("proyecto_id", proyectoId).is("archivado_at", null);
+  if (lin?.length) await supabase.from("proyecto_lineamientos").insert(lin.map((l) => ({ ...l, proyecto_id: nuevo.id })));
+  await supabase.from("proyecto_avance").insert(
+    ["Mi shotlist", "Mis plantillas de realización", "Mi storyboard (opcional)", "Entregar a la escuela"].map((titulo, i) => ({ proyecto_id: nuevo.id, titulo, orden: (i + 1) * 10 }))
+  );
+  revalidatePath("/app/estudio", "layout");
+  return { ok: true, id: nuevo.id as string, mensaje: "Listo: tu versión personal. Solo tú la ves." };
+}
+
+// ─── Tipo de proyecto y lineamientos ─────────────────────────────────────
+export async function cambiarCategoria(proyectoId: string, categoria: string | null): Promise<Resultado> {
+  await requerirSesion();
+  if (!UUID.test(proyectoId) || (categoria && !CATEGORIAS_PROYECTO.some((c) => c.v === categoria))) return { ok: false, error: "Tipo no válido." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("proyectos").update({ categoria }).eq("id", proyectoId).select("id");
+  if (error || !data?.length) return { ok: false, error: "No se guardó el tipo." };
+  tocar(proyectoId);
+  return { ok: true };
+}
+
+// Pega los lineamientos de la tarea: cada renglón se vuelve una regla. El tope
+// y los movimientos también se vuelven reglas del shotlist.
+export async function importarLineamientos(proyectoId: string, texto: string): Promise<Resultado> {
+  await requerirSesion();
+  if (!UUID.test(proyectoId)) return { ok: false, error: "Proyecto no válido." };
+  if (texto.length > 8000) return { ok: false, error: "Es mucho texto. Pega solo los lineamientos." };
+  const lista = partirLineamientos(texto).map(leerLineamiento);
+  if (!lista.length) return { ok: false, error: "No encontré lineamientos. Pega el texto de la tarea, uno por renglón." };
+  const supabase = await createClient();
+  const { data: ult } = await supabase.from("proyecto_lineamientos").select("orden").eq("proyecto_id", proyectoId).order("orden", { ascending: false }).limit(1).maybeSingle();
+  const base = (ult?.orden as number) ?? 0;
+  const { error } = await supabase.from("proyecto_lineamientos").insert(lista.map((l, i) => ({ proyecto_id: proyectoId, texto: l.texto.slice(0, 400), regla: l.regla, valor: l.valor, orden: base + (i + 1) * 10 })));
+  if (error) return { ok: false, error: "Solo dirección agrega lineamientos." };
+  const max = lista.find((l) => l.regla === "max_planos")?.valor?.max ?? null;
+  const permitidos = lista.find((l) => l.valor?.permitidos)?.valor?.permitidos ?? null;
+  const prohibidos = lista.flatMap((l) => l.valor?.prohibidos ?? []);
+  const validos = permitidos ?? (prohibidos.length ? MOVIMIENTOS.filter((m) => !prohibidos.includes(m)) : null);
+  if (max !== null || validos) {
+    await supabase.from("proyectos").update({ ...(max !== null ? { max_planos: max } : {}), ...(validos ? { movimientos_permitidos: validos } : {}) }).eq("id", proyectoId);
+  }
+  tocar(proyectoId);
+  const auto = lista.filter((l) => l.regla !== "manual").length;
+  return { ok: true, mensaje: `Listo: ${lista.length} lineamientos, ${auto} se revisan solos contra el shotlist.` };
+}
+
+export async function marcarLineamiento(proyectoId: string, id: string, cumplido: boolean): Promise<Resultado> {
+  await requerirSesion();
+  if (!UUID.test(proyectoId) || !UUID.test(id)) return { ok: false, error: "Lineamiento no válido." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("proyecto_lineamientos").update({ cumplido }).eq("id", id).eq("proyecto_id", proyectoId).select("id");
+  if (error || !data?.length) return { ok: false, error: "Solo dirección palomea los lineamientos." };
+  tocar(proyectoId);
+  return { ok: true };
+}
+
+export async function archivarLineamiento(proyectoId: string, id: string): Promise<Resultado> {
+  await requerirSesion();
+  if (!UUID.test(proyectoId) || !UUID.test(id)) return { ok: false, error: "Lineamiento no válido." };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("proyecto_lineamientos").update({ archivado_at: new Date().toISOString() }).eq("id", id).eq("proyecto_id", proyectoId).select("id");
+  if (error || !data?.length) return { ok: false, error: "No se pudo quitar." };
   tocar(proyectoId);
   return { ok: true };
 }

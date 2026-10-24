@@ -18,6 +18,10 @@ import { Resumen } from "./Resumen";
 import { Llamados } from "./Llamados";
 import { PlanDia } from "./PlanDia";
 import { BarraPublicar, GuionPublicado, ShotlistPublicado } from "./Publicar";
+import { BotonMiVersion } from "./MiVersion";
+import { ClaquetaDigital } from "./Claqueta";
+import { Lineamientos, SelectorCategoria } from "./Lineamientos";
+import { nombreCategoria as nombreTipoProyecto } from "@/lib/claqueta/lineamientos";
 
 export const metadata: Metadata = { title: "Proyecto" };
 
@@ -32,6 +36,7 @@ const VISTAS = [
   { v: "storyboard", t: "Storyboard", s: "Rodaje", ve: "todos" },
   { v: "plan", t: "Plan de rodaje", s: "Rodaje", ve: "direccion" },
   { v: "dia", t: "Minuto a minuto", s: "Rodaje", ve: "todos" },
+  { v: "claqueta", t: "Claqueta", s: "Rodaje", ve: "todos" },
   { v: "llamado", t: "Hoja de llamado", s: "Rodaje", ve: "todos" },
   { v: "reporte", t: "Reporte diario", s: "Rodaje", ve: "todos" },
   { v: "llamados", t: "Llamados", s: "Gente", ve: "todos" },
@@ -47,6 +52,7 @@ const DESCRIPCION: Record<string, string> = {
   storyboard: "Un cuadro por plano",
   plan: "Qué escenas se filman cada día",
   dia: "El rodaje minuto a minuto, en vivo",
+  claqueta: "La pizarra del set: anota cada toma",
   llamado: "Hoja para imprimir o mandar en PDF",
   reporte: "Lo que pasó en cada día de rodaje",
   llamados: "Crew call y casting con confirmación",
@@ -73,7 +79,11 @@ export default async function PaginaProyecto({ params, searchParams }: { params:
   const subvistas = visibles.filter((x) => x.s === actual.s);
   const hoy = fechaCDMX();
   const miembros = [{ id: s.userId, nombre: perfil.nombre || s.nombre || "Yo" }, ...perfil.companeros.filter((c) => c.equipo_id === proyecto.equipo_id)];
-  const quien = (id: string | null) => (id === s.userId ? "ti" : miembros.find((m) => m.id === id)?.nombre.split(" ")[0] ?? "dirección");
+  const nombresPub = Object.fromEntries(miembros.map((m) => [m.id, m.id === s.userId ? "ti" : m.nombre.split(" ")[0]]));
+  const nombreDePuesto = (puesto: string) => {
+    const m = datos.miembros.find((x) => x.puesto === puesto);
+    return m ? (miembros.find((x) => x.id === m.user_id)?.nombre.split(" ")[0] ?? "—") : "—";
+  };
   const diasRodaje = [...new Set(rodaje.map((r) => r.dia).filter((d): d is string => !!d))].sort();
   const eventos = vista === "resumen" ? (await cargarEventos(sumarDias(hoy, -60), sumarDias(hoy, 365))).filter((e) => e.proyecto_id === proyecto.id) : [];
 
@@ -90,7 +100,14 @@ export default async function PaginaProyecto({ params, searchParams }: { params:
               {proyecto.cliente ? ` · ${proyecto.cliente}` : ""}
             </p>
           </div>
-          <EstadoProyecto id={proyecto.id} estado={proyecto.estado} />
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {permisos.direccion ? (
+              <SelectorCategoria proyectoId={proyecto.id} categoria={proyecto.categoria ?? null} />
+            ) : (
+              proyecto.categoria && <span className="rounded-full bg-tinta/[0.06] px-3 py-1.5 text-xs font-semibold">{nombreTipoProyecto(proyecto.categoria)}</span>
+            )}
+            <EstadoProyecto id={proyecto.id} estado={proyecto.estado} />
+          </div>
         </div>
         <Logline id={proyecto.id} valor={proyecto.logline} />
         <nav aria-label="Secciones del proyecto" className="sin-barra -mx-4 mt-4 overflow-x-auto px-4 md:mx-0 md:px-0">
@@ -127,6 +144,11 @@ export default async function PaginaProyecto({ params, searchParams }: { params:
         )}
       </div>
 
+      {vista === "resumen" && proyecto.visibilidad !== "privado" && proyecto.categoria === "estudiantil" && <BotonMiVersion proyectoId={proyecto.id} />}
+      {vista === "resumen" && (proyecto.categoria === "estudiantil" || datos.lineamientos.length > 0) && (
+        <Lineamientos proyectoId={proyecto.id} lineamientos={datos.lineamientos} planos={planos} puedeEditar={permisos.direccion} />
+      )}
+      {vista === "planos" && datos.lineamientos.length > 0 && <Lineamientos proyectoId={proyecto.id} lineamientos={datos.lineamientos} planos={planos} puedeEditar={false} compacto />}
       {vista === "resumen" && (
         <Resumen
           proyectoId={proyecto.id}
@@ -144,32 +166,44 @@ export default async function PaginaProyecto({ params, searchParams }: { params:
               href: `/app/estudio/proyectos/${proyecto.id}?v=${x.v}`,
               t: x.v === "guion" && !permisos.direccion ? "Guion (publicado)" : x.v === "planos" && !permisos.planos ? "Shotlist (publicado)" : x.t,
               d: x.v === "guion" && !permisos.direccion ? "La última versión que publicó dirección" : x.v === "planos" && !permisos.planos ? "Lo que publicó dirección para filmar" : DESCRIPCION[x.v] ?? "",
-              editas: x.v === "planos" || x.v === "storyboard" ? permisos.planos : x.v === "presupuesto" ? permisos.productor : x.v === "llamado" ? false : permisos.direccion
+              editas: x.v === "planos" || x.v === "storyboard" || x.v === "claqueta" ? permisos.planos : x.v === "presupuesto" ? permisos.productor : x.v === "llamado" ? false : permisos.direccion
             }))}
           hoy={hoy}
         />
       )}
-      {vista === "llamados" && permisos.direccion && <BarraPublicar proyectoId={proyecto.id} tipo="llamados" ultima={datos.publicado.llamados} nombre={quien} />}
+      {vista === "llamados" && permisos.direccion && <BarraPublicar proyectoId={proyecto.id} tipo="llamados" ultima={datos.publicado.llamados} nombres={nombresPub} />}
       {vista === "llamados" && <Llamados proyectoId={proyecto.id} nombre={proyecto.nombre} yo={s.userId} personas={personas} equipo={miembros} diasRodaje={diasRodaje} puedeEditar={permisos.direccion} />}
       {vista === "dia" && <PlanDia proyectoId={proyecto.id} bloques={datos.planDia} diasRodaje={diasRodaje} hoy={hoy} puedeEditar={permisos.direccion} />}
+      {vista === "claqueta" && (
+        <ClaquetaDigital
+          proyectoId={proyecto.id}
+          nombre={proyecto.nombre}
+          lineas={lineas}
+          planos={planos}
+          director={nombreDePuesto("director")}
+          camara={nombreDePuesto("fotografia")}
+          puedeAnotar={permisos.planos}
+          hoy={hoy}
+        />
+      )}
       {vista === "guion" &&
         (permisos.direccion ? (
           <>
-            <BarraPublicar proyectoId={proyecto.id} tipo="guion" ultima={datos.publicado.guion} nombre={quien} />
+            <BarraPublicar proyectoId={proyecto.id} tipo="guion" ultima={datos.publicado.guion} nombres={nombresPub} />
             <Guion proyectoId={proyecto.id} nombreProyecto={proyecto.nombre} inicial={lineas} yo={s.userId} miembros={miembros} />
           </>
         ) : (
-          <GuionPublicado ultima={datos.publicado.guion} nombre={quien} />
+          <GuionPublicado ultima={datos.publicado.guion} nombres={nombresPub} proyectoId={proyecto.visibilidad !== "privado" ? proyecto.id : undefined} />
         ))}
       {vista === "desglose" && <DesgloseEscenas proyectoId={proyecto.id} lineas={lineas} desglose={desglose} />}
       {vista === "planos" &&
         (permisos.planos ? (
           <>
-            <BarraPublicar proyectoId={proyecto.id} tipo="shotlist" ultima={datos.publicado.shotlist} nombre={quien} />
-            <ListaPlanos proyectoId={proyecto.id} lineas={lineas} planos={planos} />
+            <BarraPublicar proyectoId={proyecto.id} tipo="shotlist" ultima={datos.publicado.shotlist} nombres={nombresPub} />
+            <ListaPlanos proyectoId={proyecto.id} lineas={lineas} planos={planos} reglas={{ max: proyecto.max_planos ?? null, permitidos: proyecto.movimientos_permitidos ?? null, editar: permisos.direccion }} />
           </>
         ) : (
-          <ShotlistPublicado ultima={datos.publicado.shotlist} nombre={quien} />
+          <ShotlistPublicado ultima={datos.publicado.shotlist} nombres={nombresPub} />
         ))}
       {vista === "gente" && <Gente proyectoId={proyecto.id} lineas={lineas} personas={personas} locaciones={locaciones} />}
       {vista === "plan" && <PlanRodaje proyectoId={proyecto.id} lineas={lineas} rodaje={rodaje} planos={planos} hoy={hoy} />}

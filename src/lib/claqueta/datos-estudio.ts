@@ -56,6 +56,10 @@ export type Proyecto = {
   // equipo = del estudio (lo ve todo el equipo); privado = personal.
   visibilidad: "equipo" | "privado";
   creado_por: string | null;
+  // Reglas del shotlist (ejercicios): tope de planos y movimientos válidos.
+  max_planos?: number | null;
+  categoria?: string | null;
+  movimientos_permitidos?: string[] | null;
   nombre: string;
   tipo: string;
   cliente: string | null;
@@ -120,7 +124,7 @@ export async function cargarProyectos(): Promise<Proyecto[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("proyectos")
-    .select("id, equipo_id, visibilidad, creado_por, nombre, tipo, cliente, prospecto_id, estado, logline, duracion_seg, creado_en")
+    .select("id, equipo_id, visibilidad, creado_por, nombre, tipo, cliente, prospecto_id, estado, logline, duracion_seg, creado_en, categoria")
     .is("archivado_at", null)
     .order("creado_en", { ascending: false });
   return (data ?? []) as Proyecto[];
@@ -178,6 +182,7 @@ export type PersonaProyecto = {
 export type MiembroProyecto = { id: string; user_id: string; puesto: string };
 export type Avance = { id: string; titulo: string; estado: "falta" | "en_proceso" | "listo"; responsable: string | null; fecha_limite: string | null; nota: string | null; orden: number; actualizado_por: string | null; actualizado_en: string };
 export type BloqueDia = { id: string; fecha: string; inicio: string; minutos: number; titulo: string; tipo: string; plano_id: string | null; estado: "pendiente" | "en_curso" | "hecho"; empezo_en: string | null; termino_en: string | null };
+export type LineamientoGuardado = { id: string; texto: string; regla: string; valor: { max?: number; permitidos?: string[]; prohibidos?: string[] } | null; cumplido: boolean };
 export type Publicacion = { id: string; tipo: "guion" | "shotlist" | "llamados"; version: number; contenido: unknown; nota: string | null; publicado_por: string | null; creado_en: string };
 export type Documento = { id: string; titulo: string; url: string | null; ruta: string | null; tipo_archivo: string | null; solo_direccion: boolean; creado_por: string | null; creado_en: string };
 export type Locacion = { id: string; lugar: string; direccion: string | null; contacto: string | null; telefono: string | null; permiso: string; estacionamiento: string | null; hospital: string | null; notas: string | null };
@@ -187,8 +192,8 @@ export async function cargarProyecto(id: string) {
   const supabase = await createClient();
   const ultimaPub = (tipo: string) =>
     supabase.from("proyecto_publicaciones").select("id, tipo, version, contenido, nota, publicado_por, creado_en").eq("proyecto_id", id).eq("tipo", tipo).order("version", { ascending: false }).limit(1).maybeSingle();
-  const [p, l, r, d, pl, pe, lo, pr, rep, din, mi, av, pd, doc, pubG, pubS, pubL] = await Promise.all([
-    supabase.from("proyectos").select("id, equipo_id, visibilidad, creado_por, nombre, tipo, cliente, prospecto_id, estado, logline, duracion_seg, creado_en").eq("id", id).is("archivado_at", null).maybeSingle(),
+  const [p, l, r, d, pl, pe, lo, pr, rep, din, mi, av, pd, doc, pubG, pubS, pubL, lin] = await Promise.all([
+    supabase.from("proyectos").select("id, equipo_id, visibilidad, creado_por, nombre, tipo, cliente, prospecto_id, estado, logline, duracion_seg, creado_en, max_planos, movimientos_permitidos, categoria").eq("id", id).is("archivado_at", null).maybeSingle(),
     supabase.from("guion_lineas").select("id, orden, tipo, texto").eq("proyecto_id", id).is("borrado_at", null).order("orden"),
     supabase.from("rodaje_escenas").select("escena_id, dia, orden, llamado").eq("proyecto_id", id),
     supabase.from("desglose").select("id, escena_id, categoria, elemento, nota").eq("proyecto_id", id).is("archivado_at", null).order("creado_en"),
@@ -205,7 +210,8 @@ export async function cargarProyecto(id: string) {
     supabase.from("proyecto_documentos").select("id, titulo, url, ruta, tipo_archivo, solo_direccion, creado_por, creado_en").eq("proyecto_id", id).is("archivado_at", null).order("creado_en"),
     ultimaPub("guion"),
     ultimaPub("shotlist"),
-    ultimaPub("llamados")
+    ultimaPub("llamados"),
+    supabase.from("proyecto_lineamientos").select("id, texto, regla, valor, cumplido").eq("proyecto_id", id).is("archivado_at", null).order("orden")
   ]);
   if (!p.data) return null;
   const dinero = (din.data ?? null) as { imprevistos_pct: string | null; utilidad_pct: string | null; con_iva: boolean | null; precio_cliente: string | null } | null;
@@ -231,6 +237,7 @@ export async function cargarProyecto(id: string) {
     avance: (av.data ?? []) as Avance[],
     planDia: (pd.data ?? []) as BloqueDia[],
     documentos,
+    lineamientos: (lin.data ?? []) as LineamientoGuardado[],
     publicado: {
       guion: (pubG.data ?? null) as Publicacion | null,
       shotlist: (pubS.data ?? null) as Publicacion | null,

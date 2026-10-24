@@ -2,7 +2,8 @@
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { cancelarEvento, crearEvento, type Resultado } from "./acciones";
-import { minutosAHora, sumarDias } from "@/lib/claqueta/fechas";
+import { horaAMinutos, minutosAHora, sumarDias } from "@/lib/claqueta/fechas";
+import type { Ocupado } from "@/lib/claqueta/estudio";
 import type { Evento } from "@/lib/claqueta/datos-estudio";
 
 type Miembro = { id: string; nombre: string };
@@ -31,7 +32,7 @@ const chip = (on: boolean) =>
 
 // Agenda del equipo: el calendario de lo que viene y agendar. Las fechas se
 // acuerdan en persona; aquí cada quien ve lo que le toca.
-export function AgendaEquipo({ equipoId, eventos, miembros, yo, hoy }: { equipoId: string; eventos: Evento[]; miembros: Miembro[]; yo: string; hoy: string }) {
+export function AgendaEquipo({ equipoId, eventos, ocupados, miembros, yo, hoy }: { equipoId: string; eventos: Evento[]; ocupados: Ocupado[]; miembros: Miembro[]; yo: string; hoy: string }) {
   const nombre = (id: string | null) => (id === yo ? "Tú" : miembros.find((m) => m.id === id)?.nombre.split(" ")[0] ?? "Alguien");
   const proximos = eventos.filter((e) => e.fecha >= hoy);
   const meToca = (e: Evento) => e.participantes.length === 0 || e.participantes.includes(yo);
@@ -68,7 +69,7 @@ export function AgendaEquipo({ equipoId, eventos, miembros, yo, hoy }: { equipoI
       <section aria-labelledby="agendar" className="tarjeta aparecer lg:col-span-5">
         <h2 id="agendar" className="titulo text-2xl">Agendar</h2>
         <p className="mt-1 text-sm text-muted">Ya que acordaron la fecha, ponla aquí: a cada quien le sale en su día con aviso.</p>
-        <FormEvento key="vacio" equipoId={equipoId} miembros={miembros} yo={yo} hoy={hoy} inicial={null} />
+        <FormEvento key="vacio" equipoId={equipoId} miembros={miembros} yo={yo} hoy={hoy} inicial={null} ocupados={ocupados} />
       </section>
     </div>
   );
@@ -114,10 +115,28 @@ function FilaEvento({ e, hoy, yo, nombre }: { e: Evento; hoy: string; yo: string
   );
 }
 
-function FormEvento({ equipoId, miembros, yo, hoy, inicial }: { equipoId: string; miembros: Miembro[]; yo: string; hoy: string; inicial: { fecha: string; inicio: string; fin: string } | null }) {
+function FormEvento({ equipoId, miembros, yo, hoy, inicial, ocupados = [] }: { equipoId: string; miembros: Miembro[]; yo: string; hoy: string; inicial: { fecha: string; inicio: string; fin: string } | null; ocupados?: Ocupado[] }) {
+  const [van, setVan] = useState<string[]>([]);
+  const [cuando, setCuando] = useState({ fecha: inicial?.fecha ?? hoy, inicio: inicial?.inicio ?? "", fin: inicial?.fin ?? "" });
+  // Cruce con la escuela y lo demás: quién tiene clase u otra cita a esa hora.
+  const choques = (() => {
+    if (!cuando.fecha || !/^\d{2}:\d{2}/.test(cuando.inicio) || !/^\d{2}:\d{2}/.test(cuando.fin)) return [];
+    const a = horaAMinutos(cuando.inicio.slice(0, 5));
+    const b = horaAMinutos(cuando.fin.slice(0, 5));
+    if (b <= a) return [];
+    const quienes = van.length ? van : miembros.map((m) => m.id);
+    const porPersona = new Map<string, Ocupado[]>();
+    for (const o of ocupados) {
+      if (o.fecha !== cuando.fecha || !quienes.includes(o.user_id) || o.tipo === "bloque") continue;
+      if (horaAMinutos(o.inicio.slice(0, 5)) < b && horaAMinutos(o.fin.slice(0, 5)) > a) porPersona.set(o.user_id, [...(porPersona.get(o.user_id) ?? []), o]);
+    }
+    return [...porPersona.entries()].map(([u, os]) => ({
+      quien: u === yo ? "Tú" : miembros.find((m) => m.id === u)?.nombre.split(" ")[0] ?? "Alguien",
+      que: os.map((o) => `${o.tipo === "clase" ? "clase" : o.tipo === "evento" ? "otra cita" : "algo fijo"} ${o.inicio.slice(0, 5)}–${o.fin.slice(0, 5)}`).join(", ")
+    }));
+  })();
   const [estado, enviar, enviando] = useActionState<Resultado | null, FormData>(crearEvento, null);
   const [tipo, setTipo] = useState<string>("junta");
-  const [van, setVan] = useState<string[]>([]);
   const form = useRef<HTMLFormElement>(null);
   useEffect(() => {
     if (estado?.ok) {
@@ -143,10 +162,23 @@ function FormEvento({ equipoId, miembros, yo, hoy, inicial }: { equipoId: string
         ))}
       </div>
       <div className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2">
-        <input type="date" name="fecha" required min={hoy} defaultValue={inicial?.fecha ?? hoy} aria-label="Fecha" className="campo rounded-full py-2.5 font-mono text-sm" />
-        <input type="time" name="inicio" required defaultValue={inicial?.inicio ?? ""} aria-label="Empieza" className="campo rounded-full py-2.5 font-mono text-sm" />
-        <input type="time" name="fin" required defaultValue={inicial?.fin ?? ""} aria-label="Termina" className="campo rounded-full py-2.5 font-mono text-sm" />
+        <input type="date" name="fecha" required min={hoy} defaultValue={inicial?.fecha ?? hoy} onChange={(e) => setCuando((c) => ({ ...c, fecha: e.target.value }))} aria-label="Fecha" className="campo rounded-full py-2.5 font-mono text-sm" />
+        <input type="time" name="inicio" required defaultValue={inicial?.inicio ?? ""} onChange={(e) => setCuando((c) => ({ ...c, inicio: e.target.value }))} aria-label="Empieza" className="campo rounded-full py-2.5 font-mono text-sm" />
+        <input type="time" name="fin" required defaultValue={inicial?.fin ?? ""} onChange={(e) => setCuando((c) => ({ ...c, fin: e.target.value }))} aria-label="Termina" className="campo rounded-full py-2.5 font-mono text-sm" />
       </div>
+      {choques.length > 0 && (
+        <div className="rounded-2xl border border-aviso/40 bg-aviso/10 px-4 py-3 text-sm" role="status">
+          <p className="font-semibold">Ojo, a esa hora:</p>
+          <ul className="mt-1 space-y-0.5">
+            {choques.map((c) => (
+              <li key={c.quien}>
+                <b>{c.quien}</b> tiene {c.que}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {cuando.inicio && cuando.fin && choques.length === 0 && cuando.fin > cuando.inicio && <p className="text-xs font-semibold text-ok">Todos libres a esa hora.</p>}
       <input name="lugar" maxLength={120} autoComplete="off" placeholder="Lugar (opcional): dirección o link de Meet" aria-label="Lugar" className="campo rounded-full py-2.5 text-sm" />
       {miembros.length > 1 && (
         <fieldset>

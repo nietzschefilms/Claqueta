@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { crearProyecto, type Resultado } from "../acciones";
+import { CATEGORIAS_PROYECTO } from "@/lib/claqueta/lineamientos";
 
 const TIPOS = [
   { v: "spot", t: "Spot" },
@@ -15,6 +16,7 @@ const TIPOS = [
 
 export function NuevoProyecto({ equipoId, prospectos, puedeEstudio }: { equipoId: string; prospectos: { id: string; nombre: string }[]; puedeEstudio: boolean }) {
   const [visibilidad, setVisibilidad] = useState<"equipo" | "privado">(puedeEstudio ? "equipo" : "privado");
+  const [categoria, setCategoria] = useState<string>(puedeEstudio ? "comercial" : "personal");
   const [estado, enviar, enviando] = useActionState<Resultado | null, FormData>(crearProyecto, null);
   const [tipo, setTipo] = useState("spot");
   const router = useRouter();
@@ -27,6 +29,7 @@ export function NuevoProyecto({ equipoId, prospectos, puedeEstudio }: { equipoId
       <input type="hidden" name="equipo_id" value={equipoId} />
       <input type="hidden" name="tipo" value={tipo} />
       <input type="hidden" name="visibilidad" value={visibilidad} />
+      <input type="hidden" name="categoria" value={categoria} />
       {puedeEstudio ? (
         <div className="grid grid-cols-2 gap-1 rounded-2xl bg-tinta/[0.06] p-1" role="group" aria-label="De quién es">
           {([
@@ -53,6 +56,13 @@ export function NuevoProyecto({ equipoId, prospectos, puedeEstudio }: { equipoId
             className={`rounded-full px-3.5 py-2 text-xs font-semibold transition ${tipo === t.v ? "bg-tinta text-fondo" : "bg-tinta/[0.06] text-muted hover:text-tinta"}`}
           >
             {t.t}
+          </button>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Tipo de proyecto">
+        {CATEGORIAS_PROYECTO.map((c) => (
+          <button key={c.v} type="button" aria-pressed={categoria === c.v} onClick={() => setCategoria(c.v)} className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${categoria === c.v ? "bg-rojo text-white" : "bg-tinta/[0.06] text-muted hover:text-tinta"}`}>
+            {c.t}
           </button>
         ))}
       </div>

@@ -173,13 +173,15 @@ export async function crearProyecto(_prev: Resultado | null, form: FormData): Pr
   const prospecto = String(form.get("prospecto_id") ?? "");
   // Del estudio solo los crea el admin; los demás crean proyectos personales.
   const visibilidad = s.esAdmin && form.get("visibilidad") !== "privado" ? "equipo" : "privado";
+  const cat = String(form.get("categoria") ?? "");
+  const categoria = ["estudiantil", "comercial", "distribucion", "personal"].includes(cat) ? cat : null;
   if (!UUID.test(equipo)) return { ok: false, error: "No encontré tu equipo." };
   if (!nombre || nombre.length > 100) return { ok: false, error: "Ponle nombre al proyecto." };
   if (!["spot", "corto", "videoclip", "documental", "serie", "otro"].includes(tipo)) return { ok: false, error: "Elige el tipo de proyecto." };
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("proyectos")
-    .insert({ equipo_id: equipo, nombre, tipo, visibilidad, cliente: cliente || null, prospecto_id: UUID.test(prospecto) ? prospecto : null, creado_por: s.userId })
+    .insert({ equipo_id: equipo, nombre, tipo, visibilidad, categoria, cliente: cliente || null, prospecto_id: UUID.test(prospecto) ? prospecto : null, creado_por: s.userId })
     .select("id")
     .single();
   if (error || !data) return { ok: false, error: "No se creó el proyecto. Inténtalo de nuevo." };

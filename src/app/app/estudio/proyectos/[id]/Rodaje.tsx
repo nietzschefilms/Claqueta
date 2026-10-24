@@ -3,7 +3,8 @@
 import { useMemo, useState, useTransition } from "react";
 import { agregarPlano, archivarPersona, archivarPlano, editarPlano, guardarLocacion, guardarPersona } from "../../acciones";
 import { escenasDe, paginas, type Linea } from "@/lib/claqueta/estudio";
-import { idsReparto } from "@/lib/claqueta/produccion";
+import { MOVIMIENTOS, idsReparto } from "@/lib/claqueta/produccion";
+import { guardarReglas } from "./acciones-equipo";
 import type { Locacion, PersonaProyecto, Plano } from "@/lib/claqueta/datos-estudio";
 import { colorTira } from "./Produccion";
 
@@ -20,7 +21,6 @@ const TAMANOS = [
   { v: "INSERT", t: "Insert" },
   { v: "OTRO", t: "Otro" }
 ];
-const MOVIMIENTOS = ["Fijo", "Paneo", "Tilt", "Dolly", "Travelling", "Steadicam", "Gimbal", "Mano", "Dron", "Grúa"];
 const hm = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60}` : ""}`);
 
 function useGuardar() {
@@ -35,20 +35,30 @@ function useGuardar() {
 }
 
 // ─── Lista de planos ─────────────────────────────────────────────────────
-export function ListaPlanos({ proyectoId, lineas, planos }: { proyectoId: string; lineas: Linea[]; planos: Plano[] }) {
+type Reglas = { max: number | null; permitidos: string[] | null; editar: boolean };
+
+export function ListaPlanos({ proyectoId, lineas, planos, reglas }: { proyectoId: string; lineas: Linea[]; planos: Plano[]; reglas?: Reglas }) {
   const escenas = useMemo(() => escenasDe(lineas), [lineas]);
   const { error, pendiente, correr } = useGuardar();
   const [enSet, setEnSet] = useState(false);
   if (!escenas.length) return <p className="tarjeta text-sm text-muted">Escribe escenas en el guion para armar su lista de planos.</p>;
   const total = planos.reduce((a, p) => a + p.minutos, 0);
   const filmados = planos.filter((p) => p.filmado).length;
+  const tope = reglas?.max ?? null;
+  const pasado = tope !== null && planos.length > tope;
+  const prohibido = (m: string | null) => !!m && !!reglas?.permitidos?.length && !reglas.permitidos.includes(m);
+  const fuera = planos.filter((p) => prohibido(p.movimiento)).length;
 
   return (
     <div className="space-y-4">
       <div className="tarjeta flex flex-wrap items-center gap-4">
         <div>
           <p className="etiqueta">Planos</p>
-          <p className="cifra text-2xl font-semibold">{planos.length}</p>
+          <p className={`cifra text-2xl font-semibold ${pasado ? "text-rojo" : ""}`}>
+            {planos.length}
+            {tope !== null && <span className="text-base text-muted"> de {tope}</span>}
+          </p>
+          {pasado && <p className="text-xs font-semibold text-rojo">Te pasaste por {planos.length - tope!}</p>}
         </div>
         <div>
           <p className="etiqueta">Tiempo estimado</p>
@@ -66,6 +76,7 @@ export function ListaPlanos({ proyectoId, lineas, planos }: { proyectoId: string
           Modo set
         </label>
       </div>
+      {(tope !== null || reglas?.permitidos?.length || reglas?.editar) && <ReglasShotlist proyectoId={proyectoId} reglas={reglas!} fuera={fuera} />}
       {error && <p className="alerta-error">{error}</p>}
       {escenas.map((e) => {
         const ps = planos.filter((p) => p.escena_id === e.id).sort((a, b) => a.orden - b.orden);
@@ -123,7 +134,7 @@ export function ListaPlanos({ proyectoId, lineas, planos }: { proyectoId: string
                       </option>
                     ))}
                   </select>
-                  <select defaultValue={p.movimiento ?? ""} onChange={(ev) => correr(() => editarPlano(proyectoId, p.id, { movimiento: ev.target.value }))} aria-label="Movimiento" className="rounded-full bg-fondo/60 px-2 py-1 text-xs">
+                  <select defaultValue={p.movimiento ?? ""} onChange={(ev) => correr(() => editarPlano(proyectoId, p.id, { movimiento: ev.target.value }))} aria-label="Movimiento" className={`rounded-full px-2 py-1 text-xs ${prohibido(p.movimiento) ? "bg-rojo font-semibold text-white" : "bg-fondo/60"}`} title={prohibido(p.movimiento) ? "Este movimiento no está permitido en este ejercicio" : undefined}>
                     <option value="">Movimiento</option>
                     {MOVIMIENTOS.map((m) => (
                       <option key={m}>{m}</option>
@@ -305,5 +316,55 @@ function NuevoCrew({ onAgregar }: { onAgregar: (nombre: string, rol: string) => 
         <button type="submit" className="btn-primario">Agregar</button>
       </div>
     </form>
+  );
+}
+
+// Reglas del ejercicio: tope de planos y movimientos que valen.
+function ReglasShotlist({ proyectoId, reglas, fuera }: { proyectoId: string; reglas: Reglas; fuera: number }) {
+  const [abierto, setAbierto] = useState(false);
+  const [max, setMax] = useState(reglas.max ? String(reglas.max) : "");
+  const [permitidos, setPermitidos] = useState<string[]>(reglas.permitidos ?? []);
+  const { error, pendiente, correr } = useGuardar();
+  const resumen = [reglas.max ? `máximo ${reglas.max} planos` : null, reglas.permitidos?.length ? `solo ${reglas.permitidos.join(", ").toLowerCase()}` : null].filter(Boolean).join(" · ");
+  return (
+    <section className="tarjeta space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm">
+          <span className="etiqueta mr-2">Reglas</span>
+          {resumen || <span className="text-muted">Sin reglas. Ponlas si es un ejercicio (tope de planos, movimientos permitidos).</span>}
+          {fuera > 0 && <span className="ml-2 font-semibold text-rojo">· {fuera} plano{fuera > 1 ? "s" : ""} con movimiento no permitido</span>}
+        </p>
+        {reglas.editar && (
+          <button type="button" onClick={() => setAbierto((a) => !a)} className="btn-secundario px-3 py-1.5 text-xs">
+            {abierto ? "Cerrar" : "Cambiar reglas"}
+          </button>
+        )}
+      </div>
+      {abierto && (
+        <div className="space-y-3">
+          <label className="flex items-center gap-2 text-sm">
+            Máximo de planos
+            <input type="number" min={1} max={999} value={max} onChange={(e) => setMax(e.target.value)} placeholder="Sin tope" className="campo w-28 rounded-full py-1.5 font-mono text-sm" />
+          </label>
+          <div>
+            <p className="etiqueta mb-1.5">Movimientos permitidos (ninguno marcado = todos)</p>
+            <div className="flex flex-wrap gap-1.5">
+              {MOVIMIENTOS.map((m) => {
+                const on = permitidos.includes(m);
+                return (
+                  <button key={m} type="button" aria-pressed={on} onClick={() => setPermitidos((l) => (on ? l.filter((x) => x !== m) : [...l, m]))} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${on ? "bg-tinta text-fondo" : "bg-tinta/[0.06] text-muted"}`}>
+                    {m}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          {error && <p className="alerta-error">{error}</p>}
+          <button type="button" disabled={pendiente} onClick={() => correr(async () => { const r = await guardarReglas(proyectoId, max ? Number(max) : null, permitidos.length ? permitidos : null); if (r.ok) setAbierto(false); return r; })} className="btn-primario">
+            Guardar reglas
+          </button>
+        </div>
+      )}
+    </section>
   );
 }
