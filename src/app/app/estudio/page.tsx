@@ -2,8 +2,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { requerirSesion } from "@/lib/sesion";
 import { cargarPerfil, cargarTareas } from "@/lib/claqueta/datos";
-import { cargarEventos, cargarOcupado, cargarProspectos } from "@/lib/claqueta/datos-estudio";
-import { fechaCDMX, fechaRelativa, minutosAhoraCDMX, sumarDias } from "@/lib/claqueta/fechas";
+import { cargarEventos, cargarProspectos } from "@/lib/claqueta/datos-estudio";
+import { fechaCDMX, fechaRelativa, sumarDias } from "@/lib/claqueta/fechas";
 import { AgendaEquipo } from "./Agenda";
 
 export const metadata: Metadata = { title: "Estudio" };
@@ -14,9 +14,8 @@ export default async function Estudio() {
   const perfil = await cargarPerfil(s.userId);
   const equipo = perfil.equipos.find((e) => e.frente === "nietzsche") ?? perfil.equipos[0];
   if (!equipo) return null;
-  const [eventos, ocupados, prospectos, tareas] = await Promise.all([
+  const [eventos, prospectos, tareas] = await Promise.all([
     cargarEventos(hoy, sumarDias(hoy, 45)),
-    cargarOcupado(equipo.id, hoy, 7),
     cargarProspectos(),
     cargarTareas(hoy)
   ]);
@@ -30,7 +29,7 @@ export default async function Estudio() {
 
   return (
     <div className="space-y-6">
-      <AgendaEquipo equipoId={equipo.id} eventos={eventos.filter((e) => e.equipo_id === equipo.id)} ocupados={ocupados} miembros={miembros} yo={s.userId} hoy={hoy} ahora={minutosAhoraCDMX()} />
+      <AgendaEquipo equipoId={equipo.id} eventos={eventos.filter((e) => e.equipo_id === equipo.id)} miembros={miembros} yo={s.userId} hoy={hoy} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section aria-labelledby="radar-res" className="tarjeta aparecer">
