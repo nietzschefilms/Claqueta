@@ -10,6 +10,8 @@ const csp = [
   "base-uri 'self'",
   "object-src 'none'",
   "frame-ancestors 'self'",
+  // Playlists de Spotify en el perfil filmmaker.
+  "frame-src 'self' https://open.spotify.com",
   "form-action 'self'",
   "img-src 'self' data: blob: https://*.supabase.co",
   "font-src 'self' https://fonts.gstatic.com",
