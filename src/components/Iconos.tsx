@@ -133,3 +133,12 @@ export const ICONO_MENU: Record<string, (p: P) => React.ReactElement> = {
   "/app/ajustes": IconoAjustes,
   "/app/soporte": IconoSoporte
 };
+
+export function IconoDescarga({ className }: { className?: string }) {
+  return (
+    <svg {...base(className)}>
+      <path d="M12 4v11m0 0-4-4m4 4 4-4" />
+      <path d="M5 19h14" />
+    </svg>
+  );
+}

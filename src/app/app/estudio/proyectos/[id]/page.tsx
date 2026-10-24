@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { requerirSesion } from "@/lib/sesion";
 import { cargarPerfil } from "@/lib/claqueta/datos";
 import { cargarEventos, cargarProyecto } from "@/lib/claqueta/datos-estudio";
-import { escenasDe, esNoche, paginas } from "@/lib/claqueta/estudio";
+import { escenasDe, esNoche, lineasConPublicado, paginas } from "@/lib/claqueta/estudio";
 import { fechaCDMX, sumarDias } from "@/lib/claqueta/fechas";
 import { Guion } from "./Guion";
 import { BotonImprimir, DesgloseEscenas, EstadoProyecto, Logline, PlanRodaje, nombreCategoria } from "./Produccion";
@@ -18,6 +18,7 @@ import { Resumen } from "./Resumen";
 import { Llamados } from "./Llamados";
 import { PlanDia } from "./PlanDia";
 import { BarraPublicar, GuionPublicado, ShotlistPublicado } from "./Publicar";
+import { BotonPdf, TarjetaDescargas } from "@/components/claqueta/Descargas";
 import { BotonMiVersion } from "./MiVersion";
 import { ClaquetaDigital } from "./Claqueta";
 import { Lineamientos, SelectorCategoria } from "./Lineamientos";
@@ -60,6 +61,24 @@ const DESCRIPCION: Record<string, string> = {
   presupuesto: "Costos, utilidad y cotización"
 };
 
+// PDF de cada vista (ruta pdf/[doc]). La claqueta baja el reporte del día.
+const PDF_DE: Partial<Record<string, { doc: string; t: string }>> = {
+  guion: { doc: "guion", t: "Guion" },
+  desglose: { doc: "desglose", t: "Desglose" },
+  planos: { doc: "shotlist", t: "Shotlist" },
+  storyboard: { doc: "storyboard", t: "Storyboard" },
+  plan: { doc: "plan", t: "Plan de rodaje" },
+  dia: { doc: "dia", t: "Minuto a minuto" },
+  llamado: { doc: "llamado", t: "Hoja de llamado" },
+  reporte: { doc: "reporte", t: "Reporte de rodaje" },
+  llamados: { doc: "llamados", t: "Crew call y casting" },
+  gente: { doc: "gente", t: "Reparto y locaciones" },
+  presupuesto: { doc: "presupuesto", t: "Presupuesto" }
+};
+
+// Líneas del último guion publicado (para quien no ve el borrador).
+const guionPublicado = (p: { contenido: unknown } | null) => ((p?.contenido as { lineas?: { tipo: string; texto: string }[] } | null)?.lineas ?? []);
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // PROYECTO · guion en vivo, desglose, plan de rodaje y hoja de llamado.
@@ -72,6 +91,8 @@ export default async function PaginaProyecto({ params, searchParams }: { params:
   if (!datos) notFound();
   const { proyecto, lineas, rodaje, desglose, planos, personas, locaciones, presupuesto } = datos;
   const permisos = permisosDe(datos.miembros.filter((m) => m.user_id === s.userId).map((m) => m.puesto), s.esAdmin);
+  // Igual que la RLS de proyectos (0026): dirección o quien lo creó.
+  const puedeEditarProyecto = permisos.direccion || proyecto.creado_por === s.userId;
   const visibles = VISTAS.filter((x) => x.ve === "todos" || (x.ve === "direccion" ? permisos.direccion : permisos.productor));
   const vista: Vista = visibles.some((x) => x.v === v) ? (v as Vista) : "resumen";
   const actual = visibles.find((x) => x.v === vista)!;
@@ -107,10 +128,10 @@ export default async function PaginaProyecto({ params, searchParams }: { params:
             ) : (
               proyecto.categoria && <span className="rounded-full bg-tinta/[0.06] px-3 py-1.5 text-xs font-semibold">{nombreTipoProyecto(proyecto.categoria)}</span>
             )}
-            <EstadoProyecto id={proyecto.id} estado={proyecto.estado} />
+            <EstadoProyecto id={proyecto.id} estado={proyecto.estado} puedeEditar={puedeEditarProyecto} />
           </div>
         </div>
-        <Logline id={proyecto.id} valor={proyecto.logline} />
+        <Logline id={proyecto.id} valor={proyecto.logline} puedeEditar={puedeEditarProyecto} />
         <nav aria-label="Secciones del proyecto" className="sin-barra -mx-4 mt-4 overflow-x-auto px-4 md:mx-0 md:px-0">
           <div className="flex w-max min-w-full gap-1 rounded-full bg-tinta/[0.06] p-1 md:min-w-0">
             {secciones.map((sec) => {
@@ -143,6 +164,11 @@ export default async function PaginaProyecto({ params, searchParams }: { params:
             ))}
           </nav>
         )}
+        {PDF_DE[vista] && (
+          <div className="mt-3 flex justify-end">
+            <BotonPdf proyectoId={proyecto.id} doc={PDF_DE[vista]!.doc} />
+          </div>
+        )}
       </div>
 
       {vista === "resumen" && proyecto.visibilidad !== "privado" && proyecto.categoria === "estudiantil" && <BotonMiVersion proyectoId={proyecto.id} />}
@@ -150,6 +176,15 @@ export default async function PaginaProyecto({ params, searchParams }: { params:
         <Lineamientos proyectoId={proyecto.id} lineamientos={datos.lineamientos} planos={planos} puedeEditar={permisos.direccion} />
       )}
       {vista === "planos" && datos.lineamientos.length > 0 && <Lineamientos proyectoId={proyecto.id} lineamientos={datos.lineamientos} planos={planos} puedeEditar={false} compacto />}
+      {vista === "resumen" && (
+        <TarjetaDescargas
+          proyectoId={proyecto.id}
+          docs={[
+            ...visibles.map((x) => PDF_DE[x.v]).filter((x): x is { doc: string; t: string } => !!x),
+            ...(datos.lineamientos.length ? [{ doc: "lineamientos", t: "Lineamientos" }] : [])
+          ]}
+        />
+      )}
       {vista === "resumen" && (
         <Resumen
           proyectoId={proyecto.id}
@@ -217,7 +252,16 @@ export default async function PaginaProyecto({ params, searchParams }: { params:
           ajustesIniciales={{ imprevistos_pct: proyecto.imprevistos_pct ?? "10", utilidad_pct: proyecto.utilidad_pct ?? "20", con_iva: proyecto.con_iva !== false, precio_cliente: proyecto.precio_cliente ?? null }}
         />
       )}
-      {vista === "llamado" && <HojasDeLlamado proyectoId={proyecto.id} nombre={proyecto.nombre} cliente={proyecto.cliente} datos={datos} miembros={miembros} hoy={hoy} />}
+      {vista === "llamado" && (
+        <HojasDeLlamado
+          proyectoId={proyecto.id}
+          nombre={proyecto.nombre}
+          cliente={proyecto.cliente}
+          datos={permisos.direccion ? datos : { ...datos, lineas: lineasConPublicado(datos.lineas, guionPublicado(datos.publicado.guion)) }}
+          miembros={miembros}
+          hoy={hoy}
+        />
+      )}
       {vista === "storyboard" && <Storyboard proyectoId={proyecto.id} nombre={proyecto.nombre} lineas={lineas} planos={planos} />}
       {vista === "reporte" && <VistaReporte datos={datos} hoy={hoy} />}
     </div>

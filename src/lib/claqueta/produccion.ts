@@ -251,3 +251,20 @@ export function dayOutOfDays(escenas: Escena[], diaDe: Map<string, string | null
 
 // Movimientos de cámara del shotlist (las reglas de un ejercicio eligen cuáles valen).
 export const MOVIMIENTOS = ["Fijo", "Paneo", "Tilt", "Zoom", "Dolly", "Travelling", "Steadicam", "Gimbal", "Mano", "Dron", "Grúa"] as const;
+
+// Categorías del desglose (breakdown).
+export const CATEGORIAS: { v: string; t: string }[] = [
+  { v: "reparto", t: "Reparto" },
+  { v: "extras", t: "Extras" },
+  { v: "utileria", t: "Utilería" },
+  { v: "vestuario", t: "Vestuario" },
+  { v: "maquillaje", t: "Maquillaje" },
+  { v: "arte", t: "Arte" },
+  { v: "vehiculos", t: "Vehículos" },
+  { v: "efectos", t: "Efectos" },
+  { v: "sonido", t: "Sonido" },
+  { v: "camara", t: "Cámara" },
+  { v: "locacion", t: "Locación" },
+  { v: "otro", t: "Otro" }
+];
+export const nombreCategoria = (v: string) => CATEGORIAS.find((c) => c.v === v)?.t ?? v;

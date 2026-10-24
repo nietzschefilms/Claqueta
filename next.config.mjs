@@ -41,6 +41,10 @@ const nextConfig = {
   // los lee en el <head>: sin eso la app instalada no sabe su alcance y al
   // entrar abre todo en la vista de Safari con la X. Así van siempre en el <head>.
   htmlLimitedBots: /.*/,
+  // PDF del Estudio: react-pdf corre tal cual en Node y las fuentes de marca
+  // se leen del disco, así que deben viajar con la función en Vercel.
+  serverExternalPackages: ["@react-pdf/renderer"],
+  outputFileTracingIncludes: { "/app/estudio/proyectos/[id]/pdf/[doc]": ["./src/lib/pdf/fuentes/**"] },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
