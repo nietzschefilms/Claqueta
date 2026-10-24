@@ -8,6 +8,7 @@ import { prefsDe } from "@/lib/notif-prefs";
 import { MARCA } from "@/config/marca";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { esCorreoDeCelular } from "@/lib/acceso";
+import { embedSpotify, limpiarInstagram, limpiarLetterboxd } from "@/lib/perfil";
 
 export async function guardarPerfil(datos: { nombre: string; telefono: string }) {
   await requerirSesion();
@@ -59,6 +60,44 @@ export async function ponerMiCorreo(texto: string) {
   const { error } = await admin.auth.admin.updateUserById(s.userId, { email: correo, email_confirm: true });
   if (error) return { ok: false, error: /already|exists|registered/i.test(error.message) ? "Ese correo ya lo usa otra cuenta." : "No se pudo guardar el correo." };
   await admin.from("perfiles").update({ correo }).eq("id", s.userId);
+  revalidatePath("/app", "layout");
+  return { ok: true };
+}
+
+// Perfil filmmaker: lo que ve tu equipo (nunca teléfono ni correo).
+export async function guardarPerfilFilmmaker(d: { color: string; bio: string; instagram: string; sitio: string; reel: string; spotify: string; letterboxd: string }) {
+  const s = await requerirSesion();
+  const color = /^#[0-9A-Fa-f]{6}$/.test(d.color) ? d.color : null;
+  const bio = d.bio.trim().slice(0, 160) || null;
+  const instagram = d.instagram.trim() ? limpiarInstagram(d.instagram) : null;
+  if (d.instagram.trim() && !instagram) return { ok: false, error: "Ese Instagram no es válido. Escribe tu usuario, ej. @nietzschefilms." };
+  const liga = (t: string, que: string) => {
+    const u = t.trim();
+    if (!u) return { v: null as string | null };
+    const v = /^https?:\/\//i.test(u) ? u.replace(/^http:/i, "https:") : `https://${u}`;
+    return /^https:\/\/\S+\.\S+$/.test(v) && v.length <= 200 ? { v } : { error: `${que} no es válido. Pega la liga completa.` };
+  };
+  const sitio = liga(d.sitio, "El sitio");
+  const reel = liga(d.reel, "El reel");
+  if ("error" in sitio) return { ok: false, error: sitio.error };
+  if ("error" in reel) return { ok: false, error: reel.error };
+  const spotify = d.spotify.trim() ? (embedSpotify(d.spotify.trim()) ? d.spotify.trim().split("?")[0] : null) : null;
+  if (d.spotify.trim() && !spotify) return { ok: false, error: "Pega la liga de una playlist, álbum o canción de Spotify (Compartir → Copiar enlace)." };
+  const letterboxd = d.letterboxd.trim() ? limpiarLetterboxd(d.letterboxd) : null;
+  if (d.letterboxd.trim() && !letterboxd) return { ok: false, error: "Escribe tu usuario de Letterboxd, ej. jamez." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("perfiles").update({ color, bio, instagram, sitio: sitio.v, reel: reel.v, spotify, letterboxd }).eq("id", s.userId);
+  if (error) return { ok: false, error: "No se guardó tu perfil." };
+  revalidatePath("/app", "layout");
+  return { ok: true };
+}
+
+export async function ponerAvatar(ruta: string | null) {
+  const s = await requerirSesion();
+  if (ruta && !new RegExp(`^${s.userId}/[0-9]{1,16}\\.(jpg|png|webp)$`).test(ruta)) return { ok: false, error: "Foto no válida." };
+  const supabase = await createClient();
+  const { error } = await supabase.from("perfiles").update({ avatar: ruta }).eq("id", s.userId);
+  if (error) return { ok: false, error: "No se guardó la foto." };
   revalidatePath("/app", "layout");
   return { ok: true };
 }

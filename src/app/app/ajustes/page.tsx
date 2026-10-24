@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { CorreoPropio } from "./CorreoPropio";
+import { PerfilFilmmaker } from "./PerfilFilmmaker";
 import { comoSeEntra, esCorreoDeCelular } from "@/lib/acceso";
 import { requerirSesion } from "@/lib/sesion";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -14,7 +15,7 @@ export const metadata: Metadata = { title: "Ajustes" };
 
 export default async function Ajustes() {
   const s = await requerirSesion();
-  const { data: p } = await createAdminClient().from("perfiles").select("nombre, telefono, notif_prefs").eq("id", s.userId).maybeSingle();
+  const { data: p } = await createAdminClient().from("perfiles").select("nombre, telefono, notif_prefs, color, avatar, bio, instagram, sitio, reel, spotify, letterboxd").eq("id", s.userId).maybeSingle();
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
@@ -31,6 +32,28 @@ export default async function Ajustes() {
           <p className="text-sm text-muted">{s.email}</p>
         )}
         <FormPerfil nombre={(p?.nombre as string) ?? ""} telefono={(p?.telefono as string) ?? ""} />
+      </section>
+
+      <section className="tarjeta space-y-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="titulo text-2xl">Tu perfil filmmaker</h2>
+          <Link href={`/app/equipo/${s.userId}`} className="enlace-mono">Ver cómo te ven →</Link>
+        </div>
+        <p className="text-sm text-muted">Lo ve tu equipo en Equipo. Tu teléfono y tu correo no se muestran.</p>
+        <PerfilFilmmaker
+          yo={s.userId}
+          inicial={{
+            nombre: (p?.nombre as string) || s.nombre,
+            color: (p?.color as string) ?? null,
+            avatar: (p?.avatar as string) ?? null,
+            bio: (p?.bio as string) ?? null,
+            instagram: (p?.instagram as string) ?? null,
+            sitio: (p?.sitio as string) ?? null,
+            reel: (p?.reel as string) ?? null,
+            spotify: (p?.spotify as string) ?? null,
+            letterboxd: (p?.letterboxd as string) ?? null
+          }}
+        />
       </section>
 
       <section className="tarjeta space-y-3">

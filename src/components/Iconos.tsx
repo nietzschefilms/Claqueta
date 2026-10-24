@@ -110,12 +110,24 @@ export function IconoMas({ className = "h-6 w-6" }: { className?: string }) {
   );
 }
 
+export function IconoEquipo({ activo, className }: P) {
+  return (
+    <svg {...base(className)}>
+      <circle cx="9" cy="8.5" r="3.2" fill={activo ? "currentColor" : "none"} fillOpacity={0.12} />
+      <path d="M3.5 19c.6-3 2.8-4.8 5.5-4.8s4.9 1.8 5.5 4.8" />
+      <circle cx="16.5" cy="9.5" r="2.5" />
+      <path d="M15.5 14.3c2.5-.3 4.4 1.3 5 4.2" />
+    </svg>
+  );
+}
+
 export const ICONO_MENU: Record<string, (p: P) => React.ReactElement> = {
   "/app": IconoHoy,
   "/app/semana": IconoSemana,
   "/app/estudio": IconoEstudio,
   "/app/escuela": IconoEscuela,
   "/app/tablero": IconoTablero,
+  "/app/equipo": IconoEquipo,
   "/app/dinero": IconoDinero,
   "/app/notificaciones": IconoAvisos,
   "/app/ajustes": IconoAjustes,
