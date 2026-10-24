@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { CampoContrasena } from "@/components/CampoContrasena";
 import { identificadorDeAcceso } from "@/lib/acceso";
+import { entrar as entrarServidor } from "./acciones";
 
 // Login con correo (o celular) y contraseña (el patrón de Rompiendo Tabúes: sin magic
 // link, porque los links se pierden entre WhatsApp y el correo).
@@ -16,20 +16,12 @@ export function FormEntrar() {
   async function entrar(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const usuario = identificadorDeAcceso(email);
-    if (!usuario) return setError("Escribe tu correo o tu celular a 10 dígitos.");
+    if (!identificadorDeAcceso(email)) return setError("Escribe tu correo o tu celular a 10 dígitos.");
     setCargando(true);
-    const { error: err } = await createClient().auth.signInWithPassword({
-      email: usuario,
-      password: pass
-    });
-    if (err) {
+    const r = await entrarServidor(email, pass);
+    if (!r.ok) {
       setCargando(false);
-      setError(
-        /confirm/i.test(err.message)
-          ? "Tu correo aún no está confirmado. Escríbenos para activarlo."
-          : "Usuario o contraseña incorrectos. Revisa y vuelve a intentar."
-      );
+      setError(r.error ?? "No se pudo entrar. Intenta otra vez.");
       return;
     }
     window.location.href = "/app";

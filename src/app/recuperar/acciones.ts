@@ -11,7 +11,14 @@ export async function pedirAcceso(texto: string): Promise<{ ok: boolean; error?:
   const usuario = identificadorDeAcceso(texto);
   if (!usuario) return { ok: false, error: "Escribe tu correo o tu celular a 10 dígitos." };
   const admin = createAdminClient();
-  const { data: p } = await admin.from("perfiles").select("id, nombre, activo").eq("correo", usuario).maybeSingle();
+  // Con celular: por el correo interno o por el teléfono del perfil (si ya puso su correo).
+  let { data: p } = await admin.from("perfiles").select("id, nombre, activo").eq("correo", usuario).maybeSingle();
+  if (!p && !texto.includes("@")) {
+    const cel = texto.replace(/\D/g, "").replace(/^52(?=\d{10}$)/, "");
+    const { data: todos } = await admin.from("perfiles").select("id, nombre, activo, telefono").not("telefono", "is", null);
+    const m = (todos ?? []).filter((x) => String(x.telefono).replace(/\D/g, "").replace(/^52(?=\d{10}$)/, "") === cel);
+    if (m.length === 1) p = m[0];
+  }
   if (!p || p.activo === false) return { ok: true };
   // Una por hora por persona: si pica muchas veces no se llena la bandeja de soporte.
   const haceUnaHora = new Date(Date.now() - 3600_000).toISOString();
