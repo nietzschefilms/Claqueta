@@ -411,3 +411,11 @@ dialog.hoja::backdrop {
     color: transparent;
   }
 }
+
+/* Tutorial guiado (como EK Bars): la tarjeta entra con un salto suave y el
+   foco late en rojo alrededor del botón que se explica. */
+@keyframes tutorial-pop { from { opacity: 0; transform: translateY(8px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes tutorial-latido { 0%, 100% { outline-color: rgb(255 0 0 / 0.95); } 50% { outline-color: rgb(255 0 0 / 0.25); } }
+.tutorial-pop { animation: tutorial-pop 220ms cubic-bezier(.2, .8, .2, 1); }
+.tutorial-foco { outline: 3px solid rgb(255 0 0); outline-offset: 3px; animation: tutorial-latido 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .tutorial-pop, .tutorial-foco { animation: none; } }

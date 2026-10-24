@@ -8,7 +8,7 @@ import { estiloFrente } from "./frente-ui";
 type Escena = { etiqueta: string; titulo: React.ReactNode; texto: React.ReactNode; extra?: React.ReactNode };
 
 // Primera vez en Claqueta: bienvenida a la familia Nietzsche Studios en cinco
-// escenas, como abrir una película. Se ve una vez; al final, el recorrido completo.
+// escenas, como abrir una película. Se ve una vez; al final arranca el tutorial de Hoy.
 export function Bienvenida({ nombre, companeros, frentes }: { nombre: string; companeros: string[]; frentes: FrenteId[] }) {
   const [i, setI] = useState(0);
   const [saliendo, setSaliendo] = useState(false);
@@ -71,7 +71,7 @@ export function Bienvenida({ nombre, companeros, frentes }: { nombre: string; co
           El punto rojo lo es todo<span className="text-rojo">.</span>
         </>
       ),
-      texto: "Cualquier idea, pendiente o tarea: toca el botón rojo y captúrala. Si te pierdes, en Ajustes está el recorrido completo, pantalla por pantalla.",
+      texto: "Cualquier idea, pendiente o tarea: toca el botón rojo y captúrala. Al terminar te enseño cada pantalla botón por botón, y si te pierdes, toca el ? de arriba.",
       extra: (
         <span className="mx-auto mt-6 grid h-16 w-16 place-items-center rounded-full bg-rojo text-3xl font-light text-white shadow-[0_16px_40px_-12px_rgb(255_0_0/0.7)]" aria-hidden="true">
           +
@@ -101,7 +101,7 @@ export function Bienvenida({ nombre, companeros, frentes }: { nombre: string; co
   if (saliendo) return null;
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Bienvenida a Nietzsche Studios" className="fixed inset-0 z-[90] flex flex-col bg-fondo text-tinta">
+    <div data-bienvenida role="dialog" aria-modal="true" aria-label="Bienvenida a Nietzsche Studios" className="fixed inset-0 z-[90] flex flex-col bg-fondo text-tinta">
       <div className="flex items-center justify-between px-5 pt-[calc(env(safe-area-inset-top,0px)+16px)]">
         <span className="etiqueta">{e.etiqueta}</span>
         <button type="button" onClick={terminar} className="enlace-mono text-muted">
@@ -125,18 +125,6 @@ export function Bienvenida({ nombre, companeros, frentes }: { nombre: string; co
           {i > 0 && (
             <button type="button" onClick={() => setI(i - 1)} className="btn-secundario px-5">
               Atrás
-            </button>
-          )}
-          {ultima && (
-            <button
-              type="button"
-              onClick={() => {
-                terminar();
-                window.location.href = "/app/tutorial";
-              }}
-              className="btn-secundario px-5"
-            >
-              Ver el recorrido
             </button>
           )}
           <button type="button" autoFocus onClick={ultima ? terminar : () => setI(i + 1)} className="btn-rojo flex-1 py-3.5 text-base">

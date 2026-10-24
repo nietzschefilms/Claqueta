@@ -107,7 +107,7 @@ export default async function Hoy() {
       <DeProduccion llamados={produccion.llamados} pendientes={produccion.pendientes} hoy={hoy} />
 
       {/* ── Ahora + resumen ── */}
-      <div className="grid gap-4 lg:grid-cols-12">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
         <TarjetaAhora actual={actual} siguiente={siguiente} ahora={ahora} />
 
         <section aria-label="Resumen del día" className="tarjeta aparecer grid grid-cols-3 items-center gap-2 p-4 lg:col-span-5 lg:p-6">
@@ -122,7 +122,7 @@ export default async function Hoy() {
         </section>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-12 lg:items-start">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
         <div className="min-w-0 space-y-6 lg:col-span-5">
           {/* ── Las 3 de hoy ── */}
           <section aria-labelledby="tres" className="tarjeta aparecer p-0">

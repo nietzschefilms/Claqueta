@@ -32,7 +32,7 @@ export default async function Estudio() {
     <div className="space-y-6">
       <AgendaEquipo equipoId={equipo.id} eventos={eventos.filter((e) => e.equipo_id === equipo.id)} ocupados={ocupados} miembros={miembros} yo={s.userId} hoy={hoy} />
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {s.esAdmin && (
         <section aria-labelledby="radar-res" className="tarjeta aparecer">
           <div className="flex items-baseline justify-between">

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { MARCA } from "@/config/marca";
 import { BotonTema } from "@/components/Tema";
+import { BotonTutorial } from "@/components/claqueta/Tutorial";
 import { Logo } from "@/components/claqueta/Logo";
 import { ICONO_MENU, IconoHoy, IconoMas } from "@/components/Iconos";
 import { abrirCaptura } from "@/components/claqueta/Captura";
@@ -17,7 +18,7 @@ type Item = { href: string; label: string };
 // "Más" para el resto; el punto rojo a su lado.
 const PRINCIPALES = ["/app", "/app/estudio", "/app/semana"];
 
-export function NavApp({ items, noLeidas, usuario }: { items: Item[]; noLeidas: number; usuario: string }) {
+export function NavApp({ items, noLeidas, usuario, rol }: { items: Item[]; noLeidas: number; usuario: string; rol: string }) {
   const ruta = usePathname();
   const [mas, setMas] = useState(false);
   useEffect(() => setMas(false), [ruta]);
@@ -81,13 +82,17 @@ export function NavApp({ items, noLeidas, usuario }: { items: Item[]; noLeidas: 
 
           <div className="mt-auto flex items-center justify-between gap-2 border-t border-borde/70 pt-4">
             <p className="min-w-0 truncate font-mono text-[11px] uppercase tracking-wider text-muted">{usuario}</p>
-            <BotonTema />
+            <span className="flex items-center gap-2">
+              <BotonTutorial rol={rol} />
+              <BotonTema />
+            </span>
           </div>
         </div>
       </aside>
 
       {/* ── Celular ── */}
       <div
+        data-barra="abajo"
         className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex items-end gap-2.5 px-3 md:hidden"
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 10px)" }}
       >

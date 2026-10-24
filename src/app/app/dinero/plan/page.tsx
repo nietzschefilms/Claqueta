@@ -60,7 +60,7 @@ export default async function Plan() {
 
       {/* ── Consejos del momento ── */}
       {consejos.length > 0 && (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {consejos.map((c) => (
             <div key={c.titulo} className={`aparecer rounded-tarjeta border p-4 backdrop-blur ${NIVEL[c.nivel]}`}>
               <p className="font-semibold">{c.titulo}</p>
@@ -70,7 +70,7 @@ export default async function Plan() {
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-12 lg:items-start">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
         {/* ── Reparto del ingreso fijo ── */}
         <section aria-labelledby="reparto" className="tarjeta aparecer min-w-0 lg:col-span-7">
           <div className="flex flex-wrap items-baseline justify-between gap-2">

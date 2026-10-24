@@ -115,7 +115,7 @@ export default async function Dinero() {
         </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-12 lg:items-start">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
         <div className="min-w-0 space-y-6 lg:col-span-7">
           {/* ── Gasto rápido ── */}
           <section aria-labelledby="gasto" className="tarjeta aparecer">

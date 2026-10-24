@@ -9,6 +9,7 @@ import { PushActivar } from "@/components/PushActivar";
 import { BotonSalir } from "@/components/BotonSalir";
 import { FormPerfil, PrefsNotif } from "./Formularios";
 import Link from "next/link";
+import { ReiniciarTutoriales } from "./ReiniciarTutoriales";
 import { Encabezado } from "@/components/Encabezado";
 
 export const metadata: Metadata = { title: "Ajustes" };
@@ -62,13 +63,13 @@ export default async function Ajustes() {
         <PrefsNotif inicial={prefsDe(p?.notif_prefs)} />
       </section>
 
-      <Link href="/app/tutorial" className="tarjeta flex items-center justify-between gap-3 transition hover:bg-superficie/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rojo">
+      <section className="tarjeta flex flex-wrap items-center justify-between gap-3">
         <span>
-          <span className="titulo block text-2xl">Recorrido de la app</span>
-          <span className="text-sm text-muted">Pantalla por pantalla, botón por botón.</span>
+          <span className="titulo block text-2xl">Tutoriales</span>
+          <span className="text-sm text-muted">Te vuelvo a enseñar cada pantalla, botón por botón. También está el ? de arriba.</span>
         </span>
-        <span aria-hidden="true" className="text-xl text-muted">→</span>
-      </Link>
+        <ReiniciarTutoriales />
+      </section>
 
       {s.esSoporte && (
         <Link href="/app/soporte" className="tarjeta flex items-center justify-between gap-3 transition hover:bg-superficie/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rojo md:hidden">

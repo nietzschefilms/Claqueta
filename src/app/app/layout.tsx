@@ -16,6 +16,7 @@ import { cargarEventos, vaYo } from "@/lib/claqueta/datos-estudio";
 import { eventoABloque } from "@/lib/claqueta/estudio";
 import { ProveedorEquipo } from "@/components/claqueta/ContextoEquipo";
 import { Bienvenida } from "@/components/claqueta/Bienvenida";
+import { BotonTutorial, Tutorial } from "@/components/claqueta/Tutorial";
 import { esCorreoDeCelular } from "@/lib/acceso";
 import { diaSemana, fechaCDMX, horaAMinutos } from "@/lib/claqueta/fechas";
 import { lugarClase } from "@/lib/claqueta/tipos";
@@ -45,13 +46,14 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
   return (
     <ProveedorEquipo valor={{ yo: s.userId, frentes: yo.frentes, equipos: yo.equipos, companeros: yo.companeros }}>
     <div className="min-h-screen">
-      <header className="vidrio-fuerte zona-arriba sticky top-0 z-30 rounded-none border-x-0 border-t-0 md:hidden">
+      <header data-barra="arriba" className="vidrio-fuerte zona-arriba sticky top-0 z-30 rounded-none border-x-0 border-t-0 md:hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-2.5">
           <Link href="/app" className="flex items-center gap-2.5 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-rojo">
             <Logo className="h-7 w-7" />
             <span className="titulo text-xl">{MARCA.nombreCorto}</span>
           </Link>
           <div className="flex items-center gap-2">
+            <BotonTutorial rol={s.rol} />
             <BotonTema />
             <Link href="/app/notificaciones" aria-label={noLeidas ? `Avisos, ${noLeidas} sin leer` : "Avisos"} className="vidrio relative grid h-10 w-10 place-items-center rounded-full text-tinta transition active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rojo">
               <IconoAvisos className="h-5 w-5" />
@@ -65,8 +67,8 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
       </header>
 
       <div className="mx-auto max-w-[1440px] md:grid md:grid-cols-[236px_minmax(0,1fr)] md:gap-8 md:px-4 lg:gap-10 lg:pr-8">
-        <NavApp items={menu.map(({ href, label }) => ({ href, label }))} noLeidas={noLeidas} usuario={s.nombre || s.email || ""} />
-        <main className="min-w-0 px-4 pb-36 pt-5 md:px-0 md:pb-16 md:pt-8">
+        <NavApp items={menu.map(({ href, label }) => ({ href, label }))} noLeidas={noLeidas} usuario={s.nombre || s.email || ""} rol={s.rol} />
+        <main id="contenido" className="min-w-0 px-4 pb-36 pt-5 md:px-0 md:pb-16 md:pt-8">
           <EnVivo hoy={hoy} bloques={bloquesHoy} sonidoAhora={prefs.sonido_ahora} sonidoPrevio={prefs.sonido_previo} sonidoEntrada={prefs.sonido_entrada} enSilencio={prefs.sonido_en_silencio} />
           {children}
         </main>
@@ -74,6 +76,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
 
       <Captura />
       <ViewportFijo />
+      {s.contrasenaPropia && <Tutorial rol={s.rol} />}
       {!s.contrasenaPropia ? <ContrasenaObligatoria porCelular={esCorreoDeCelular(s.email)} /> : !yo.bienvenidaVista && <Bienvenida nombre={yo.nombre || s.nombre} companeros={yo.companeros.map((c) => c.nombre)} frentes={yo.frentes} />}
     </div>
     </ProveedorEquipo>

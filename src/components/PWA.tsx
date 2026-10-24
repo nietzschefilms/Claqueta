@@ -61,7 +61,12 @@ export function InstalarApp() {
 
     let t: ReturnType<typeof setTimeout> | undefined;
     try {
-      if (!localStorage.getItem(CLAVE_VISTO)) t = setTimeout(() => setAbierto(true), 4000);
+      // Si hay un tutorial en pantalla, el aviso espera a que termine.
+      const abrir = () => {
+        if (document.querySelector("[data-tutorial]")) t = setTimeout(abrir, 3000);
+        else setAbierto(true);
+      };
+      if (!localStorage.getItem(CLAVE_VISTO)) t = setTimeout(abrir, 4000);
     } catch {
       /* sin almacenamiento: no insistimos */
     }
@@ -93,7 +98,7 @@ export function InstalarApp() {
   if (!abierto || SIN_AVISO.some((r) => pathname?.startsWith(r))) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="instalar-titulo">
+    <div data-instalar className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="instalar-titulo">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={cerrar} aria-hidden="true" />
       <div className="vidrio-fuerte aparecer relative w-full max-w-md rounded-[2rem] p-6">
         <h2 id="instalar-titulo" className="titulo text-3xl">Instala {MARCA.nombreCorto}</h2>

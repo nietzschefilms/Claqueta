@@ -23,7 +23,7 @@ export function DeProduccion({ llamados, pendientes, hoy }: { llamados: MiLlamad
   const l = llamados[0];
 
   return (
-    <div className="grid gap-4 lg:grid-cols-12">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
       {error && <p className="alerta-error lg:col-span-12" role="alert">{error}</p>}
       {l && (
         <section className="relative overflow-hidden rounded-tarjeta bg-tinta p-5 text-fondo lg:col-span-5" aria-labelledby="mi-llamado">

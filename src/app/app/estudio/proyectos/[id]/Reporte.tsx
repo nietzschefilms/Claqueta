@@ -96,7 +96,7 @@ export function Reporte({ proyectoId, nombre, lineas, rodaje, planos, reportes, 
           </section>
         )}
 
-        <section className="grid gap-3 md:grid-cols-3">
+        <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
           <label className="block">
             <span className="etiqueta">Clima</span>
             <input key={`${fecha}-clima`} defaultValue={rep.clima ?? ""} maxLength={80} placeholder="Soleado, nublado, lluvia a las 17:00…" onBlur={(e) => guardar("clima", e.target.value)} className="campo mt-1 rounded-full py-2 text-sm" />

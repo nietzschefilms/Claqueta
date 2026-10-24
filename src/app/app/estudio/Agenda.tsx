@@ -40,7 +40,7 @@ export function AgendaEquipo({ equipoId, eventos, ocupados, miembros, yo, hoy }:
   const lista = soloMios ? proximos.filter(meToca) : proximos;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-12 lg:items-start">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
       {/* ── Calendario ── */}
       <section aria-labelledby="proximos" className="tarjeta aparecer p-0 lg:col-span-7">
         <div className="flex flex-wrap items-center justify-between gap-2 px-5 pb-2 pt-5">

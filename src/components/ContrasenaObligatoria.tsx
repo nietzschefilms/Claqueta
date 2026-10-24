@@ -42,7 +42,7 @@ export function ContrasenaObligatoria({ porCelular = false }: { porCelular?: boo
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="pass-titulo">
+    <div data-contrasena className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="pass-titulo">
       <form onSubmit={guardar} className="vidrio-fuerte aparecer w-full max-w-sm space-y-3 rounded-[2rem] p-6">
         <h2 id="pass-titulo" className="titulo text-3xl">Crea tu contraseña</h2>
         <p className="text-sm text-muted">Entraste con una contraseña temporal. Pon una tuya para seguir: al menos {MIN_CONTRASENA} caracteres, con minúsculas, mayúsculas y un número.</p>
